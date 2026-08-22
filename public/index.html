@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ur" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Online Order</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark" id="brandMark">AD</div>
+    <div class="brand-text">
+      <div class="name" id="brandName">Aapki Dukaan</div>
+      <div class="tag" id="brandTag">Seedha order karein</div>
+    </div>
+  </div>
+  <button class="cart-pill" id="cartBtn">🛒 Cart <span id="cartCount">0</span></button>
+</div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Products</h1>
+    <p>Jo chahiye cart mein daalein, phir order confirm karein — humari taraf se aapko WhatsApp pe rabta kiya jayega.</p>
+  </div>
+
+  <div id="productGrid" class="grid"></div>
+  <p id="emptyMsg" class="empty-note" style="display:none;">Filhal koi product list nahi hai.</p>
+</div>
+
+<p class="footer-note">Order karne ke baad humari team aapse WhatsApp par rabta karegi.</p>
+
+<!-- Cart drawer -->
+<div class="overlay" id="cartOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Aapka Cart</h2>
+      <button class="close-btn" id="closeCart">✕</button>
+    </div>
+    <div id="cartLines"></div>
+    <div id="cartEmptyNote" class="empty-note" style="display:none;">Cart khali hai.</div>
+    <div id="cartTotalRow" class="total-row" style="display:none;">
+      <span>Total</span>
+      <span id="cartTotal">Rs 0</span>
+    </div>
+    <button class="btn btn-gold" id="checkoutBtn" style="width:100%;">Order Confirm Karein</button>
+  </div>
+</div>
+
+<!-- Checkout form -->
+<div class="overlay" id="checkoutOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Order Details</h2>
+      <button class="close-btn" id="closeCheckout">✕</button>
+    </div>
+
+    <div class="type-choice">
+      <button id="typeOldBtn">Main Purana Customer Hoon</button>
+      <button id="typeNewBtn">Main Naya Customer Hoon</button>
+    </div>
+
+    <div id="checkoutForm" style="display:none;">
+      <div class="field">
+        <label>Aapka Naam</label>
+        <input id="f_name" placeholder="Naam likhein" />
+      </div>
+      <div class="field">
+        <label>WhatsApp Number</label>
+        <input id="f_whatsapp" placeholder="03xx xxxxxxx" />
+      </div>
+
+      <div id="newOnlyFields" style="display:none;">
+        <div class="field">
+          <label>Dukaan / Shop ka Naam</label>
+          <input id="f_shop" placeholder="Shop ka naam" />
+        </div>
+        <div class="field">
+          <label>Phone / Cell Number</label>
+          <input id="f_phone" placeholder="03xx xxxxxxx" />
+        </div>
+        <div class="field">
+          <label>Address</label>
+          <textarea id="f_address" rows="2" placeholder="Poora pata likhein"></textarea>
+        </div>
+      </div>
+
+      <p id="checkoutError" class="error-text" style="display:none;"></p>
+      <button class="btn btn-navy" id="submitOrderBtn" style="width:100%;">Order Bhejein</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success -->
+<div class="overlay" id="successOverlay" style="display:none;">
+  <div class="sheet success-box">
+    <div class="icon">✅</div>
+    <h2>Order Mil Gaya!</h2>
+    <p style="color:var(--ink-soft); font-size:13.5px;">Shukriya! Humari team jald hi aapse WhatsApp par rabta karegi.</p>
+    <button class="btn btn-gold" id="successCloseBtn" style="margin-top:14px;">Theek Hai</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="store.js"></script>
+</body>
+</html>

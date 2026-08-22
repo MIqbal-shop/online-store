@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ur" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin - Online Store</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- Setup / Login -->
+<div class="admin-login-wrap" id="loginWrap">
+  <div class="card admin-login-card">
+    <h2 id="loginTitle" style="margin-top:0;">Login</h2>
+    <p id="loginSubtitle" style="color:var(--ink-soft); font-size:13px; margin-top:-8px;">Apna admin account access karein.</p>
+    <div class="field"><label>Username</label><input id="loginUsername" /></div>
+    <div class="field"><label>Password</label><input id="loginPassword" type="password" /></div>
+    <div class="field" id="confirmPwField" style="display:none;"><label>Password Dobara Likhein</label><input id="loginPasswordConfirm" type="password" /></div>
+    <p id="loginError" class="error-text" style="display:none;"></p>
+    <button class="btn btn-navy" id="loginSubmitBtn" style="width:100%;">Login Karein</button>
+  </div>
+</div>
+
+<!-- Main admin shell -->
+<div class="admin-shell" id="adminShell" style="display:none;">
+  <div class="admin-side">
+    <div class="name">Admin Panel</div>
+    <button class="admin-tab active" data-tab="products">📦 Products</button>
+    <button class="admin-tab" data-tab="orders">🛍️ Orders</button>
+    <button class="admin-tab" data-tab="settings">🔑 DMS Connection</button>
+    <button class="admin-tab" id="logoutBtn" style="margin-top:20px; color:#f3a9a4;">Logout</button>
+  </div>
+
+  <div class="admin-main">
+    <!-- Products tab -->
+    <div id="tab-products">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h2 style="margin:0;">Products</h2>
+        <button class="btn btn-gold" id="newProductBtn">+ Naya Product</button>
+      </div>
+      <div class="card" id="productsList"></div>
+    </div>
+
+    <!-- Orders tab -->
+    <div id="tab-orders" style="display:none;">
+      <h2>Orders</h2>
+      <div class="card" id="ordersList"></div>
+    </div>
+
+    <!-- Settings tab -->
+    <div id="tab-settings" style="display:none;">
+      <h2>DMS Connection</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        Yeh Website ka link aur neeche wali Secret Key apne DMS ke Settings &gt; "Online Store" section mein daal dein,
+        taake orders khud DMS mein aate rahen.
+      </p>
+      <div class="card" style="padding:16px; margin-top:12px;">
+        <label>Website ka Link</label>
+        <p id="siteUrlBox" class="key-box" style="margin-bottom:14px;"></p>
+        <label>Secret Key</label>
+        <p id="apiKeyBox" class="key-box"></p>
+        <button class="btn btn-ghost" id="regenKeyBtn" style="margin-top:12px;">Nayi Key Banayein</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product edit modal -->
+<div class="overlay" id="productOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="productModalTitle">Naya Product</h2>
+      <button class="close-btn" id="closeProductModal">✕</button>
+    </div>
+    <input type="hidden" id="p_id" />
+    <div class="field"><label>Naam</label><input id="p_name" /></div>
+    <div class="field"><label>Rate (Rs)</label><input id="p_price" type="number" /></div>
+    <div class="field"><label>Unit (piece / carton / kg waghera)</label><input id="p_unit" /></div>
+    <div class="field"><label>Tafseel (optional)</label><textarea id="p_description" rows="2"></textarea></div>
+    <div class="field">
+      <label>Tasveer (optional)</label>
+      <input id="p_image_file" type="file" accept="image/*" />
+      <img id="p_image_preview" style="max-width:120px; margin-top:8px; border-radius:8px; display:none;" />
+    </div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;">
+      <input id="p_active" type="checkbox" style="width:auto;" checked />
+      <label style="margin:0;">Website par dikhayen</label>
+    </div>
+    <p id="productError" class="error-text" style="display:none;"></p>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-navy" id="saveProductBtn" style="flex:1;">Save Karein</button>
+      <button class="btn btn-red" id="deleteProductBtn" style="display:none;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
