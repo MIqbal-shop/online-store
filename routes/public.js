@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
+// GET /api/store-info - branding shown on the storefront (name, tagline,
+// logo). Public because the storefront itself needs it before any login.
+router.get('/store-info', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT store_name, tagline, logo_image FROM store_settings WHERE id=1');
+    res.json({ store: rows[0] || { store_name: 'IQBAL TRADER', tagline: '', logo_image: null } });
+  } catch (err) { next(err); }
+});
+
 // GET /api/products - only what's marked active, newest first is less
 // useful here than a stable order, so plain id order.
 router.get('/products', async (req, res, next) => {

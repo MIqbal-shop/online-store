@@ -56,6 +56,20 @@ router.post('/logout', (req, res) => {
 
 router.use(requireAdmin);
 
+// ---- Store branding (name, tagline, logo) ----
+
+router.put('/store-info', async (req, res, next) => {
+  try {
+    const { store_name, tagline, logo_image } = req.body;
+    if (!store_name || !store_name.trim()) return res.status(400).json({ error: 'Store name is required.' });
+    await pool.query(
+      `UPDATE store_settings SET store_name=$1, tagline=$2, logo_image=$3 WHERE id=1`,
+      [store_name.trim(), tagline || '', logo_image || null]
+    );
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // ---- Products (admin manages its own catalogue, independent of the DMS) ----
 
 router.get('/products', async (req, res, next) => {

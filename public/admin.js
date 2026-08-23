@@ -11,7 +11,7 @@
   async function api(path, opts = {}) {
     const res = await fetch(path, { headers: authHeaders(), ...opts });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Kuch ghalat ho gaya.');
+    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
     return data;
   }
 
@@ -20,10 +20,10 @@
     const data = await fetch('/api/admin/setup-status').then((r) => r.json());
     needsSetup = data.needsSetup;
     if (needsSetup) {
-      $('loginTitle').textContent = 'Admin Account Banayein';
-      $('loginSubtitle').textContent = 'Pehli dafa - apna username aur password set karein.';
+      $('loginTitle').textContent = 'Create Admin Account';
+      $('loginSubtitle').textContent = 'First time here - set your username and password.';
       $('confirmPwField').style.display = 'block';
-      $('loginSubmitBtn').textContent = 'Account Banayein';
+      $('loginSubmitBtn').textContent = 'Create Account';
     }
   }
 
@@ -36,7 +36,7 @@
       let data;
       if (needsSetup) {
         const confirm = $('loginPasswordConfirm').value;
-        if (password !== confirm) throw new Error('Dono password match nahi karte.');
+        if (password !== confirm) throw new Error('Passwords do not match.');
         data = await fetch('/api/admin/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }).then(async (r) => {
           const d = await r.json(); if (!r.ok) throw new Error(d.error); return d;
         });
@@ -67,6 +67,7 @@
     loadProducts();
     loadOrders();
     loadApiKey();
+    loadStoreSettings();
   }
 
   // ---- Tabs ----
@@ -74,7 +75,7 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['products', 'orders', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['products', 'orders', 'store', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
     });
   });
 
@@ -93,7 +94,7 @@
     const box = $('productsList');
     box.innerHTML = '';
     if (products.length === 0) {
-      box.innerHTML = '<div class="empty-note">Abhi koi product nahi hai - "+ Naya Product" se add karein.</div>';
+      box.innerHTML = '<div class="empty-note">No products yet - add one with "+ New Product".</div>';
       return;
     }
     for (const p of products) {
@@ -124,7 +125,7 @@
 
   function openProductModal(product) {
     $('productError').style.display = 'none';
-    $('productModalTitle').textContent = product ? 'Product Edit Karein' : 'Naya Product';
+    $('productModalTitle').textContent = product ? 'Edit Product' : 'New Product';
     $('p_id').value = product?.id || '';
     $('p_name').value = product?.name || '';
     $('p_price').value = product?.price || '';
@@ -163,7 +164,7 @@
       image: currentImageData,
       active: $('p_active').checked,
     };
-    if (!body.name) { errEl.textContent = 'Product ka naam likhein.'; errEl.style.display = 'block'; return; }
+    if (!body.name) { errEl.textContent = 'Please enter a product name.'; errEl.style.display = 'block'; return; }
     try {
       if (id) await api(`/api/admin/products/${id}`, { method: 'PUT', body: JSON.stringify(body) });
       else await api('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
@@ -177,7 +178,7 @@
 
   $('deleteProductBtn').addEventListener('click', async () => {
     const id = $('p_id').value;
-    if (!id || !confirm('Yeh product delete karna hai?')) return;
+    if (!id || !confirm('Delete this product?')) return;
     try {
       await api(`/api/admin/products/${id}`, { method: 'DELETE' });
       $('productOverlay').style.display = 'none';
@@ -197,7 +198,7 @@
     const box = $('ordersList');
     box.innerHTML = '';
     if (orders.length === 0) {
-      box.innerHTML = '<div class="empty-note">Abhi koi order nahi aaya.</div>';
+      box.innerHTML = '<div class="empty-note">No orders yet.</div>';
       return;
     }
     for (const o of orders) {
@@ -207,7 +208,7 @@
       row.style.alignItems = 'flex-start';
       row.innerHTML = `
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(o.customer_name)} <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : 'pill-new'}">${o.status === 'cancelled' ? 'Cancel' : o.status === 'confirmed' ? 'Confirmed' : 'Naya'}</span></div>
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(o.customer_name)} <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : 'pill-new'}">${o.status === 'cancelled' ? 'Cancelled' : o.status === 'confirmed' ? 'Confirmed' : 'New'}</span></div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(o.shop_name || '')} ${o.shop_name ? '·' : ''} ${escapeHtml(o.whatsapp || '')}</div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">${escapeHtml(itemsText)}</div>
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
@@ -216,12 +217,57 @@
       `;
       const cancelBtn = row.querySelector('.cancel-btn');
       if (cancelBtn) cancelBtn.addEventListener('click', async () => {
-        if (!confirm('Yeh order cancel karna hai? DMS mein bhi cancel dikhega.')) return;
+        if (!confirm('Cancel this order? It will also show as cancelled in the DMS.')) return;
         try { await api(`/api/admin/orders/${o.id}/cancel`, { method: 'PUT' }); loadOrders(); } catch (e) { alert(e.message); }
       });
       box.appendChild(row);
     }
   }
+
+  // ---- Store (name, tagline, logo) ----
+  let currentLogoData = null;
+
+  async function loadStoreSettings() {
+    try {
+      const data = await fetch('/api/store-info').then((r) => r.json());
+      const store = data.store || {};
+      $('s_name').value = store.store_name || '';
+      $('s_tagline').value = store.tagline || '';
+      currentLogoData = store.logo_image || null;
+      if (currentLogoData) { $('s_logo_preview').src = currentLogoData; $('s_logo_preview').style.display = 'block'; }
+    } catch (e) { console.error(e); }
+  }
+
+  $('s_logo_file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentLogoData = reader.result;
+      $('s_logo_preview').src = currentLogoData;
+      $('s_logo_preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  $('saveStoreBtn').addEventListener('click', async () => {
+    const errEl = $('storeError');
+    const msgEl = $('storeMsg');
+    errEl.style.display = 'none';
+    msgEl.style.display = 'none';
+    const store_name = $('s_name').value.trim();
+    if (!store_name) { errEl.textContent = 'Please enter a store name.'; errEl.style.display = 'block'; return; }
+    try {
+      await api('/api/admin/store-info', {
+        method: 'PUT',
+        body: JSON.stringify({ store_name, tagline: $('s_tagline').value.trim(), logo_image: currentLogoData }),
+      });
+      msgEl.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  });
 
   // ---- Settings / API key ----
   async function loadApiKey() {
@@ -233,7 +279,7 @@
   }
 
   $('regenKeyBtn').addEventListener('click', async () => {
-    if (!confirm('Nayi key banane se purani key kaam karna band kar degi - DMS mein bhi nayi key dalni hogi. Aage badhein?')) return;
+    if (!confirm('Generating a new key will stop the old one from working - you will need to update it in the DMS too. Continue?')) return;
     try {
       const data = await api('/api/admin/api-key/regenerate', { method: 'POST' });
       $('apiKeyBox').textContent = data.api_key;

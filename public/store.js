@@ -1,15 +1,35 @@
 (() => {
-  const cfg = window.STORE_CONFIG || {};
-  document.getElementById('brandName').textContent = cfg.name || 'Aapki Dukaan';
-  document.getElementById('brandTag').textContent = cfg.tagline || '';
-  document.getElementById('brandMark').textContent = (cfg.name || 'AD').trim().slice(0, 2).toUpperCase();
-
   let products = [];
   let cart = {}; // product_id -> { product, qty }
   let customerType = null; // 'old' | 'new'
 
   const $ = (id) => document.getElementById(id);
   const money = (n) => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-US');
+
+  async function loadStoreInfo() {
+    try {
+      const res = await fetch('/api/store-info');
+      const data = await res.json();
+      const store = data.store || {};
+      if (store.store_name) {
+        document.title = store.store_name;
+        $('brandName').textContent = store.store_name;
+        $('brandMark').textContent = store.store_name.trim().slice(0, 2).toUpperCase();
+      }
+      if (store.tagline) $('brandTag').textContent = store.tagline;
+      if (store.logo_image) {
+        $('brandMark').innerHTML = '';
+        $('brandMark').style.padding = '0';
+        $('brandMark').style.overflow = 'hidden';
+        const img = document.createElement('img');
+        img.src = store.logo_image;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        $('brandMark').appendChild(img);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   async function loadProducts() {
     try {
@@ -31,7 +51,7 @@
       card.className = 'card product-card';
       const qty = cart[p.id]?.qty || 0;
       card.innerHTML = `
-        ${p.image ? `<img class="product-img" src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">Tasveer nahi hai</div>`}
+        ${p.image ? `<img class="product-img" src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}
         <div class="product-body">
           <div class="product-name">${escapeHtml(p.name)}</div>
           ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
@@ -137,11 +157,11 @@
     const phone = $('f_phone').value.trim();
     const address = $('f_address').value.trim();
 
-    if (!customerType) { errEl.textContent = 'Pehle bataiye purana customer hain ya naya.'; errEl.style.display = 'block'; return; }
-    if (!name) { errEl.textContent = 'Naam likhna zaroori hai.'; errEl.style.display = 'block'; return; }
-    if (!whatsapp) { errEl.textContent = 'WhatsApp number likhna zaroori hai.'; errEl.style.display = 'block'; return; }
+    if (!customerType) { errEl.textContent = 'Please select whether you are a new or existing customer.'; errEl.style.display = 'block'; return; }
+    if (!name) { errEl.textContent = 'Please enter your name.'; errEl.style.display = 'block'; return; }
+    if (!whatsapp) { errEl.textContent = 'Please enter your WhatsApp number.'; errEl.style.display = 'block'; return; }
     if (customerType === 'new' && (!shop || !phone || !address)) {
-      errEl.textContent = 'Shop ka naam, phone number aur address zaroori hai.';
+      errEl.textContent = 'Shop name, phone number, and address are required.';
       errEl.style.display = 'block';
       return;
     }
@@ -152,7 +172,7 @@
 
     const btn = $('submitOrderBtn');
     btn.disabled = true;
-    btn.textContent = 'Bhej rahe hain...';
+    btn.textContent = 'Sending...';
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -160,7 +180,7 @@
         body: JSON.stringify({ customer_type: customerType, customer_name: name, shop_name: shop, phone, whatsapp, address, items }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Order bhejte waqt masla hua.');
+      if (!res.ok) throw new Error(data.error || 'Something went wrong while placing your order.');
 
       cart = {};
       updateCartCount();
@@ -173,11 +193,12 @@
       errEl.style.display = 'block';
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Order Bhejein';
+      btn.textContent = 'Place Order';
     }
   });
 
   $('successCloseBtn').addEventListener('click', () => $('successOverlay').style.display = 'none');
 
+  loadStoreInfo();
   loadProducts();
 })();

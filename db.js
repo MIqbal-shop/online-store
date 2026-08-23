@@ -67,6 +67,21 @@ async function init() {
       price NUMERIC
     )
   `);
+  // Store branding - editable from the admin panel (Settings tab), so the
+  // shop name/tagline/logo can be changed any time without touching code.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS store_settings (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      store_name TEXT DEFAULT 'IQBAL TRADER',
+      tagline TEXT DEFAULT 'Order directly from your shop',
+      logo_image TEXT,
+      CONSTRAINT single_row CHECK (id = 1)
+    )
+  `);
+  const seed = await pool.query('SELECT id FROM store_settings WHERE id=1');
+  if (seed.rows.length === 0) {
+    await pool.query(`INSERT INTO store_settings (id, store_name, tagline) VALUES (1, 'IQBAL TRADER', 'Order directly from your shop')`);
+  }
 }
 
 module.exports = { pool, init };
