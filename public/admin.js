@@ -75,7 +75,8 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['products', 'orders', 'store', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['products', 'orders', 'store', 'resets', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      if (btn.dataset.tab === 'resets') loadPasswordResets();
     });
   });
 
@@ -250,6 +251,42 @@ function priceSummary(p) {
       if (cancelBtn) cancelBtn.addEventListener('click', async () => {
         if (!confirm('Cancel this order? It will also show as cancelled in the DMS.')) return;
         try { await api(`/api/admin/orders/${o.id}/cancel`, { method: 'PUT' }); loadOrders(); } catch (e) { alert(e.message); }
+      });
+      box.appendChild(row);
+    }
+  }
+
+  // ---- Password Resets ----
+  async function loadPasswordResets() {
+    try {
+      const data = await api('/api/admin/password-resets');
+      renderPasswordResets(data.resets || []);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderPasswordResets(resets) {
+    const box = $('resetsList');
+    box.innerHTML = '';
+    if (resets.length === 0) {
+      box.innerHTML = '<div class="empty-note">No password reset requests yet.</div>';
+      return;
+    }
+    for (const r of resets) {
+      const row = document.createElement('div');
+      row.className = 'admin-row';
+      row.style.alignItems = 'flex-start';
+      row.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || '')} <span class="pill-status ${r.sent ? 'pill-new' : 'pill-cancelled'}">${r.sent ? 'Sent' : 'Not sent yet'}</span></div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">WhatsApp: ${escapeHtml(r.whatsapp || '')}</div>
+          <div class="key-box" style="margin-top:6px; display:inline-block; padding:6px 12px;">${escapeHtml(r.temp_password)}</div>
+          <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
+        </div>
+        ${!r.sent ? '<button class="btn btn-navy mark-sent-btn">Mark as sent</button>' : ''}
+      `;
+      const markBtn = row.querySelector('.mark-sent-btn');
+      if (markBtn) markBtn.addEventListener('click', async () => {
+        try { await api(`/api/admin/password-resets/${r.id}/sent`, { method: 'PUT' }); loadPasswordResets(); } catch (e) { alert(e.message); }
       });
       box.appendChild(row);
     }

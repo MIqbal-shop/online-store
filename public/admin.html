@@ -28,6 +28,7 @@
     <button class="admin-tab active" data-tab="products">📦 Products</button>
     <button class="admin-tab" data-tab="orders">🛍️ Orders</button>
     <button class="admin-tab" data-tab="store">🏬 Store</button>
+    <button class="admin-tab" data-tab="resets">🔐 Password Resets</button>
     <button class="admin-tab" data-tab="settings">🔑 DMS Connection</button>
     <button class="admin-tab logout-tab" id="logoutBtn">🚪 Logout</button>
   </div>
@@ -66,6 +67,16 @@
         <button class="btn btn-navy" id="saveStoreBtn">Save</button>
         <p id="storeMsg" style="font-size:12.5px; color:var(--green); margin-top:8px; display:none;">Saved.</p>
       </div>
+    </div>
+
+    <!-- Password Resets tab -->
+    <div id="tab-resets" style="display:none;">
+      <h2>Password Resets</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        When a customer clicks "Forgot password?", a new password is generated here. Copy it and send it to
+        them on WhatsApp yourself, then mark it as sent.
+      </p>
+      <div class="card" id="resetsList" style="margin-top:12px;"></div>
     </div>
 
     <!-- Settings tab -->
