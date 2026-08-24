@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { pool } = require('./db');
 
 // scrypt is built into Node - no extra dependency, same approach the DMS
 // backend already uses for its own logins.
@@ -19,47 +20,57 @@ function makeApiKey() {
   return crypto.randomBytes(24).toString('hex');
 }
 
-// In-memory sessions, same trade-off either way: everyone re-logs-in if the
-// process restarts (fine for a small storefront). Two independent stores -
-// an admin token must never double as a customer token or vice versa, even
-// though the underlying mechanism is identical.
+// ============================================================================
+// Sessions live in Postgres (see db.js "sessions" table), not in server
+// memory. This app runs on serverless hosting (Vercel) where consecutive
+// requests can each land on a totally separate, independent instance - an
+// in-memory Map would only be visible to whichever instance created it,
+// making logins randomly "disappear" on the very next request. A shared
+// database table is the only reliable place for this on serverless.
+// ============================================================================
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-function makeSessionStore() {
-  const sessions = new Map();
-  return {
-    create(payload) {
-      const token = crypto.randomBytes(24).toString('hex');
-      sessions.set(token, { expires: Date.now() + SESSION_TTL_MS, payload });
-      return token;
-    },
-    get(token) {
-      if (!token) return null;
-      const entry = sessions.get(token);
-      if (!entry) return null;
-      if (Date.now() > entry.expires) { sessions.delete(token); return null; }
-      return entry.payload;
-    },
-    destroy(token) { sessions.delete(token); },
-  };
+
+async function createSession(kind, subjectId = null) {
+  const token = crypto.randomBytes(24).toString('hex');
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  await pool.query('INSERT INTO sessions (token, kind, subject_id, expires_at) VALUES ($1,$2,$3,$4)', [token, kind, subjectId, expiresAt]);
+  return token;
 }
-const adminSessions = makeSessionStore();
-const customerSessions = makeSessionStore();
+async function getSession(token, kind) {
+  if (!token) return null;
+  const { rows } = await pool.query('SELECT * FROM sessions WHERE token=$1 AND kind=$2', [token, kind]);
+  const row = rows[0];
+  if (!row) return null;
+  if (new Date(row.expires_at) < new Date()) {
+    await pool.query('DELETE FROM sessions WHERE token=$1', [token]);
+    return null;
+  }
+  return row;
+}
+async function destroySession(token) {
+  await pool.query('DELETE FROM sessions WHERE token=$1', [token]);
+}
 
 function tokenFromReq(req) {
   return (req.headers.authorization || '').replace('Bearer ', '').trim();
 }
-function requireAdmin(req, res, next) {
-  if (!adminSessions.get(tokenFromReq(req))) return res.status(401).json({ error: 'Login required' });
-  next();
+async function requireAdmin(req, res, next) {
+  try {
+    const session = await getSession(tokenFromReq(req), 'admin');
+    if (!session) return res.status(401).json({ error: 'Login required' });
+    next();
+  } catch (err) { next(err); }
 }
-function requireCustomer(req, res, next) {
-  const payload = customerSessions.get(tokenFromReq(req));
-  if (!payload) return res.status(401).json({ error: 'Please log in first.' });
-  req.customerId = payload.id;
-  next();
+async function requireCustomer(req, res, next) {
+  try {
+    const session = await getSession(tokenFromReq(req), 'customer');
+    if (!session) return res.status(401).json({ error: 'Please log in first.' });
+    req.customerId = session.subject_id;
+    next();
+  } catch (err) { next(err); }
 }
 
 module.exports = {
   hashPassword, makeSalt, verifyPassword, makeApiKey,
-  adminSessions, customerSessions, tokenFromReq, requireAdmin, requireCustomer,
+  createSession, destroySession, tokenFromReq, requireAdmin, requireCustomer,
 };

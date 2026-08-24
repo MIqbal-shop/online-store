@@ -89,6 +89,27 @@ async function init() {
   // still snapshotted onto customer_name/shop_name/etc at order time, so a
   // later profile edit never rewrites order history).
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id)`);
+
+  // Login sessions live here, NOT in server memory - this app runs on
+  // serverless (Vercel), where each request can land on a different,
+  // independent instance with its own blank memory. A token created by one
+  // instance would be invisible to another, so "logged in" would randomly
+  // flicker to "please log in again". Storing sessions in Postgres means
+  // every instance checks the same source of truth.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,           -- 'admin' | 'customer'
+      subject_id INTEGER,           -- customer id (null for the single admin account)
+      expires_at TIMESTAMP NOT NULL
+    )
+  `);
+
+  // Optional second unit/price for a product - e.g. sell by the carton AND
+  // by the piece, each with its own rate. NULL price_2 means "no second
+  // option", the storefront then only shows the one unit as before.
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_2 TEXT`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS price_2 NUMERIC`);
   // Store branding - editable from the admin panel (Settings tab), so the
   // shop name/tagline/logo can be changed any time without touching code.
   await pool.query(`
