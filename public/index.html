@@ -27,6 +27,7 @@
       <div class="field"><label>Password</label><input id="l_password" type="password" /></div>
       <p id="loginError" class="error-text" style="display:none;"></p>
       <button class="btn btn-gold" id="loginBtn" style="width:100%;">Log in</button>
+      <p style="text-align:center; margin-top:14px;"><a href="#" id="forgotPasswordLink" style="color:var(--gold); font-weight:700; font-size:13px;">Forgot password?</a></p>
     </div>
 
     <!-- Signup form -->
@@ -49,6 +50,21 @@
       <p id="signupError" class="error-text" style="display:none;"></p>
       <button class="btn btn-gold" id="signupBtn" style="width:100%;">Create account</button>
     </div>
+  </div>
+</div>
+
+<!-- Forgot password -->
+<div class="overlay" id="forgotOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Reset password</h2>
+      <button class="close-btn" id="closeForgot">&times;</button>
+    </div>
+    <p class="info-note">Enter the WhatsApp number on your account. We'll send a new password to it.</p>
+    <div class="field"><label>WhatsApp number</label><input id="f_whatsapp" placeholder="03xx xxxxxxx" /></div>
+    <p id="forgotError" class="error-text" style="display:none;"></p>
+    <p id="forgotMsg" class="info-note" style="display:none; color:#8fd19e;"></p>
+    <button class="btn btn-gold" id="forgotSubmitBtn" style="width:100%;">Send new password</button>
   </div>
 </div>
 
@@ -98,6 +114,9 @@
   </div>
   <button class="sidebar-link" id="profileBtn">
     <span>Account</span>
+  </button>
+  <button class="sidebar-link" id="settingsBtn">
+    <span>Settings</span>
   </button>
   <button class="sidebar-link" id="cartBtn">
     <span>Cart</span>
@@ -161,6 +180,22 @@
     <h2>Order received!</h2>
     <p style="color:var(--paper-dim); font-size:13.5px;">Thank you! Our team will contact you on WhatsApp shortly.</p>
     <button class="btn btn-gold" id="successCloseBtn" style="margin-top:16px;">OK</button>
+  </div>
+</div>
+
+<!-- Settings - change password -->
+<div class="overlay" id="settingsOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Settings</h2>
+      <button class="close-btn" id="closeSettings">&times;</button>
+    </div>
+    <div class="field"><label>Current password</label><input id="st_current" type="password" /></div>
+    <div class="field"><label>New password</label><input id="st_new" type="password" placeholder="At least 6 characters" /></div>
+    <div class="field"><label>Confirm new password</label><input id="st_confirm" type="password" /></div>
+    <p id="settingsError" class="error-text" style="display:none;"></p>
+    <p id="settingsMsg" class="info-note" style="display:none; color:#8fd19e;">Password changed.</p>
+    <button class="btn btn-gold" id="saveSettingsBtn" style="width:100%;">Change password</button>
   </div>
 </div>
 

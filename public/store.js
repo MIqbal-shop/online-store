@@ -98,6 +98,40 @@
     $('newOnlyFields').style.display = type === 'new' ? 'block' : 'none';
   }
 
+  // ---- Forgot password ----
+  $('forgotPasswordLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('f_whatsapp').value = $('l_whatsapp').value.trim();
+    $('forgotError').style.display = 'none';
+    $('forgotMsg').style.display = 'none';
+    $('forgotOverlay').style.display = 'flex';
+  });
+  $('closeForgot').addEventListener('click', () => $('forgotOverlay').style.display = 'none');
+  $('forgotOverlay').addEventListener('click', (e) => { if (e.target.id === 'forgotOverlay') $('forgotOverlay').style.display = 'none'; });
+
+  $('forgotSubmitBtn').addEventListener('click', async () => {
+    const errEl = $('forgotError');
+    const msgEl = $('forgotMsg');
+    errEl.style.display = 'none';
+    msgEl.style.display = 'none';
+    const whatsapp = $('f_whatsapp').value.trim();
+    if (!whatsapp) { errEl.textContent = 'Please enter your WhatsApp number.'; errEl.style.display = 'block'; return; }
+    const btn = $('forgotSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    try {
+      const data = await api('/api/customers/forgot-password', { method: 'POST', body: JSON.stringify({ whatsapp }) });
+      msgEl.textContent = data.message || 'If this WhatsApp number has an account, a new password has been sent to it.';
+      msgEl.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send new password';
+    }
+  });
+
   $('loginBtn').addEventListener('click', async () => {
     const errEl = $('loginError');
     errEl.style.display = 'none';
@@ -380,6 +414,48 @@
     localStorage.removeItem('customer_token');
     $('profileOverlay').style.display = 'none';
     showAuthGate();
+  });
+
+  // ---- Settings (change password) ----
+  $('settingsBtn').addEventListener('click', () => {
+    closeSidebar();
+    $('st_current').value = '';
+    $('st_new').value = '';
+    $('st_confirm').value = '';
+    $('settingsError').style.display = 'none';
+    $('settingsMsg').style.display = 'none';
+    $('settingsOverlay').style.display = 'flex';
+  });
+  $('closeSettings').addEventListener('click', () => $('settingsOverlay').style.display = 'none');
+  $('settingsOverlay').addEventListener('click', (e) => { if (e.target.id === 'settingsOverlay') $('settingsOverlay').style.display = 'none'; });
+
+  $('saveSettingsBtn').addEventListener('click', async () => {
+    const errEl = $('settingsError');
+    const msgEl = $('settingsMsg');
+    errEl.style.display = 'none';
+    msgEl.style.display = 'none';
+    const current_password = $('st_current').value;
+    const new_password = $('st_new').value;
+    const confirm_password = $('st_confirm').value;
+    if (!current_password) { errEl.textContent = 'Please enter your current password.'; errEl.style.display = 'block'; return; }
+    if (!new_password || new_password.length < 6) { errEl.textContent = 'New password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+    if (new_password !== confirm_password) { errEl.textContent = 'New passwords do not match.'; errEl.style.display = 'block'; return; }
+    const btn = $('saveSettingsBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    try {
+      await api('/api/customers/me/password', { method: 'PUT', body: JSON.stringify({ current_password, new_password }) });
+      msgEl.style.display = 'block';
+      $('st_current').value = '';
+      $('st_new').value = '';
+      $('st_confirm').value = '';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Change password';
+    }
   });
 
   // ---- Boot ----
