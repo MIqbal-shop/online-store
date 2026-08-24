@@ -81,12 +81,27 @@ router.get('/products', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, price, unit, unit_2, price_2, image, description, active } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Product ka naam likhna zaroori hai.' });
-    const hasSecond = unit_2 && String(unit_2).trim() && price_2 !== '' && price_2 != null;
+    const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
+    if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
+    if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
+      return res.status(400).json({ error: 'Please enter both Carton price and Piece price.' });
+    }
+    if (pt === 'carton_box_piece' && [price_carton, price_box, price_piece].some((v) => v === '' || v == null)) {
+      return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
+    }
     const { rows } = await pool.query(
-      `INSERT INTO products (name, price, unit, unit_2, price_2, image, description, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [name.trim(), Number(price) || 0, unit || '', hasSecond ? String(unit_2).trim() : null, hasSecond ? Number(price_2) || 0 : null, image || null, description || '', active !== false]
+      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [
+        name.trim(), pt,
+        pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
+        pt !== 'single' ? Number(price_carton) || 0 : null,
+        pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
+        pt !== 'single' ? Number(price_piece) || 0 : null,
+        image || null, description || '', active !== false,
+      ]
     );
     res.json({ product: rows[0] });
   } catch (err) { next(err); }
@@ -94,11 +109,25 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, price, unit, unit_2, price_2, image, description, active } = req.body;
-    const hasSecond = unit_2 && String(unit_2).trim() && price_2 !== '' && price_2 != null;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active } = req.body;
+    const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
+    if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
+    if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
+      return res.status(400).json({ error: 'Please enter both Carton price and Piece price.' });
+    }
+    if (pt === 'carton_box_piece' && [price_carton, price_box, price_piece].some((v) => v === '' || v == null)) {
+      return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
+    }
     const { rows } = await pool.query(
-      `UPDATE products SET name=$1, price=$2, unit=$3, unit_2=$4, price_2=$5, image=$6, description=$7, active=$8 WHERE id=$9 RETURNING *`,
-      [name || '', Number(price) || 0, unit || '', hasSecond ? String(unit_2).trim() : null, hasSecond ? Number(price_2) || 0 : null, image || null, description || '', active !== false, req.params.id]
+      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, description=$9, active=$10 WHERE id=$11 RETURNING *`,
+      [
+        name || '', pt,
+        pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
+        pt !== 'single' ? Number(price_carton) || 0 : null,
+        pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
+        pt !== 'single' ? Number(price_piece) || 0 : null,
+        image || null, description || '', active !== false, req.params.id,
+      ]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });
     res.json({ product: rows[0] });
