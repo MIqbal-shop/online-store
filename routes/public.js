@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const { requireCustomer } = require('../auth');
 
 // GET /api/store-info - branding shown on the storefront (name, tagline,
 // logo). Public because the storefront itself needs it before any login.
@@ -20,39 +21,29 @@ router.get('/products', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/orders - body:
-// {
-//   customer_type: 'new' | 'old',
-//   customer_name, shop_name, phone, whatsapp, address,   -- shop_name/phone/address only required when 'new'
-//   items: [{ product_name, quantity, unit, price }]
-// }
-router.post('/orders', async (req, res, next) => {
+// POST /api/orders - requires login now (see routes/customers.js). The
+// shopper's identity is always pulled fresh from their saved account
+// server-side rather than trusted from the request body - a logged-in
+// shopper never has to retype their details on every order again.
+// body: { items: [{ product_name, quantity, unit, price }] }
+router.post('/orders', requireCustomer, async (req, res, next) => {
   try {
-    const { customer_type, customer_name, shop_name, phone, whatsapp, address, items } = req.body;
-
-    if (customer_type !== 'new' && customer_type !== 'old') {
-      return res.status(400).json({ error: 'Bataiye aap purane customer hain ya naye.' });
-    }
-    if (!customer_name || !customer_name.trim()) {
-      return res.status(400).json({ error: 'Naam likhna zaroori hai.' });
-    }
-    if (!whatsapp || !whatsapp.trim()) {
-      return res.status(400).json({ error: 'WhatsApp number likhna zaroori hai.' });
-    }
-    if (customer_type === 'new' && (!shop_name || !phone || !address)) {
-      return res.status(400).json({ error: 'Naye customer ke liye shop ka naam, phone number, aur address zaroori hai.' });
-    }
+    const { items } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Cart khali hai - pehle kuch products add karein.' });
+      return res.status(400).json({ error: 'Your cart is empty - add some products first.' });
     }
+
+    const { rows: cRows } = await pool.query('SELECT * FROM customers WHERE id=$1', [req.customerId]);
+    const customer = cRows[0];
+    if (!customer) return res.status(404).json({ error: 'Account not found.' });
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const orderResult = await client.query(
-        `INSERT INTO orders (customer_type, customer_name, shop_name, phone, whatsapp, address, status)
-         VALUES ($1,$2,$3,$4,$5,$6,'new') RETURNING id`,
-        [customer_type, customer_name.trim(), (shop_name || '').trim(), (phone || '').trim(), whatsapp.trim(), (address || '').trim()]
+        `INSERT INTO orders (customer_id, customer_type, customer_name, shop_name, phone, whatsapp, address, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'new') RETURNING id`,
+        [customer.id, customer.customer_type, customer.name, customer.shop_name, customer.phone, customer.whatsapp, customer.address]
       );
       const orderId = orderResult.rows[0].id;
       for (const it of items) {

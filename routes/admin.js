@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { hashPassword, makeSalt, verifyPassword, makeApiKey, createSession, destroySession, tokenFromReq, requireAdmin } = require('../auth');
+const { hashPassword, makeSalt, verifyPassword, makeApiKey, adminSessions, tokenFromReq, requireAdmin } = require('../auth');
 
 // GET /api/admin/setup-status - the admin panel checks this first to decide
 // whether to show "create your account" or the normal login form.
@@ -31,7 +31,7 @@ router.post('/setup', async (req, res, next) => {
       'INSERT INTO admin_auth (id, username, password_hash, password_salt, api_key) VALUES (1,$1,$2,$3,$4)',
       [username.trim(), hash, salt, apiKey]
     );
-    const token = createSession();
+    const token = adminSessions.create(true);
     res.json({ token });
   } catch (err) { next(err); }
 });
@@ -44,13 +44,13 @@ router.post('/login', async (req, res, next) => {
     if (!account || account.username !== (username || '').trim() || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
       return res.status(401).json({ error: 'Username ya password ghalat hai.' });
     }
-    const token = createSession();
+    const token = adminSessions.create(true);
     res.json({ token });
   } catch (err) { next(err); }
 });
 
 router.post('/logout', (req, res) => {
-  destroySession(tokenFromReq(req));
+  adminSessions.destroy(tokenFromReq(req));
   res.json({ ok: true });
 });
 
