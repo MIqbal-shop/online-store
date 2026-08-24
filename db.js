@@ -105,11 +105,19 @@ async function init() {
     )
   `);
 
-  // Optional second unit/price for a product - e.g. sell by the carton AND
-  // by the piece, each with its own rate. NULL price_2 means "no second
-  // option", the storefront then only shows the one unit as before.
-  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS unit_2 TEXT`);
-  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS price_2 NUMERIC`);
+  // Optional multi-level packing for a product - mirrors how the DMS
+  // itself thinks about stock: a product can be sold as a single simple
+  // unit, OR as Carton+Pieces, OR as Carton+Box+Pieces, each level with its
+  // own price. packing_type picks which of these applies; the unused price
+  // columns for whichever mode isn't selected just stay NULL.
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS packing_type TEXT DEFAULT 'single'`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS price_carton NUMERIC`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS price_box NUMERIC`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS price_piece NUMERIC`);
+  // Superseded by packing_type/price_carton/price_box/price_piece above -
+  // drop if they exist from an earlier version of this schema.
+  await pool.query(`ALTER TABLE products DROP COLUMN IF EXISTS unit_2`);
+  await pool.query(`ALTER TABLE products DROP COLUMN IF EXISTS price_2`);
   // Store branding - editable from the admin panel (Settings tab), so the
   // shop name/tagline/logo can be changed any time without touching code.
   await pool.query(`
