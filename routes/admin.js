@@ -177,4 +177,22 @@ router.post('/api-key/regenerate', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---- Password reset requests (customer clicked "Forgot password") ----
+// Shown in the admin panel so the owner can copy the temp password and
+// forward it to the customer on WhatsApp themselves.
+
+router.get('/password-resets', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM password_resets ORDER BY created_at DESC LIMIT 100');
+    res.json({ resets: rows });
+  } catch (err) { next(err); }
+});
+
+router.put('/password-resets/:id/sent', async (req, res, next) => {
+  try {
+    await pool.query('UPDATE password_resets SET sent=TRUE WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

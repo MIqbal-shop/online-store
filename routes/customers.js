@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const router = express.Router();
 const { pool } = require('../db');
 const { hashPassword, makeSalt, verifyPassword, createSession, destroySession, requireCustomer } = require('../auth');
-const { sendWhatsAppMessage } = require('../whatsapp');
 
 function publicFields(row) {
   return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type };
@@ -115,8 +114,9 @@ router.put('/me/password', requireCustomer, async (req, res, next) => {
 // POST /api/customers/forgot-password - body: { whatsapp }
 // A plain (non-hashed) password is never stored anywhere, so the original
 // password can't be recovered or sent back - instead this generates a new
-// temporary password, saves it, and sends *that* to the account's WhatsApp
-// number. The customer can log in with it and change it from Settings.
+// temporary password and saves it. It shows up in the admin panel under
+// Settings -> Password Resets, so the store owner can forward it to the
+// customer on WhatsApp themselves.
 // Always returns the same generic message, whether or not the number is
 // registered, so this can't be used to check which numbers have accounts.
 router.post('/forgot-password', async (req, res, next) => {
@@ -131,13 +131,12 @@ router.post('/forgot-password', async (req, res, next) => {
       const salt = makeSalt();
       const hash = hashPassword(tempPassword, salt);
       await pool.query('UPDATE customers SET password_hash=$1, password_salt=$2 WHERE id=$3', [hash, salt, account.id]);
-      try {
-        await sendWhatsAppMessage(account.whatsapp, `Your new login password is: ${tempPassword}\nPlease log in and change it from Settings.`);
-      } catch (sendErr) {
-        console.error('[forgot-password] WhatsApp send failed:', sendErr);
-      }
+      await pool.query(
+        `INSERT INTO password_resets (customer_id, whatsapp, customer_name, temp_password) VALUES ($1,$2,$3,$4)`,
+        [account.id, account.whatsapp, account.name, tempPassword]
+      );
     }
-    res.json({ ok: true, message: 'If this WhatsApp number has an account, a new password has been sent to it.' });
+    res.json({ ok: true, message: 'If this WhatsApp number has an account, a new password is ready - our team will send it to you on WhatsApp shortly.' });
   } catch (err) { next(err); }
 });
 
