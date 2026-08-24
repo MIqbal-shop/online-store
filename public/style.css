@@ -126,6 +126,12 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .qty-btn { width: 32px; height: 32px; border-radius: 10px; border: none; background: rgba(0,0,0,0.18); color: inherit; font-weight: 800; font-size: 16px; }
 .qty-val { min-width: 26px; text-align: center; font-weight: 800; font-size: 15px; }
 
+.unit-toggle { display: flex; gap: 6px; margin-top: 12px; transform: translateZ(35px); }
+.unit-opt { flex: 1; padding: 7px 6px; border-radius: 9px; border: 1.5px solid rgba(0,0,0,0.18); background: rgba(0,0,0,0.06); color: inherit; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em; }
+.unit-opt.active { background: rgba(0,0,0,0.22); border-color: rgba(0,0,0,0.32); }
+
+#cartTotalLive { font-family: 'Anton', sans-serif; font-size: 13px; color: var(--gold); }
+
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
 @media (min-width: 640px) { .overlay { align-items: center; } }
 .sheet { background: var(--ink-2); border: 1px solid var(--line); width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; border-radius: 22px 22px 0 0; padding: 24px; }

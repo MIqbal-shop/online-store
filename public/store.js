@@ -138,6 +138,8 @@
   });
 
   // ---- Products ----
+  let selectedUnit = {}; // product_id -> 'u1' | 'u2'
+
   async function loadProducts() {
     try {
       const data = await fetch('/api/products').then((r) => r.json());
@@ -146,12 +148,23 @@
     } catch (e) { console.error(e); }
   }
 
+  function unitInfo(product, which) {
+    if (which === 'u2') return { key: 'u2', label: product.unit_2, price: Number(product.price_2) };
+    return { key: 'u1', label: product.unit, price: Number(product.price) };
+  }
+
+  function cartKey(productId, unitKey) { return productId + '::' + unitKey; }
+
   function renderProducts() {
     const grid = $('productGrid');
     grid.innerHTML = '';
     $('emptyMsg').style.display = products.length ? 'none' : 'block';
     products.forEach((p, i) => {
-      const qty = cart[p.id]?.qty || 0;
+      const hasSecond = p.unit_2 && p.price_2 != null;
+      const which = selectedUnit[p.id] || 'u1';
+      const info = unitInfo(p, which);
+      const qty = cart[cartKey(p.id, info.key)]?.qty || 0;
+
       const wrap = document.createElement('div');
       wrap.className = 'tile-wrap';
       const tile = document.createElement('div');
@@ -160,33 +173,55 @@
         <div class="product-name">${escapeHtml(p.name)}</div>
         ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
         <div class="product-img-box">${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}</div>
-        <div class="product-price">${money(p.price)} <span class="unit">${p.unit ? '/ ' + escapeHtml(p.unit) : ''}</span></div>
+        ${hasSecond ? `
+          <div class="unit-toggle">
+            <button class="unit-opt ${which === 'u1' ? 'active' : ''}" data-unit="u1">${escapeHtml(p.unit || 'Unit 1')}</button>
+            <button class="unit-opt ${which === 'u2' ? 'active' : ''}" data-unit="u2">${escapeHtml(p.unit_2)}</button>
+          </div>
+        ` : ''}
+        <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
         <div class="qty-row">
           <button class="qty-btn minus">-</button>
           <span class="qty-val">${qty}</span>
           <button class="qty-btn plus">+</button>
         </div>
       `;
-      tile.querySelector('.minus').addEventListener('click', () => changeQty(p, -1, tile));
-      tile.querySelector('.plus').addEventListener('click', () => changeQty(p, 1, tile));
+      if (hasSecond) {
+        tile.querySelectorAll('.unit-opt').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            selectedUnit[p.id] = btn.dataset.unit;
+            renderProducts();
+          });
+        });
+      }
+      tile.querySelector('.minus').addEventListener('click', () => changeQty(p, info, -1));
+      tile.querySelector('.plus').addEventListener('click', () => changeQty(p, info, 1));
       attachTilt(tile);
       wrap.appendChild(tile);
       grid.appendChild(wrap);
     });
   }
 
-  function changeQty(product, delta, tileEl) {
-    const current = cart[product.id]?.qty || 0;
+  function changeQty(product, info, delta) {
+    const key = cartKey(product.id, info.key);
+    const current = cart[key]?.qty || 0;
     const next = Math.max(0, current + delta);
-    if (next === 0) delete cart[product.id];
-    else cart[product.id] = { product, qty: next };
-    tileEl.querySelector('.qty-val').textContent = next;
+    if (next === 0) delete cart[key];
+    else cart[key] = { product, unitLabel: info.label, price: info.price, qty: next };
+    renderProducts();
+    if ($('cartOverlay').style.display === 'flex') renderCart();
     updateCartCount();
+  }
+
+  function cartTotal() {
+    return Object.values(cart).reduce((s, l) => s + l.qty * (l.price || 0), 0);
   }
 
   function updateCartCount() {
     const count = Object.values(cart).reduce((s, l) => s + l.qty, 0);
     $('cartCount').textContent = count;
+    const totalEl = $('cartTotalLive');
+    totalEl.textContent = count > 0 ? money(cartTotal()) + '  ·  ' : '';
   }
 
   // ---- Cart drawer ----
@@ -200,15 +235,14 @@
     box.innerHTML = '';
     $('cartEmptyNote').style.display = lines.length ? 'none' : 'block';
     $('cartTotalRow').style.display = lines.length ? 'flex' : 'none';
-    let total = 0;
     for (const l of lines) {
-      total += l.qty * (l.product.price || 0);
+      const info = { key: l.unitLabel === l.product.unit_2 ? 'u2' : 'u1', label: l.unitLabel, price: l.price };
       const row = document.createElement('div');
       row.className = 'cart-line';
       row.innerHTML = `
         <div>
-          <div class="name">${escapeHtml(l.product.name)}</div>
-          <div class="sub">${l.qty} x ${money(l.product.price)}</div>
+          <div class="name">${escapeHtml(l.product.name)} ${l.unitLabel ? `<span class="sub">(${escapeHtml(l.unitLabel)})</span>` : ''}</div>
+          <div class="sub">${l.qty} x ${money(l.price)}</div>
         </div>
         <div class="qty-row" style="margin-top:0;">
           <button class="qty-btn minus">-</button>
@@ -216,11 +250,11 @@
           <button class="qty-btn plus">+</button>
         </div>
       `;
-      row.querySelector('.minus').addEventListener('click', () => { changeQty(l.product, -1, { querySelector: () => ({ textContent: '' }) }); renderCart(); renderProducts(); });
-      row.querySelector('.plus').addEventListener('click', () => { changeQty(l.product, 1, { querySelector: () => ({ textContent: '' }) }); renderCart(); renderProducts(); });
+      row.querySelector('.minus').addEventListener('click', () => changeQty(l.product, info, -1));
+      row.querySelector('.plus').addEventListener('click', () => changeQty(l.product, info, 1));
       box.appendChild(row);
     }
-    $('cartTotal').textContent = money(total);
+    $('cartTotal').textContent = money(cartTotal());
   }
 
   // ---- Checkout (review saved profile, then place order) ----
@@ -248,7 +282,7 @@
   $('submitOrderBtn').addEventListener('click', async () => {
     const errEl = $('checkoutError');
     errEl.style.display = 'none';
-    const items = Object.values(cart).map((l) => ({ product_name: l.product.name, quantity: l.qty, unit: l.product.unit, price: l.product.price }));
+    const items = Object.values(cart).map((l) => ({ product_name: l.product.name, quantity: l.qty, unit: l.unitLabel, price: l.price }));
     const btn = $('submitOrderBtn');
     btn.disabled = true;
     btn.textContent = 'Placing order...';

@@ -96,7 +96,15 @@
     <input type="hidden" id="p_id" />
     <div class="field"><label>Name</label><input id="p_name" /></div>
     <div class="field"><label>Price (Rs)</label><input id="p_price" type="number" /></div>
-    <div class="field"><label>Unit (piece / carton / kg etc.)</label><input id="p_unit" /></div>
+    <div class="field"><label>Unit 1 (piece / carton / kg etc.)</label><input id="p_unit" /></div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;">
+      <input id="p_has_second" type="checkbox" style="width:auto;" />
+      <label style="margin:0;">Also sell by a second unit (e.g. Carton + Piece)</label>
+    </div>
+    <div id="p_second_fields" style="display:none;">
+      <div class="field"><label>Unit 2</label><input id="p_unit_2" placeholder="e.g. piece" /></div>
+      <div class="field"><label>Price 2 (Rs)</label><input id="p_price_2" type="number" /></div>
+    </div>
     <div class="field"><label>Description (optional)</label><textarea id="p_description" rows="2"></textarea></div>
     <div class="field">
       <label>Image (optional)</label>

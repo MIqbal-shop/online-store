@@ -104,7 +104,7 @@
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'}</div>
-          <div style="font-size:12px; color:var(--ink-soft);">${money(p.price)} ${p.unit ? '/ ' + escapeHtml(p.unit) : ''}</div>
+          <div style="font-size:12px; color:var(--ink-soft);">${money(p.price)} ${p.unit ? '/ ' + escapeHtml(p.unit) : ''}${p.unit_2 ? ` &middot; ${money(p.price_2)} / ${escapeHtml(p.unit_2)}` : ''}</div>
         </div>
         <button class="btn btn-ghost edit-btn">Edit</button>
       `;
@@ -132,6 +132,11 @@
     $('p_unit').value = product?.unit || '';
     $('p_description').value = product?.description || '';
     $('p_active').checked = product ? !!product.active : true;
+    const hasSecond = !!(product?.unit_2 && product?.price_2 != null);
+    $('p_has_second').checked = hasSecond;
+    $('p_second_fields').style.display = hasSecond ? 'block' : 'none';
+    $('p_unit_2').value = product?.unit_2 || '';
+    $('p_price_2').value = product?.price_2 ?? '';
     currentImageData = product?.image || null;
     if (currentImageData) { $('p_image_preview').src = currentImageData; $('p_image_preview').style.display = 'block'; }
     else { $('p_image_preview').style.display = 'none'; }
@@ -139,6 +144,10 @@
     $('deleteProductBtn').style.display = product ? 'inline-flex' : 'none';
     $('productOverlay').style.display = 'flex';
   }
+
+  $('p_has_second').addEventListener('change', (e) => {
+    $('p_second_fields').style.display = e.target.checked ? 'block' : 'none';
+  });
 
   $('p_image_file').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -156,15 +165,23 @@
     const errEl = $('productError');
     errEl.style.display = 'none';
     const id = $('p_id').value;
+    const hasSecond = $('p_has_second').checked;
     const body = {
       name: $('p_name').value.trim(),
       price: Number($('p_price').value) || 0,
       unit: $('p_unit').value.trim(),
+      unit_2: hasSecond ? $('p_unit_2').value.trim() : '',
+      price_2: hasSecond ? $('p_price_2').value : '',
       description: $('p_description').value.trim(),
       image: currentImageData,
       active: $('p_active').checked,
     };
     if (!body.name) { errEl.textContent = 'Please enter a product name.'; errEl.style.display = 'block'; return; }
+    if (hasSecond && (!body.unit_2 || body.price_2 === '')) {
+      errEl.textContent = 'Please fill in both Unit 2 and Price 2, or uncheck the second unit option.';
+      errEl.style.display = 'block';
+      return;
+    }
     try {
       if (id) await api(`/api/admin/products/${id}`, { method: 'PUT', body: JSON.stringify(body) });
       else await api('/api/admin/products', { method: 'POST', body: JSON.stringify(body) });
