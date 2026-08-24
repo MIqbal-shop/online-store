@@ -90,6 +90,12 @@
     } catch (e) { console.error(e); }
   }
 
+function priceSummary(p) {
+    if (p.packing_type === 'carton_box_piece') return `${money(p.price_carton)}/Carton &middot; ${money(p.price_box)}/Box &middot; ${money(p.price_piece)}/Piece`;
+    if (p.packing_type === 'carton_piece') return `${money(p.price_carton)}/Carton &middot; ${money(p.price_piece)}/Piece`;
+    return `${money(p.price)} ${p.unit ? '/ ' + escapeHtml(p.unit) : ''}`;
+  }
+
   function renderProducts() {
     const box = $('productsList');
     box.innerHTML = '';
@@ -104,7 +110,7 @@
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'}</div>
-          <div style="font-size:12px; color:var(--ink-soft);">${money(p.price)} ${p.unit ? '/ ' + escapeHtml(p.unit) : ''}${p.unit_2 ? ` &middot; ${money(p.price_2)} / ${escapeHtml(p.unit_2)}` : ''}</div>
+          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)}</div>
         </div>
         <button class="btn btn-ghost edit-btn">Edit</button>
       `;
@@ -128,15 +134,16 @@
     $('productModalTitle').textContent = product ? 'Edit Product' : 'New Product';
     $('p_id').value = product?.id || '';
     $('p_name').value = product?.name || '';
-    $('p_price').value = product?.price || '';
+    const pt = product?.packing_type || 'single';
+    $('p_packing_type').value = pt;
     $('p_unit').value = product?.unit || '';
+    $('p_price').value = product?.price || '';
+    $('p_price_carton').value = product?.price_carton ?? '';
+    $('p_price_box').value = product?.price_box ?? '';
+    $('p_price_piece').value = product?.price_piece ?? '';
     $('p_description').value = product?.description || '';
     $('p_active').checked = product ? !!product.active : true;
-    const hasSecond = !!(product?.unit_2 && product?.price_2 != null);
-    $('p_has_second').checked = hasSecond;
-    $('p_second_fields').style.display = hasSecond ? 'block' : 'none';
-    $('p_unit_2').value = product?.unit_2 || '';
-    $('p_price_2').value = product?.price_2 ?? '';
+    applyPackingTypeUI(pt);
     currentImageData = product?.image || null;
     if (currentImageData) { $('p_image_preview').src = currentImageData; $('p_image_preview').style.display = 'block'; }
     else { $('p_image_preview').style.display = 'none'; }
@@ -145,9 +152,12 @@
     $('productOverlay').style.display = 'flex';
   }
 
-  $('p_has_second').addEventListener('change', (e) => {
-    $('p_second_fields').style.display = e.target.checked ? 'block' : 'none';
-  });
+  function applyPackingTypeUI(pt) {
+    $('p_single_fields').style.display = pt === 'single' ? 'block' : 'none';
+    $('p_multi_fields').style.display = pt === 'single' ? 'none' : 'block';
+    $('p_box_field').style.display = pt === 'carton_box_piece' ? 'block' : 'none';
+  }
+  $('p_packing_type').addEventListener('change', (e) => applyPackingTypeUI(e.target.value));
 
   $('p_image_file').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -165,22 +175,26 @@
     const errEl = $('productError');
     errEl.style.display = 'none';
     const id = $('p_id').value;
-    const hasSecond = $('p_has_second').checked;
+    const pt = $('p_packing_type').value;
     const body = {
       name: $('p_name').value.trim(),
-      price: Number($('p_price').value) || 0,
+      packing_type: pt,
       unit: $('p_unit').value.trim(),
-      unit_2: hasSecond ? $('p_unit_2').value.trim() : '',
-      price_2: hasSecond ? $('p_price_2').value : '',
+      price: $('p_price').value,
+      price_carton: $('p_price_carton').value,
+      price_box: $('p_price_box').value,
+      price_piece: $('p_price_piece').value,
       description: $('p_description').value.trim(),
       image: currentImageData,
       active: $('p_active').checked,
     };
     if (!body.name) { errEl.textContent = 'Please enter a product name.'; errEl.style.display = 'block'; return; }
-    if (hasSecond && (!body.unit_2 || body.price_2 === '')) {
-      errEl.textContent = 'Please fill in both Unit 2 and Price 2, or uncheck the second unit option.';
-      errEl.style.display = 'block';
-      return;
+    if (pt === 'single' && !body.unit) { errEl.textContent = 'Please enter a unit name.'; errEl.style.display = 'block'; return; }
+    if (pt === 'carton_piece' && (body.price_carton === '' || body.price_piece === '')) {
+      errEl.textContent = 'Please enter both Carton price and Piece price.'; errEl.style.display = 'block'; return;
+    }
+    if (pt === 'carton_box_piece' && (body.price_carton === '' || body.price_box === '' || body.price_piece === '')) {
+      errEl.textContent = 'Please enter Carton, Box, and Piece prices.'; errEl.style.display = 'block'; return;
     }
     try {
       if (id) await api(`/api/admin/products/${id}`, { method: 'PUT', body: JSON.stringify(body) });

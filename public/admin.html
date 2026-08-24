@@ -95,16 +95,26 @@
     </div>
     <input type="hidden" id="p_id" />
     <div class="field"><label>Name</label><input id="p_name" /></div>
-    <div class="field"><label>Price (Rs)</label><input id="p_price" type="number" /></div>
-    <div class="field"><label>Unit 1 (piece / carton / kg etc.)</label><input id="p_unit" /></div>
-    <div class="field" style="display:flex; align-items:center; gap:8px;">
-      <input id="p_has_second" type="checkbox" style="width:auto;" />
-      <label style="margin:0;">Also sell by a second unit (e.g. Carton + Piece)</label>
+    <div class="field">
+      <label>How is this product sold?</label>
+      <select id="p_packing_type">
+        <option value="single">Single unit (custom name)</option>
+        <option value="carton_piece">Carton + Pieces</option>
+        <option value="carton_box_piece">Carton + Box + Pieces</option>
+      </select>
     </div>
-    <div id="p_second_fields" style="display:none;">
-      <div class="field"><label>Unit 2</label><input id="p_unit_2" placeholder="e.g. piece" /></div>
-      <div class="field"><label>Price 2 (Rs)</label><input id="p_price_2" type="number" /></div>
+
+    <div id="p_single_fields">
+      <div class="field"><label>Unit name (e.g. piece, kg, dozen)</label><input id="p_unit" /></div>
+      <div class="field"><label>Price (Rs)</label><input id="p_price" type="number" /></div>
     </div>
+
+    <div id="p_multi_fields" style="display:none;">
+      <div class="field"><label>Carton price (Rs)</label><input id="p_price_carton" type="number" /></div>
+      <div class="field" id="p_box_field"><label>Box price (Rs)</label><input id="p_price_box" type="number" /></div>
+      <div class="field"><label>Piece price (Rs)</label><input id="p_price_piece" type="number" /></div>
+    </div>
+
     <div class="field"><label>Description (optional)</label><textarea id="p_description" rows="2"></textarea></div>
     <div class="field">
       <label>Image (optional)</label>

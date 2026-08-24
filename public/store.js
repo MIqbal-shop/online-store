@@ -138,7 +138,7 @@
   });
 
   // ---- Products ----
-  let selectedUnit = {}; // product_id -> 'u1' | 'u2'
+  let selectedUnit = {}; // product_id -> 'carton' | 'box' | 'piece' | 'single'
 
   async function loadProducts() {
     try {
@@ -148,9 +148,23 @@
     } catch (e) { console.error(e); }
   }
 
-  function unitInfo(product, which) {
-    if (which === 'u2') return { key: 'u2', label: product.unit_2, price: Number(product.price_2) };
-    return { key: 'u1', label: product.unit, price: Number(product.price) };
+  // Returns the list of buyable options for a product - one for 'single'
+  // products, two or three for carton/box/piece ones.
+  function unitOptions(p) {
+    if (p.packing_type === 'carton_box_piece') {
+      return [
+        { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
+        { key: 'box', label: 'Box', price: Number(p.price_box) },
+        { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+      ];
+    }
+    if (p.packing_type === 'carton_piece') {
+      return [
+        { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
+        { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+      ];
+    }
+    return [{ key: 'single', label: p.unit, price: Number(p.price) }];
   }
 
   function cartKey(productId, unitKey) { return productId + '::' + unitKey; }
@@ -160,9 +174,9 @@
     grid.innerHTML = '';
     $('emptyMsg').style.display = products.length ? 'none' : 'block';
     products.forEach((p, i) => {
-      const hasSecond = p.unit_2 && p.price_2 != null;
-      const which = selectedUnit[p.id] || 'u1';
-      const info = unitInfo(p, which);
+      const options = unitOptions(p);
+      const which = selectedUnit[p.id] || options[0].key;
+      const info = options.find((o) => o.key === which) || options[0];
       const qty = cart[cartKey(p.id, info.key)]?.qty || 0;
 
       const wrap = document.createElement('div');
@@ -173,10 +187,9 @@
         <div class="product-name">${escapeHtml(p.name)}</div>
         ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
         <div class="product-img-box">${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}</div>
-        ${hasSecond ? `
+        ${options.length > 1 ? `
           <div class="unit-toggle">
-            <button class="unit-opt ${which === 'u1' ? 'active' : ''}" data-unit="u1">${escapeHtml(p.unit || 'Unit 1')}</button>
-            <button class="unit-opt ${which === 'u2' ? 'active' : ''}" data-unit="u2">${escapeHtml(p.unit_2)}</button>
+            ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
           </div>
         ` : ''}
         <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
@@ -186,7 +199,7 @@
           <button class="qty-btn plus">+</button>
         </div>
       `;
-      if (hasSecond) {
+      if (options.length > 1) {
         tile.querySelectorAll('.unit-opt').forEach((btn) => {
           btn.addEventListener('click', () => {
             selectedUnit[p.id] = btn.dataset.unit;
@@ -207,7 +220,7 @@
     const current = cart[key]?.qty || 0;
     const next = Math.max(0, current + delta);
     if (next === 0) delete cart[key];
-    else cart[key] = { product, unitLabel: info.label, price: info.price, qty: next };
+    else cart[key] = { product, unitKey: info.key, unitLabel: info.label, price: info.price, qty: next };
     renderProducts();
     if ($('cartOverlay').style.display === 'flex') renderCart();
     updateCartCount();
@@ -236,7 +249,7 @@
     $('cartEmptyNote').style.display = lines.length ? 'none' : 'block';
     $('cartTotalRow').style.display = lines.length ? 'flex' : 'none';
     for (const l of lines) {
-      const info = { key: l.unitLabel === l.product.unit_2 ? 'u2' : 'u1', label: l.unitLabel, price: l.price };
+      const info = { key: l.unitKey, label: l.unitLabel, price: l.price };
       const row = document.createElement('div');
       row.className = 'cart-line';
       row.innerHTML = `
