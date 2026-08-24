@@ -67,6 +67,28 @@ async function init() {
       price NUMERIC
     )
   `);
+  // Real shopper accounts - signed up once, logged in on every future visit.
+  // customer_type is asked at sign-up (are you already one of our
+  // distributor's customers, or brand new to us) and reused for every
+  // order after that, instead of being asked again each time.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      customer_type TEXT DEFAULT 'new',
+      name TEXT NOT NULL,
+      shop_name TEXT,
+      phone TEXT,
+      whatsapp TEXT UNIQUE NOT NULL,
+      address TEXT,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  // Orders now link back to the account that placed them (their profile is
+  // still snapshotted onto customer_name/shop_name/etc at order time, so a
+  // later profile edit never rewrites order history).
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id)`);
   // Store branding - editable from the admin panel (Settings tab), so the
   // shop name/tagline/logo can be changed any time without touching code.
   await pool.query(`

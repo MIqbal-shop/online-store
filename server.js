@@ -24,6 +24,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api', require('./routes/public'));
+app.use('/api/customers', require('./routes/customers'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/orders/feed', require('./routes/feed'));
 

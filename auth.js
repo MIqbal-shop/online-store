@@ -19,35 +19,47 @@ function makeApiKey() {
   return crypto.randomBytes(24).toString('hex');
 }
 
-// In-memory sessions, same trade-off as the DMS: everyone re-logs-in if the
-// process restarts. Fine for a single-admin storefront.
-const sessions = new Map();
+// In-memory sessions, same trade-off either way: everyone re-logs-in if the
+// process restarts (fine for a small storefront). Two independent stores -
+// an admin token must never double as a customer token or vice versa, even
+// though the underlying mechanism is identical.
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+function makeSessionStore() {
+  const sessions = new Map();
+  return {
+    create(payload) {
+      const token = crypto.randomBytes(24).toString('hex');
+      sessions.set(token, { expires: Date.now() + SESSION_TTL_MS, payload });
+      return token;
+    },
+    get(token) {
+      if (!token) return null;
+      const entry = sessions.get(token);
+      if (!entry) return null;
+      if (Date.now() > entry.expires) { sessions.delete(token); return null; }
+      return entry.payload;
+    },
+    destroy(token) { sessions.delete(token); },
+  };
+}
+const adminSessions = makeSessionStore();
+const customerSessions = makeSessionStore();
 
-function createSession() {
-  const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, Date.now() + SESSION_TTL_MS);
-  return token;
-}
-function isValidSession(token) {
-  if (!token) return false;
-  const exp = sessions.get(token);
-  if (!exp) return false;
-  if (Date.now() > exp) { sessions.delete(token); return false; }
-  return true;
-}
-function destroySession(token) {
-  sessions.delete(token);
-}
 function tokenFromReq(req) {
   return (req.headers.authorization || '').replace('Bearer ', '').trim();
 }
 function requireAdmin(req, res, next) {
-  if (!isValidSession(tokenFromReq(req))) return res.status(401).json({ error: 'Login required' });
+  if (!adminSessions.get(tokenFromReq(req))) return res.status(401).json({ error: 'Login required' });
+  next();
+}
+function requireCustomer(req, res, next) {
+  const payload = customerSessions.get(tokenFromReq(req));
+  if (!payload) return res.status(401).json({ error: 'Please log in first.' });
+  req.customerId = payload.id;
   next();
 }
 
 module.exports = {
   hashPassword, makeSalt, verifyPassword, makeApiKey,
-  createSession, isValidSession, destroySession, tokenFromReq, requireAdmin,
+  adminSessions, customerSessions, tokenFromReq, requireAdmin, requireCustomer,
 };

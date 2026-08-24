@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin - Online Store</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- Setup / Login -->
+<div class="admin-login-wrap" id="loginWrap">
+  <div class="card admin-login-card">
+    <h2 id="loginTitle" style="margin-top:0;">Login</h2>
+    <p id="loginSubtitle" style="color:var(--ink-soft); font-size:13px; margin-top:-8px;">Access your admin account.</p>
+    <div class="field"><label>Username</label><input id="loginUsername" /></div>
+    <div class="field"><label>Password</label><input id="loginPassword" type="password" /></div>
+    <div class="field" id="confirmPwField" style="display:none;"><label>Confirm Password</label><input id="loginPasswordConfirm" type="password" /></div>
+    <p id="loginError" class="error-text" style="display:none;"></p>
+    <button class="btn btn-navy" id="loginSubmitBtn" style="width:100%;">Login</button>
+  </div>
+</div>
+
+<!-- Main admin shell -->
+<div class="admin-shell" id="adminShell" style="display:none;">
+  <div class="admin-side">
+    <div class="name">Admin Panel</div>
+    <button class="admin-tab active" data-tab="products">📦 Products</button>
+    <button class="admin-tab" data-tab="orders">🛍️ Orders</button>
+    <button class="admin-tab" data-tab="store">🏬 Store</button>
+    <button class="admin-tab" data-tab="settings">🔑 DMS Connection</button>
+    <button class="admin-tab" id="logoutBtn" style="margin-top:20px; color:#f3a9a4;">Logout</button>
+  </div>
+
+  <div class="admin-main">
+    <!-- Products tab -->
+    <div id="tab-products">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h2 style="margin:0;">Products</h2>
+        <button class="btn btn-gold" id="newProductBtn">+ New Product</button>
+      </div>
+      <div class="card" id="productsList"></div>
+    </div>
+
+    <!-- Orders tab -->
+    <div id="tab-orders" style="display:none;">
+      <h2>Orders</h2>
+      <div class="card" id="ordersList"></div>
+    </div>
+
+    <!-- Store tab -->
+    <div id="tab-store" style="display:none;">
+      <h2>Store</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        This name, tagline, and logo appear at the top of your storefront - change them any time, no code needed.
+      </p>
+      <div class="card" style="padding:16px; margin-top:12px;">
+        <div class="field"><label>Store Name</label><input id="s_name" placeholder="IQBAL TRADER" /></div>
+        <div class="field"><label>Tagline</label><input id="s_tagline" placeholder="Order directly from your shop" /></div>
+        <div class="field">
+          <label>Logo (optional)</label>
+          <input id="s_logo_file" type="file" accept="image/*" />
+          <img id="s_logo_preview" style="max-width:80px; margin-top:8px; border-radius:8px; display:none;" />
+        </div>
+        <p id="storeError" class="error-text" style="display:none;"></p>
+        <button class="btn btn-navy" id="saveStoreBtn">Save</button>
+        <p id="storeMsg" style="font-size:12.5px; color:var(--green); margin-top:8px; display:none;">Saved.</p>
+      </div>
+    </div>
+
+    <!-- Settings tab -->
+    <div id="tab-settings" style="display:none;">
+      <h2>DMS Connection</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        Paste this website's link and the Secret Key below into your DMS's Settings &gt; "Online Store" section,
+        so orders keep flowing into the DMS automatically.
+      </p>
+      <div class="card" style="padding:16px; margin-top:12px;">
+        <label>Website Link</label>
+        <p id="siteUrlBox" class="key-box" style="margin-bottom:14px;"></p>
+        <label>Secret Key</label>
+        <p id="apiKeyBox" class="key-box"></p>
+        <button class="btn btn-ghost" id="regenKeyBtn" style="margin-top:12px;">Generate New Key</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product edit modal -->
+<div class="overlay" id="productOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="productModalTitle">New Product</h2>
+      <button class="close-btn" id="closeProductModal">✕</button>
+    </div>
+    <input type="hidden" id="p_id" />
+    <div class="field"><label>Name</label><input id="p_name" /></div>
+    <div class="field"><label>Price (Rs)</label><input id="p_price" type="number" /></div>
+    <div class="field"><label>Unit (piece / carton / kg etc.)</label><input id="p_unit" /></div>
+    <div class="field"><label>Description (optional)</label><textarea id="p_description" rows="2"></textarea></div>
+    <div class="field">
+      <label>Image (optional)</label>
+      <input id="p_image_file" type="file" accept="image/*" />
+      <img id="p_image_preview" style="max-width:120px; margin-top:8px; border-radius:8px; display:none;" />
+    </div>
+    <div class="field" style="display:flex; align-items:center; gap:8px;">
+      <input id="p_active" type="checkbox" style="width:auto;" checked />
+      <label style="margin:0;">Show on website</label>
+    </div>
+    <p id="productError" class="error-text" style="display:none;"></p>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-navy" id="saveProductBtn" style="flex:1;">Save</button>
+      <button class="btn btn-red" id="deleteProductBtn" style="display:none;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
