@@ -62,10 +62,9 @@
         <div class="tag" id="brandTag">Order directly from your shop</div>
       </div>
     </div>
-    <div style="display:flex; gap:10px;">
-      <button class="icon-btn" id="profileBtn">Account</button>
-      <button class="icon-btn" id="cartBtn"><span id="cartTotalLive"></span>Cart <span class="count" id="cartCount">0</span></button>
-    </div>
+    <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 
   <div class="wrap">
@@ -79,6 +78,31 @@
   </div>
 
   <p class="footer-note">After placing your order, our team will contact you on WhatsApp.</p>
+</div>
+
+<!-- Sticky bottom bar - appears once something is added to the cart -->
+<div class="sticky-cart-bar" id="stickyCartBar" style="display:none;">
+  <div class="sticky-cart-info">
+    <span id="stickyCartCount">0 items</span>
+    <span id="stickyCartTotal">Rs 0</span>
+  </div>
+  <button class="btn btn-gold" id="stickyCartBtn">View cart</button>
+</div>
+
+<!-- Sidebar - Account & Cart, collapsible -->
+<div class="sidebar-overlay" id="sidebarOverlay" style="display:none;"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand" id="sidebarBrand">IQBAL TRADER</div>
+    <button class="close-btn" id="closeSidebar">&times;</button>
+  </div>
+  <button class="sidebar-link" id="profileBtn">
+    <span>Account</span>
+  </button>
+  <button class="sidebar-link" id="cartBtn">
+    <span>Cart</span>
+    <span class="count" id="cartCount">0</span>
+  </button>
 </div>
 
 <!-- Cart drawer -->

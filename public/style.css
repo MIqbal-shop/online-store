@@ -130,7 +130,50 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .unit-opt { flex: 1; padding: 7px 6px; border-radius: 9px; border: 1.5px solid rgba(0,0,0,0.18); background: rgba(0,0,0,0.06); color: inherit; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em; }
 .unit-opt.active { background: rgba(0,0,0,0.22); border-color: rgba(0,0,0,0.32); }
 
-#cartTotalLive { font-family: 'Anton', sans-serif; font-size: 13px; color: var(--gold); }
+/* ---- Sidebar menu (Account / Cart) ---- */
+.menu-btn {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  flex-shrink: 0;
+}
+.menu-btn span { display: block; width: 18px; height: 2px; background: var(--paper); border-radius: 2px; }
+
+.sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); z-index: 70; }
+
+.sidebar {
+  position: fixed; top: 0; right: 0; height: 100%; width: 260px; max-width: 80vw;
+  background: var(--ink-2); border-left: 1px solid var(--line);
+  z-index: 80; padding: 20px 16px;
+  display: flex; flex-direction: column; gap: 6px;
+  transform: translateX(100%);
+  transition: transform .22s ease;
+  overflow-y: auto;
+}
+.sidebar.open { transform: translateX(0); }
+.sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.sidebar-brand { font-family: 'Anton', sans-serif; font-size: 16px; text-transform: uppercase; letter-spacing: 0.02em; }
+.sidebar-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; text-align: left; background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+  color: var(--paper); padding: 13px 14px; border-radius: 12px;
+  font-size: 14px; font-weight: 700;
+}
+.sidebar-link:hover { border-color: var(--paper-dim); }
+.sidebar-link .count { background: var(--gold); color: #241800; border-radius: 999px; font-size: 11px; padding: 1px 7px; font-weight: 800; }
+
+/* ---- Sticky bottom cart bar (Daraz / Shopify style) ---- */
+.sticky-cart-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 55;
+  background: rgba(14,11,8,0.95); backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  padding: 12px 18px; padding-bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+}
+.sticky-cart-info { display: flex; flex-direction: column; gap: 2px; }
+#stickyCartCount { font-size: 11.5px; color: var(--paper-dim); }
+#stickyCartTotal { font-family: 'Anton', sans-serif; font-size: 19px; color: var(--gold); }
+.sticky-cart-bar .btn { padding: 12px 26px; }
 
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
 @media (min-width: 640px) { .overlay { align-items: center; } }

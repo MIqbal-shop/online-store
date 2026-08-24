@@ -28,7 +28,7 @@
       const data = await fetch('/api/store-info').then((r) => r.json());
       const store = data.store || {};
       const initials = (store.store_name || 'IT').trim().slice(0, 2).toUpperCase();
-      for (const nameEl of [$('brandName')]) nameEl.textContent = store.store_name || 'IQBAL TRADER';
+      for (const nameEl of [$('brandName'), $('sidebarBrand')]) nameEl.textContent = store.store_name || 'IQBAL TRADER';
       $('authName').textContent = store.store_name || 'IQBAL TRADER';
       if (store.tagline) $('brandTag').textContent = store.tagline;
       document.title = store.store_name || 'Online Order';
@@ -75,6 +75,19 @@
     $('tabSignup').classList.add('active'); $('tabLogin').classList.remove('active');
     $('signupForm').style.display = 'block'; $('loginForm').style.display = 'none';
   });
+
+  // ---- Sidebar (Account / Cart) ----
+  function openSidebar() {
+    $('sidebar').classList.add('open');
+    $('sidebarOverlay').style.display = 'block';
+  }
+  function closeSidebar() {
+    $('sidebar').classList.remove('open');
+    $('sidebarOverlay').style.display = 'none';
+  }
+  $('menuBtn').addEventListener('click', openSidebar);
+  $('closeSidebar').addEventListener('click', closeSidebar);
+  $('sidebarOverlay').addEventListener('click', closeSidebar);
 
   $('typeOldBtn').addEventListener('click', () => selectSignupType('old'));
   $('typeNewBtn').addEventListener('click', () => selectSignupType('new'));
@@ -233,12 +246,21 @@
   function updateCartCount() {
     const count = Object.values(cart).reduce((s, l) => s + l.qty, 0);
     $('cartCount').textContent = count;
-    const totalEl = $('cartTotalLive');
-    totalEl.textContent = count > 0 ? money(cartTotal()) + '  ·  ' : '';
+
+    const bar = $('stickyCartBar');
+    if (count > 0) {
+      $('stickyCartCount').textContent = count + (count === 1 ? ' item' : ' items');
+      $('stickyCartTotal').textContent = money(cartTotal());
+      bar.style.display = 'flex';
+    } else {
+      bar.style.display = 'none';
+    }
   }
 
   // ---- Cart drawer ----
-  $('cartBtn').addEventListener('click', () => { renderCart(); $('cartOverlay').style.display = 'flex'; });
+  function openCart() { renderCart(); $('cartOverlay').style.display = 'flex'; }
+  $('cartBtn').addEventListener('click', () => { closeSidebar(); openCart(); });
+  $('stickyCartBtn').addEventListener('click', openCart);
   $('closeCart').addEventListener('click', () => $('cartOverlay').style.display = 'none');
   $('cartOverlay').addEventListener('click', (e) => { if (e.target.id === 'cartOverlay') $('cartOverlay').style.display = 'none'; });
 
@@ -317,7 +339,7 @@
   $('successCloseBtn').addEventListener('click', () => $('successOverlay').style.display = 'none');
 
   // ---- Profile modal ----
-  $('profileBtn').addEventListener('click', openProfile);
+  $('profileBtn').addEventListener('click', () => { closeSidebar(); openProfile(); });
   $('closeProfile').addEventListener('click', () => $('profileOverlay').style.display = 'none');
   $('profileOverlay').addEventListener('click', (e) => { if (e.target.id === 'profileOverlay') $('profileOverlay').style.display = 'none'; });
 
