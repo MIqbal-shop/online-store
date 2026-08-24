@@ -16,7 +16,7 @@ router.get('/store-info', async (req, res, next) => {
 // useful here than a stable order, so plain id order.
 router.get('/products', async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT id, name, price, unit, image, description FROM products WHERE active=true ORDER BY id');
+    const { rows } = await pool.query('SELECT id, name, price, unit, unit_2, price_2, image, description FROM products WHERE active=true ORDER BY id');
     res.json({ products: rows });
   } catch (err) { next(err); }
 });

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { hashPassword, makeSalt, verifyPassword, makeApiKey, adminSessions, tokenFromReq, requireAdmin } = require('../auth');
+const { hashPassword, makeSalt, verifyPassword, makeApiKey, createSession, destroySession, tokenFromReq, requireAdmin } = require('../auth');
 
 // GET /api/admin/setup-status - the admin panel checks this first to decide
 // whether to show "create your account" or the normal login form.
@@ -31,7 +31,7 @@ router.post('/setup', async (req, res, next) => {
       'INSERT INTO admin_auth (id, username, password_hash, password_salt, api_key) VALUES (1,$1,$2,$3,$4)',
       [username.trim(), hash, salt, apiKey]
     );
-    const token = adminSessions.create(true);
+    const token = await createSession('admin');
     res.json({ token });
   } catch (err) { next(err); }
 });
@@ -44,13 +44,13 @@ router.post('/login', async (req, res, next) => {
     if (!account || account.username !== (username || '').trim() || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
       return res.status(401).json({ error: 'Username ya password ghalat hai.' });
     }
-    const token = adminSessions.create(true);
+    const token = await createSession('admin');
     res.json({ token });
   } catch (err) { next(err); }
 });
 
-router.post('/logout', (req, res) => {
-  adminSessions.destroy(tokenFromReq(req));
+router.post('/logout', async (req, res) => {
+  await destroySession(tokenFromReq(req));
   res.json({ ok: true });
 });
 
@@ -81,11 +81,12 @@ router.get('/products', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, price, unit, image, description, active } = req.body;
+    const { name, price, unit, unit_2, price_2, image, description, active } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Product ka naam likhna zaroori hai.' });
+    const hasSecond = unit_2 && String(unit_2).trim() && price_2 !== '' && price_2 != null;
     const { rows } = await pool.query(
-      `INSERT INTO products (name, price, unit, image, description, active) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [name.trim(), Number(price) || 0, unit || '', image || null, description || '', active !== false]
+      `INSERT INTO products (name, price, unit, unit_2, price_2, image, description, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [name.trim(), Number(price) || 0, unit || '', hasSecond ? String(unit_2).trim() : null, hasSecond ? Number(price_2) || 0 : null, image || null, description || '', active !== false]
     );
     res.json({ product: rows[0] });
   } catch (err) { next(err); }
@@ -93,10 +94,11 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, price, unit, image, description, active } = req.body;
+    const { name, price, unit, unit_2, price_2, image, description, active } = req.body;
+    const hasSecond = unit_2 && String(unit_2).trim() && price_2 !== '' && price_2 != null;
     const { rows } = await pool.query(
-      `UPDATE products SET name=$1, price=$2, unit=$3, image=$4, description=$5, active=$6 WHERE id=$7 RETURNING *`,
-      [name || '', Number(price) || 0, unit || '', image || null, description || '', active !== false, req.params.id]
+      `UPDATE products SET name=$1, price=$2, unit=$3, unit_2=$4, price_2=$5, image=$6, description=$7, active=$8 WHERE id=$9 RETURNING *`,
+      [name || '', Number(price) || 0, unit || '', hasSecond ? String(unit_2).trim() : null, hasSecond ? Number(price_2) || 0 : null, image || null, description || '', active !== false, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });
     res.json({ product: rows[0] });

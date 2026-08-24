@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { hashPassword, makeSalt, verifyPassword, customerSessions, requireCustomer } = require('../auth');
+const { hashPassword, makeSalt, verifyPassword, createSession, destroySession, requireCustomer } = require('../auth');
 
 function publicFields(row) {
   return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type };
@@ -36,7 +36,7 @@ router.post('/signup', async (req, res, next) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [customer_type, name.trim(), (shop_name || '').trim(), (phone || '').trim(), whatsapp.trim(), (address || '').trim(), hash, salt]
     );
-    const token = customerSessions.create({ id: rows[0].id });
+    const token = await createSession('customer', rows[0].id);
     res.json({ token, customer: publicFields(rows[0]) });
   } catch (err) { next(err); }
 });
@@ -50,13 +50,13 @@ router.post('/login', async (req, res, next) => {
     if (!account || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
       return res.status(401).json({ error: 'WhatsApp number or password is incorrect.' });
     }
-    const token = customerSessions.create({ id: account.id });
+    const token = await createSession('customer', account.id);
     res.json({ token, customer: publicFields(account) });
   } catch (err) { next(err); }
 });
 
-router.post('/logout', (req, res) => {
-  customerSessions.destroy((req.headers.authorization || '').replace('Bearer ', '').trim());
+router.post('/logout', async (req, res) => {
+  await destroySession((req.headers.authorization || '').replace('Bearer ', '').trim());
   res.json({ ok: true });
 });
 
