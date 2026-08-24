@@ -133,6 +133,23 @@ async function init() {
   if (seed.rows.length === 0) {
     await pool.query(`INSERT INTO store_settings (id, store_name, tagline) VALUES (1, 'IQBAL TRADER', 'Order directly from your shop')`);
   }
+
+  // Forgot-password requests - a customer can't recover their old password
+  // (only a secure hash of it is ever stored), so "forgot password" instead
+  // generates a new temporary one here. Since there's no WhatsApp API wired
+  // up, the admin sees it in the panel and forwards it to the customer
+  // manually (Settings -> Password Resets).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      whatsapp TEXT NOT NULL,
+      customer_name TEXT,
+      temp_password TEXT NOT NULL,
+      sent BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 }
 
 module.exports = { pool, init };
