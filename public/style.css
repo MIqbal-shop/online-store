@@ -178,3 +178,69 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
   .topbar { padding: 14px 16px; }
   .hero { padding: 36px 0 20px; }
 }
+
+/* ============================================================
+   Admin panel - uses the same dark/gold palette as the storefront,
+   but its own layout: a login/setup gate, then a sidebar + content
+   shell. The sidebar becomes a bottom tab bar on small screens
+   instead of a hamburger menu - simpler to use with a thumb, and
+   nothing needs to be toggled open/closed.
+   ============================================================ */
+
+.card { background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); }
+
+.btn-navy { background: rgba(255,255,255,0.08); color: var(--paper); }
+.btn-navy:hover { background: rgba(255,255,255,0.14); }
+.btn-ghost { background: transparent; color: var(--paper); border: 1.5px solid var(--line); }
+.btn-ghost:hover { border-color: var(--paper-dim); }
+.btn-red { background: rgba(214,69,69,0.15); color: #ff9a9a; }
+.btn-red:hover { background: rgba(214,69,69,0.25); }
+
+.admin-login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; }
+.admin-login-wrap::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, rgba(240,178,61,0.10), transparent 55%); pointer-events: none; }
+.admin-login-card { position: relative; width: 100%; max-width: 380px; padding: 32px 26px; }
+
+.admin-row { display: flex; align-items: center; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--line); gap: 12px; }
+.admin-row:last-child { border-bottom: none; }
+.pill-status { font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; }
+.pill-new { background: rgba(240,178,61,0.18); color: var(--gold); }
+.pill-cancelled { background: rgba(214,69,69,0.18); color: #ff9a9a; }
+.thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: rgba(255,255,255,0.06); flex-shrink: 0; }
+.key-box { font-family: monospace; background: rgba(0,0,0,0.35); color: #c8f7d4; padding: 12px 14px; border-radius: 10px; font-size: 12.5px; word-break: break-all; }
+
+.admin-shell { display: flex; min-height: 100vh; }
+.admin-side {
+  width: 220px; flex-shrink: 0;
+  background: var(--ink-2); border-right: 1px solid var(--line);
+  padding: 24px 14px; display: flex; flex-direction: column; gap: 4px;
+}
+.admin-side .name { font-family: 'Anton', sans-serif; font-size: 17px; text-transform: uppercase; margin-bottom: 20px; padding: 0 8px; }
+.admin-tab {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; text-align: left; background: none; border: none;
+  color: var(--paper-dim); padding: 11px 12px; border-radius: 12px;
+  font-size: 13.5px; font-weight: 600;
+}
+.admin-tab.active { background: rgba(240,178,61,0.14); color: var(--gold); }
+.logout-tab { color: #ff9a9a; margin-top: 16px; }
+.admin-main { flex: 1; padding: 30px 34px; max-width: 900px; }
+.admin-main h2 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: 26px; margin: 0 0 16px; }
+
+@media (max-width: 860px) {
+  .admin-shell { flex-direction: column; }
+  .admin-side {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    width: 100%; height: auto;
+    flex-direction: row; justify-content: space-around; align-items: center;
+    padding: 8px 6px; border-right: none; border-top: 1px solid var(--line);
+    background: rgba(23,19,15,0.96); backdrop-filter: blur(10px);
+  }
+  .admin-side .name { display: none; }
+  .admin-tab {
+    flex: 1; text-align: center; justify-content: center;
+    font-size: 11px; padding: 10px 4px; white-space: nowrap;
+  }
+  .logout-tab { margin-top: 0; }
+  .admin-main { padding: 20px 16px 100px; }
+}
+
