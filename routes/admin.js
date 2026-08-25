@@ -81,7 +81,7 @@ router.get('/products', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, in_stock } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Product ka naam likhna zaroori hai.' });
     const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
@@ -92,8 +92,8 @@ router.post('/products', async (req, res, next) => {
       return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
     }
     const { rows } = await pool.query(
-      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, in_stock)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [
         name.trim(), pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
@@ -101,6 +101,7 @@ router.post('/products', async (req, res, next) => {
         pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         image || null, description || '', active !== false,
+        (category || '').trim(), in_stock !== false,
       ]
     );
     res.json({ product: rows[0] });
@@ -109,7 +110,7 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, in_stock } = req.body;
     const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
     if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
@@ -119,15 +120,30 @@ router.put('/products/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
     }
     const { rows } = await pool.query(
-      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, description=$9, active=$10 WHERE id=$11 RETURNING *`,
+      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, description=$9, active=$10, category=$11, in_stock=$12 WHERE id=$13 RETURNING *`,
       [
         name || '', pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
         pt !== 'single' ? Number(price_carton) || 0 : null,
         pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
-        image || null, description || '', active !== false, req.params.id,
+        image || null, description || '', active !== false,
+        (category || '').trim(), in_stock !== false, req.params.id,
       ]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });
+    res.json({ product: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/products/:id/stock - body: { in_stock: true|false }
+// Quick toggle for the "In stock" / "Out of stock" buttons in the product
+// list, without needing to open the full edit form.
+router.put('/products/:id/stock', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE products SET in_stock=$1 WHERE id=$2 RETURNING *',
+      [req.body.in_stock !== false, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });
     res.json({ product: rows[0] });
@@ -142,20 +158,113 @@ router.delete('/products/:id', async (req, res, next) => {
 });
 
 // ---- Orders (admin's own view - the DMS separately pulls a copy via /feed) ----
+//
+// The main Orders tab only ever shows orders still awaiting a decision
+// (status='new') so it doesn't pile up forever. Once the admin confirms or
+// cancels an order it disappears from here and moves into History, which
+// can be filtered by date/month/year.
 
 router.get('/orders', async (req, res, next) => {
   try {
-    const { rows: orders } = await pool.query('SELECT * FROM orders ORDER BY order_date DESC');
-    const { rows: items } = await pool.query('SELECT * FROM order_items ORDER BY id');
+    const { rows: orders } = await pool.query(`SELECT * FROM orders WHERE status='new' ORDER BY order_date DESC`);
+    const { rows: items } = await pool.query(
+      `SELECT oi.* FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.status='new' ORDER BY oi.id`
+    );
     const byOrder = {};
     for (const it of items) { (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it); }
     res.json({ orders: orders.map(o => ({ ...o, items: byOrder[o.id] || [] })) });
   } catch (err) { next(err); }
 });
 
+// GET /api/admin/orders/history?year=2026&month=8&day=24 - all confirmed
+// or cancelled orders, optionally narrowed down to a year, a year+month,
+// or an exact day.
+router.get('/orders/history', async (req, res, next) => {
+  try {
+    const { year, month, day } = req.query;
+    const conditions = [`status IN ('confirmed','cancelled')`];
+    const params = [];
+    if (year) { params.push(Number(year)); conditions.push(`EXTRACT(YEAR FROM order_date) = $${params.length}`); }
+    if (month) { params.push(Number(month)); conditions.push(`EXTRACT(MONTH FROM order_date) = $${params.length}`); }
+    if (day) { params.push(Number(day)); conditions.push(`EXTRACT(DAY FROM order_date) = $${params.length}`); }
+    const { rows: orders } = await pool.query(
+      `SELECT * FROM orders WHERE ${conditions.join(' AND ')} ORDER BY order_date DESC`, params
+    );
+    const orderIds = orders.map(o => o.id);
+    let items = [];
+    if (orderIds.length > 0) {
+      const r = await pool.query(`SELECT * FROM order_items WHERE order_id = ANY($1::int[]) ORDER BY id`, [orderIds]);
+      items = r.rows;
+    }
+    const byOrder = {};
+    for (const it of items) { (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it); }
+    res.json({ orders: orders.map(o => ({ ...o, items: byOrder[o.id] || [] })) });
+  } catch (err) { next(err); }
+});
+
+router.put('/orders/:id/confirm', async (req, res, next) => {
+  try {
+    await pool.query(`UPDATE orders SET status='confirmed' WHERE id=$1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 router.put('/orders/:id/cancel', async (req, res, next) => {
   try {
     await pool.query(`UPDATE orders SET status='cancelled' WHERE id=$1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ---- Dashboard (simple sales snapshot) ----
+
+router.get('/dashboard', async (req, res, next) => {
+  try {
+    const { rows: totals } = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status='new') AS pending_orders,
+        COUNT(*) FILTER (WHERE status='confirmed' AND order_date >= NOW() - INTERVAL '30 days') AS confirmed_last_30d,
+        COUNT(*) FILTER (WHERE status='cancelled' AND order_date >= NOW() - INTERVAL '30 days') AS cancelled_last_30d
+      FROM orders
+    `);
+    const { rows: revenue } = await pool.query(`
+      SELECT COALESCE(SUM(oi.price * oi.quantity), 0) AS total
+      FROM order_items oi JOIN orders o ON oi.order_id = o.id
+      WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
+    `);
+    const { rows: topProducts } = await pool.query(`
+      SELECT oi.product_name, SUM(oi.quantity) AS total_qty
+      FROM order_items oi JOIN orders o ON oi.order_id = o.id
+      WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
+      GROUP BY oi.product_name ORDER BY total_qty DESC LIMIT 5
+    `);
+    res.json({
+      pending_orders: Number(totals[0].pending_orders),
+      confirmed_last_30d: Number(totals[0].confirmed_last_30d),
+      cancelled_last_30d: Number(totals[0].cancelled_last_30d),
+      revenue_last_30d: Number(revenue[0].total),
+      top_products: topProducts,
+    });
+  } catch (err) { next(err); }
+});
+
+// ---- Customers ----
+
+router.get('/customers', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT c.id, c.name, c.shop_name, c.phone, c.whatsapp, c.address, c.customer_type, c.blocked,
+        COUNT(o.id) AS order_count
+      FROM customers c LEFT JOIN orders o ON o.customer_id = c.id
+      GROUP BY c.id ORDER BY c.id DESC
+    `);
+    res.json({ customers: rows });
+  } catch (err) { next(err); }
+});
+
+router.put('/customers/:id/block', async (req, res, next) => {
+  try {
+    await pool.query('UPDATE customers SET blocked=$1 WHERE id=$2', [req.body.blocked !== false, req.params.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });

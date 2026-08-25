@@ -56,6 +56,9 @@ router.post('/login', async (req, res, next) => {
     if (!account || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
       return res.status(401).json({ error: 'WhatsApp number or password is incorrect.' });
     }
+    if (account.blocked) {
+      return res.status(403).json({ error: 'Your account has been disabled. Please contact us.' });
+    }
     const token = await createSession('customer', account.id);
     res.json({ token, customer: publicFields(account) });
   } catch (err) { next(err); }
@@ -70,7 +73,23 @@ router.get('/me', requireCustomer, async (req, res, next) => {
   try {
     const { rows } = await pool.query('SELECT * FROM customers WHERE id=$1', [req.customerId]);
     if (!rows[0]) return res.status(404).json({ error: 'Account not found.' });
+    if (rows[0].blocked) return res.status(403).json({ error: 'Your account has been disabled. Please contact us.' });
     res.json({ customer: publicFields(rows[0]) });
+  } catch (err) { next(err); }
+});
+
+// GET /api/customers/me/orders - the shopper's own order history, newest
+// first, each with its line items - powers the storefront's "My Orders".
+router.get('/me/orders', requireCustomer, async (req, res, next) => {
+  try {
+    const { rows: orders } = await pool.query('SELECT * FROM orders WHERE customer_id=$1 ORDER BY order_date DESC', [req.customerId]);
+    const { rows: items } = await pool.query(
+      `SELECT oi.* FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.customer_id=$1 ORDER BY oi.id`,
+      [req.customerId]
+    );
+    const byOrder = {};
+    for (const it of items) { (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it); }
+    res.json({ orders: orders.map(o => ({ ...o, items: byOrder[o.id] || [] })) });
   } catch (err) { next(err); }
 });
 
