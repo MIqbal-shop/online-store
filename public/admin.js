@@ -76,7 +76,7 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['dashboard', 'products', 'orders', 'history', 'customers', 'store', 'resets', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['dashboard', 'products', 'orders', 'history', 'customers', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
       if (btn.dataset.tab === 'resets') loadPasswordResets();
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'customers') loadCustomers();
@@ -141,6 +141,38 @@ function priceSummary(p) {
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+
+  // ---- Show/Hide toggle for every password field on the page ----
+  function wirePasswordToggles() {
+    document.querySelectorAll('input[type="password"]').forEach((input) => {
+      if (input.closest('.pw-wrap')) return; // already wired
+      const wrap = document.createElement('div');
+      wrap.className = 'pw-wrap';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pw-toggle-btn';
+      btn.textContent = 'Show';
+      btn.addEventListener('click', () => {
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.textContent = showing ? 'Show' : 'Hide';
+      });
+      wrap.appendChild(btn);
+    });
+  }
+  wirePasswordToggles();
+
+  // ---- Sidebar collapse (desktop) ----
+  function applySidebarCollapsed(collapsed) {
+    $('adminSide').classList.toggle('collapsed', collapsed);
+    localStorage.setItem('admin_sidebar_collapsed', collapsed ? '1' : '0');
+  }
+  applySidebarCollapsed(localStorage.getItem('admin_sidebar_collapsed') === '1');
+  $('collapseSidebarBtn').addEventListener('click', () => {
+    applySidebarCollapsed(!$('adminSide').classList.contains('collapsed'));
+  });
 
   $('newProductBtn').addEventListener('click', () => openProductModal(null));
   $('closeProductModal').addEventListener('click', () => $('productOverlay').style.display = 'none');
@@ -396,6 +428,30 @@ function priceSummary(p) {
       box.appendChild(row);
     }
   }
+
+  // ---- Account (admin's own password) ----
+  $('saveAccountBtn').addEventListener('click', async () => {
+    const errEl = $('accountError');
+    const msgEl = $('accountMsg');
+    errEl.style.display = 'none';
+    msgEl.style.display = 'none';
+    const current_password = $('a_current').value;
+    const new_password = $('a_new').value;
+    const confirm_password = $('a_confirm').value;
+    if (!current_password) { errEl.textContent = 'Please enter your current password.'; errEl.style.display = 'block'; return; }
+    if (!new_password || new_password.length < 6) { errEl.textContent = 'New password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+    if (new_password !== confirm_password) { errEl.textContent = 'New passwords do not match.'; errEl.style.display = 'block'; return; }
+    try {
+      await api('/api/admin/password', { method: 'PUT', body: JSON.stringify({ current_password, new_password }) });
+      msgEl.style.display = 'block';
+      $('a_current').value = '';
+      $('a_new').value = '';
+      $('a_confirm').value = '';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  });
 
   // ---- Password Resets ----
   async function loadPasswordResets() {

@@ -13,6 +13,28 @@
     return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // ---- Show/Hide toggle for every password field on the page ----
+  function wirePasswordToggles() {
+    document.querySelectorAll('input[type="password"]').forEach((input) => {
+      if (input.closest('.pw-wrap')) return; // already wired
+      const wrap = document.createElement('div');
+      wrap.className = 'pw-wrap';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pw-toggle-btn';
+      btn.textContent = 'Show';
+      btn.addEventListener('click', () => {
+        const showing = input.type === 'text';
+        input.type = showing ? 'password' : 'text';
+        btn.textContent = showing ? 'Show' : 'Hide';
+      });
+      wrap.appendChild(btn);
+    });
+  }
+  wirePasswordToggles();
+
   async function api(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = 'Bearer ' + token;

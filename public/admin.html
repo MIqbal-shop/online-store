@@ -23,17 +23,21 @@
 
 <!-- Main admin shell -->
 <div class="admin-shell" id="adminShell" style="display:none;">
-  <div class="admin-side">
-    <div class="name">Admin Panel</div>
-    <button class="admin-tab active" data-tab="dashboard">📊 Dashboard</button>
-    <button class="admin-tab" data-tab="products">📦 Products</button>
-    <button class="admin-tab" data-tab="orders">🛍️ Orders</button>
-    <button class="admin-tab" data-tab="history">📜 Order History</button>
-    <button class="admin-tab" data-tab="customers">👥 Customers</button>
-    <button class="admin-tab" data-tab="store">🏬 Store</button>
-    <button class="admin-tab" data-tab="resets">🔐 Password Resets</button>
-    <button class="admin-tab" data-tab="settings">🔑 DMS Connection</button>
-    <button class="admin-tab logout-tab" id="logoutBtn">🚪 Logout</button>
+  <div class="admin-side" id="adminSide">
+    <div class="admin-side-top">
+      <div class="name">Admin Panel</div>
+      <button class="collapse-btn" id="collapseSidebarBtn" title="Collapse sidebar">&#8676;</button>
+    </div>
+    <button class="admin-tab active" data-tab="dashboard"><span class="ico">📊</span><span class="lbl">Dashboard</span></button>
+    <button class="admin-tab" data-tab="products"><span class="ico">📦</span><span class="lbl">Products</span></button>
+    <button class="admin-tab" data-tab="orders"><span class="ico">🛍️</span><span class="lbl">Orders</span></button>
+    <button class="admin-tab" data-tab="history"><span class="ico">📜</span><span class="lbl">Order History</span></button>
+    <button class="admin-tab" data-tab="customers"><span class="ico">👥</span><span class="lbl">Customers</span></button>
+    <button class="admin-tab" data-tab="store"><span class="ico">🏬</span><span class="lbl">Store</span></button>
+    <button class="admin-tab" data-tab="resets"><span class="ico">🔐</span><span class="lbl">Password Resets</span></button>
+    <button class="admin-tab" data-tab="account"><span class="ico">🔑</span><span class="lbl">Account</span></button>
+    <button class="admin-tab" data-tab="settings"><span class="ico">🔗</span><span class="lbl">DMS Connection</span></button>
+    <button class="admin-tab logout-tab" id="logoutBtn"><span class="ico">🚪</span><span class="lbl">Logout</span></button>
   </div>
 
   <div class="admin-main">
@@ -117,6 +121,20 @@
         them on WhatsApp yourself, then mark it as sent.
       </p>
       <div class="card" id="resetsList" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Account tab - admin's own password -->
+    <div id="tab-account" style="display:none;">
+      <h2>Account</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">Change the password you use to log in to this admin panel.</p>
+      <div class="card" style="padding:16px; margin-top:12px; max-width:380px;">
+        <div class="field pw-field"><label>Current password</label><input id="a_current" type="password" /></div>
+        <div class="field pw-field"><label>New password</label><input id="a_new" type="password" placeholder="At least 6 characters" /></div>
+        <div class="field pw-field"><label>Confirm new password</label><input id="a_confirm" type="password" /></div>
+        <p id="accountError" class="error-text" style="display:none;"></p>
+        <p id="accountMsg" style="font-size:12.5px; color:var(--green); margin-top:8px; display:none;">Password changed.</p>
+        <button class="btn btn-navy" id="saveAccountBtn">Change password</button>
+      </div>
     </div>
 
     <!-- Settings tab -->
