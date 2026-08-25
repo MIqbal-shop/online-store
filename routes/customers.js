@@ -171,4 +171,41 @@ router.post('/forgot-password', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---- Favorites / Wishlist ----
+
+// GET /api/customers/me/favorites - product ids the shopper has saved,
+// plus the full product rows (only active ones - a favorite pointing at a
+// since-removed product just quietly stops showing up).
+router.get('/me/favorites', requireCustomer, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.* FROM favorites f JOIN products p ON p.id = f.product_id
+       WHERE f.customer_id=$1 AND p.active=true ORDER BY f.created_at DESC`,
+      [req.customerId]
+    );
+    res.json({ products: rows });
+  } catch (err) { next(err); }
+});
+
+// POST /api/customers/me/favorites - body: { product_id }
+router.post('/me/favorites', requireCustomer, async (req, res, next) => {
+  try {
+    const productId = Number(req.body.product_id);
+    if (!productId) return res.status(400).json({ error: 'Missing product.' });
+    await pool.query(
+      `INSERT INTO favorites (customer_id, product_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+      [req.customerId, productId]
+    );
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/customers/me/favorites/:productId
+router.delete('/me/favorites/:productId', requireCustomer, async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM favorites WHERE customer_id=$1 AND product_id=$2', [req.customerId, req.params.productId]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

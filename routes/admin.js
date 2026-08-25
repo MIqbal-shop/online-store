@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { hashPassword, makeSalt, verifyPassword, makeApiKey, createSession, destroySession, tokenFromReq, requireAdmin } = require('../auth');
+const { sendWhatsAppMessage } = require('../whatsapp');
 
 // GET /api/admin/setup-status - the admin panel checks this first to decide
 // whether to show "create your account" or the normal login form.
@@ -286,6 +287,58 @@ router.get('/customers', async (req, res, next) => {
 router.put('/customers/:id/block', async (req, res, next) => {
   try {
     await pool.query('UPDATE customers SET blocked=$1 WHERE id=$2', [req.body.blocked !== false, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ---- Broadcast (send one message to every customer on WhatsApp) ----
+//
+// If WHATSAPP_TOKEN/WHATSAPP_PHONE_ID are configured (see whatsapp.js),
+// this sends the message straight away via the Meta Cloud API. Either way
+// it always returns the full customer list with a ready-made wa.me link
+// per person, so the admin panel can show a "Send" WhatsApp button for
+// anyone who wasn't auto-delivered (or for every customer, if the API
+// isn't set up at all yet) - exactly like the existing password-reset
+// WhatsApp buttons.
+router.post('/broadcast', async (req, res, next) => {
+  try {
+    const message = (req.body.message || '').trim();
+    if (!message) return res.status(400).json({ error: 'Please write a message first.' });
+
+    const { rows: customers } = await pool.query(
+      `SELECT id, name, whatsapp FROM customers WHERE blocked=false AND whatsapp IS NOT NULL AND whatsapp <> '' ORDER BY id`
+    );
+
+    const configured = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
+    const results = [];
+    for (const c of customers) {
+      let sent = false;
+      if (configured) {
+        try { sent = await sendWhatsAppMessage(c.whatsapp, message); }
+        catch (e) { console.error('[broadcast] failed for', c.whatsapp, e.message); }
+      }
+      results.push({ customer_id: c.id, name: c.name, whatsapp: c.whatsapp, sent });
+    }
+    res.json({ configured, total: customers.length, sent_count: results.filter(r => r.sent).length, results });
+  } catch (err) { next(err); }
+});
+
+// ---- Reviews (moderation) ----
+
+router.get('/reviews', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.*, p.name AS product_name
+      FROM reviews r LEFT JOIN products p ON p.id = r.product_id
+      ORDER BY r.created_at DESC LIMIT 300
+    `);
+    res.json({ reviews: rows });
+  } catch (err) { next(err); }
+});
+
+router.delete('/reviews/:id', async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM reviews WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
