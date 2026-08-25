@@ -145,15 +145,27 @@ router.post('/forgot-password', async (req, res, next) => {
 
     const { rows } = await pool.query('SELECT * FROM customers WHERE whatsapp=$1', [whatsapp]);
     const account = rows[0];
-    if (account) {
-      const tempPassword = generateTempPassword();
-      const salt = makeSalt();
-      const hash = hashPassword(tempPassword, salt);
-      await pool.query('UPDATE customers SET password_hash=$1, password_salt=$2 WHERE id=$3', [hash, salt, account.id]);
-      await pool.query(
-        `INSERT INTO password_resets (customer_id, whatsapp, customer_name, temp_password) VALUES ($1,$2,$3,$4)`,
-        [account.id, account.whatsapp, account.name, tempPassword]
+    // Only ever creates a request (and only ever appears in the admin's
+    // Password Resets list) when this WhatsApp number matches a real,
+    // non-blocked account - a random/unregistered number produces nothing
+    // for the admin to see, so there's nothing to accidentally hand out.
+    if (account && !account.blocked) {
+      // A short cooldown stops the same number from being spammed to keep
+      // invalidating the real owner's password over and over.
+      const recent = await pool.query(
+        `SELECT id FROM password_resets WHERE customer_id=$1 AND created_at > NOW() - INTERVAL '5 minutes'`,
+        [account.id]
       );
+      if (recent.rows.length === 0) {
+        const tempPassword = generateTempPassword();
+        const salt = makeSalt();
+        const hash = hashPassword(tempPassword, salt);
+        await pool.query('UPDATE customers SET password_hash=$1, password_salt=$2 WHERE id=$3', [hash, salt, account.id]);
+        await pool.query(
+          `INSERT INTO password_resets (customer_id, whatsapp, customer_name, temp_password) VALUES ($1,$2,$3,$4)`,
+          [account.id, account.whatsapp, account.name, tempPassword]
+        );
+      }
     }
     res.json({ ok: true, message: 'If this WhatsApp number has an account, a new password is ready - our team will send it to you on WhatsApp shortly.' });
   } catch (err) { next(err); }
