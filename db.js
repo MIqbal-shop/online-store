@@ -203,6 +203,27 @@ async function init() {
     CREATE UNIQUE INDEX IF NOT EXISTS reviews_one_general_per_customer
     ON reviews (customer_id) WHERE target_type = 'general'
   `);
+
+  // ---- Order confirmation with quantity adjustments, kept in sync across
+  // whichever side confirms it (Admin Portal here, or the DMS app later) ----
+  //
+  // quantity on order_items always stays exactly what the customer asked
+  // for - it's never overwritten, so "what did they order" is never lost.
+  // confirmed_quantity is filled in ONLY at confirm time: normally it's set
+  // equal to quantity (nothing changed), but if the shop can't fully cover
+  // an item, it's set to whatever amount is actually being sent instead.
+  // Any difference between quantity and confirmed_quantity is what
+  // "altered" on the order flags, and it's what the bill and the WhatsApp
+  // change-notice message are built from - never the original ordered
+  // amount. NULL means "not confirmed yet".
+  await pool.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS confirmed_quantity NUMERIC`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS altered BOOLEAN DEFAULT FALSE`);
+  // confirmed_via records which system actually pressed the confirm/cancel
+  // button ('admin' = Admin Portal, 'dms' = the DMS app) purely for
+  // reference - either one is equally able to do it, and whichever happens
+  // first is simply what sticks, since both write to this same table.
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_via TEXT`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP`);
 }
 
 module.exports = { pool, init };

@@ -33,17 +33,24 @@ Render seedha GitHub se deploy karta hai, isliye pehle yeh code GitHub par daaln
 
 ---
 
-## Step 3: Vercel Par Deploy Karein (Bilkul Free, Koi Card Nahi)
+## Step 3: Render Par Deploy Karein
 
-1. https://vercel.com par jayein, **"Sign Up"** dabayein, **"Continue with GitHub"** select karein (koi card nahi maangta).
-2. Login hone ke baad **"Add New..."** → **"Project"** par click karein.
-3. Apni `online-store` repository dhoondein aur **"Import"** dabayein.
-4. Settings automatically theek honge (Framework: "Other") - kuch badalne ki zaroorat nahi.
-5. **"Environment Variables"** section mein ek variable add karein:
+1. https://render.com par jayein, GitHub se sign up karein.
+2. **"New +"** → **"Web Service"** par click karein.
+3. Apni GitHub repository (jo Step 2 mein banayi) select karein.
+4. Settings yeh rakhein:
+   - **Name:** kuch bhi (jaise `mera-online-store`) - yehi aapki website ka link banega: `mera-online-store.onrender.com`
+   - **Region:** koi bhi
+   - **Branch:** `main`
+   - **Runtime:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Instance Type:** **Free**
+5. Neeche **"Environment Variables"** section mein ek variable add karein:
    - Key: `DATABASE_URL`
-   - Value: wo poora Supabase connection string (Step 1 wala)
-6. **"Deploy"** button dabayein. 1-2 minute mein deploy ho jayega.
-7. Deploy hone ke baad ek link milega jaisay `https://online-store-xyz.vercel.app` - yehi aapki live website hai!
+   - Value: wo poora Supabase connection string jo Step 1 mein save kiya tha
+6. **"Create Web Service"** par click karein. 2-3 minute mein deploy ho jayega.
+7. Deploy hone ke baad upar ek link milega jaisay `https://mera-online-store.onrender.com` - yehi aapki live website hai!
 
 ---
 
@@ -69,6 +76,7 @@ Bas ho gaya! Ab jab bhi koi customer website se order karega, wo order 15-20 sec
 
 ## Zaroori Baatein
 
-- **Free service "so" nahi jaati** Vercel par jis tarah Render mein hoti thi - lekin pehli baar (ya lambi khamoshi ke baad) khulne mein 1-2 second lag sakte hain, ye normal hai.
+- **Free service "so" jaati hai** agar 15 minute tak koi visit na kare - agla customer aane par 30-60 second lagenge khulne mein (bas ek dafa). Baaki hamesha normal speed.
+- Agar kabhi order zyada ho jayen aur ye rukawat pareshan kare, to Render ka **paid plan** ($7/month) yeh masla khatam kar deta hai - lekin abhi zaroorat nahi.
 - Apna website ka naam/tagline badalne ke liye `public/config.js` file kholein, sirf 2 lines edit karni hain.
 - Agar kabhi Secret Key leak ho jaye ya change karni ho, Admin Panel ke "DMS Connection" tab se "Nayi Key Banayein" dabayein - phir wahi nayi key DMS Settings mein bhi update kar dein.
