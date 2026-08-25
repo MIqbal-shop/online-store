@@ -134,8 +134,10 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .product-img-box { flex: 1; display: flex; align-items: center; justify-content: center; margin: 14px 0; transform: translateZ(50px); }
 .product-img-box img { max-width: 100%; max-height: 160px; object-fit: contain; filter: drop-shadow(0 18px 20px rgba(0,0,0,0.35)); }
 .product-img-placeholder { width: 100%; height: 140px; border-radius: 12px; background: rgba(0,0,0,0.12); display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0.6; }
-.product-price { font-family: 'Anton', sans-serif; font-size: 22px; transform: translateZ(30px); }
+.product-price { font-family: 'Anton', sans-serif; font-size: 22px; }
 .product-price .unit { font-size: 11px; font-family: 'Inter'; font-weight: 600; text-transform: none; opacity: 0.75; }
+
+.tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; transform: translateZ(35px); }
 
 .qty-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; transform: translateZ(40px); }
 .qty-btn { width: 32px; height: 32px; border-radius: 10px; border: none; background: rgba(0,0,0,0.18); color: inherit; font-weight: 800; font-size: 16px; }
@@ -374,12 +376,22 @@ html[dir="rtl"] .sidebar-link, html[dir="rtl"] .profile-row, html[dir="rtl"] .ca
 .fav-btn.active { color: #ff5f5f; background: rgba(20,16,12,0.75); }
 html[dir="rtl"] .fav-btn { left: auto; right: 14px; }
 
-/* ---- Star ratings (display) ---- */
-.rating-line { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 4px; opacity: 0.9; transform: translateZ(20px); }
-.rating-stars { color: #ffd45e; letter-spacing: 1px; }
-.rating-count { opacity: 0.75; }
-.rating-line.clickable { cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-.rating-line.no-reviews { opacity: 0.65; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+/* ---- Star ratings (modern badge, sits beside the price) ---- */
+.rating-badge {
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  background: rgba(0,0,0,0.24); backdrop-filter: blur(6px);
+  padding: 7px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; line-height: 1;
+  cursor: pointer; transition: background .15s ease, transform .12s ease;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.rating-badge:hover { background: rgba(0,0,0,0.36); transform: translateY(-1px); }
+.rating-badge:active { transform: scale(0.96); }
+.rating-badge .star-ic { color: #ffd45e; font-size: 13px; }
+.rating-badge .avg-num { letter-spacing: 0.01em; }
+.rating-badge .rating-count { opacity: 0.65; font-weight: 600; }
+.rating-badge.no-reviews { background: rgba(255,255,255,0.14); font-weight: 600; }
+.rating-badge.no-reviews .star-ic { color: rgba(255,255,255,0.55); }
 
 /* ---- Star picker (input) ---- */
 .star-picker { display: flex; gap: 6px; font-size: 26px; }
@@ -392,9 +404,9 @@ html[dir="rtl"] .fav-btn { left: auto; right: 14px; }
 .review-card .rstars { color: #ffd45e; font-size: 13px; margin-left: 6px; }
 .review-card .rcomment { font-size: 12.5px; color: var(--paper-dim); margin-top: 6px; line-height: 1.5; }
 .review-card .rdate { font-size: 11px; color: #9aa0b4; margin-top: 6px; }
-.reviews-summary { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
-.reviews-summary .avg { font-family: 'Anton', sans-serif; font-size: 32px; color: var(--gold); }
-.reviews-summary .stars { color: #ffd45e; font-size: 16px; }
+.reviews-summary { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 14px 16px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 14px; }
+.reviews-summary .avg { font-family: 'Anton', sans-serif; font-size: 34px; color: var(--gold); line-height: 1; }
+.reviews-summary .stars { color: #ffd45e; font-size: 16px; display: block; margin-bottom: 2px; }
 .reviews-summary .count { color: var(--paper-dim); font-size: 12.5px; }
 
 /* ---- Broadcast (admin) ---- */

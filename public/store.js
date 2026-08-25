@@ -43,7 +43,7 @@
       currentPassword: 'Current password', newPassword: 'New password', confirmNewPassword: 'Confirm new password',
       passwordChanged: 'Password changed.', changePassword: 'Change password', reorder: 'Reorder',
       noReviewsYet: 'No reviews yet - be the first!', pickARating: 'Please pick a star rating.',
-      switchLang: 'اردو',
+      rateThis: 'Rate this', switchLang: 'اردو',
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
@@ -72,7 +72,7 @@
       currentPassword: 'موجودہ پاسورڈ', newPassword: 'نیا پاسورڈ', confirmNewPassword: 'نیا پاسورڈ دوبارہ لکھیں',
       passwordChanged: 'پاسورڈ تبدیل ہو گیا۔', changePassword: 'پاسورڈ تبدیل کریں', reorder: 'دوبارہ آرڈر کریں',
       noReviewsYet: 'ابھی تک کوئی رائے موجود نہیں - سب سے پہلے آپ لکھیں!', pickARating: 'براہ کرم ستارے منتخب کریں۔',
-      switchLang: 'English',
+      rateThis: 'ریٹ کریں', switchLang: 'English',
     },
   };
   let lang = localStorage.getItem('store_lang') || 'en';
@@ -406,13 +406,13 @@
       tile.className = 'product-tile ' + TILE_COLORS[i % TILE_COLORS.length];
       const isFav = favoriteIds.has(p.id);
       const summary = reviewSummary[p.id];
+      const ratingBadge = summary
+        ? `<div class="rating-badge" data-open-reviews="${p.id}"><span class="star-ic">&#9733;</span><span class="avg-num">${summary.avg_rating}</span><span class="rating-count">(${summary.count})</span></div>`
+        : `<div class="rating-badge no-reviews" data-open-reviews="${p.id}"><span class="star-ic">&#9734;</span><span>${t('rateThis')}</span></div>`;
       tile.innerHTML = `
         ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
         <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
         <div class="product-name">${escapeHtml(p.name)}</div>
-        <div class="rating-line ${summary ? 'clickable' : 'no-reviews'}" data-open-reviews="${p.id}">
-          ${summary ? `<span class="rating-stars">${starsHtml(summary.avg_rating)}</span><span>${summary.avg_rating}</span><span class="rating-count">(${summary.count})</span>` : `<span>${t('noReviewsYet')}</span>`}
-        </div>
         ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
         <div class="product-img-box">${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}</div>
         ${options.length > 1 ? `
@@ -420,7 +420,10 @@
             ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
           </div>
         ` : ''}
-        <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
+        <div class="tile-footer">
+          <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
+          ${ratingBadge}
+        </div>
         <div class="qty-row">
           <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
           <span class="qty-val">${qty}</span>
@@ -742,7 +745,7 @@
     $('reviewsOverlay').style.display = 'flex';
     const summary = reviewSummary[product.id];
     $('reviewsSummaryBox').innerHTML = summary
-      ? `<span class="avg">${summary.avg_rating}</span><span class="stars">${starsHtml(summary.avg_rating)}</span><span class="count">(${summary.count})</span>`
+      ? `<span class="avg">${summary.avg_rating}</span><div><span class="stars">${starsHtml(summary.avg_rating)}</span><span class="count">${summary.count} review${summary.count === 1 ? '' : 's'}</span></div>`
       : '';
     try {
       const data = await fetch(`/api/reviews?product_id=${product.id}`).then((r) => r.json());
