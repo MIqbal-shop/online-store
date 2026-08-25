@@ -280,6 +280,7 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .pill-new { background: rgba(240,178,61,0.18); color: var(--gold); }
 .pill-cancelled { background: rgba(214,69,69,0.18); color: #ff9a9a; }
 .pill-confirmed { background: rgba(90,200,120,0.18); color: #8fd19e; }
+.pill-adjusted { font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; background: rgba(120,150,255,0.18); color: #a9b8ff; }
 .pill-out { background: rgba(214,69,69,0.18); color: #ff9a9a; }
 .pill-in { background: rgba(90,200,120,0.18); color: #8fd19e; }
 .thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: rgba(255,255,255,0.06); flex-shrink: 0; }

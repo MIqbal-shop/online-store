@@ -237,6 +237,39 @@
   </div>
 </div>
 
+<!-- Order review / confirm modal - lets the admin adjust quantities before
+     confirming (e.g. customer ordered 2pcs, shop only has 1pcs to give) -->
+<div class="overlay" id="orderReviewOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>Review Order</h2>
+      <button class="close-btn" id="closeOrderReview">&times;</button>
+    </div>
+    <div id="orderReviewCustomerBox" style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;"></div>
+    <div id="orderReviewItems"></div>
+    <div class="total-row" style="display:flex; justify-content:space-between; font-weight:700; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);">
+      <span>Total</span>
+      <span id="orderReviewTotal">Rs 0</span>
+    </div>
+    <p style="font-size:11.5px; color:var(--ink-soft); margin-top:6px;">
+      Leave "Give qty" as-is to confirm an item exactly as ordered. Change it only for items you can't fully cover -
+      the customer will get a WhatsApp message explaining the difference after you confirm.
+    </p>
+    <p id="orderReviewError" class="error-text" style="display:none;"></p>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn btn-navy" id="orderReviewConfirmBtn" style="flex:1;">Confirm Order</button>
+      <button class="btn btn-red" id="orderReviewCancelBtn">Cancel Order</button>
+    </div>
+
+    <!-- Shown only after confirming an order where a quantity was changed -->
+    <div id="orderReviewNotifyBox" style="display:none; margin-top:18px; padding-top:16px; border-top:1px solid var(--line);">
+      <div style="font-weight:700; font-size:13.5px; margin-bottom:8px;">Let the customer know</div>
+      <div class="field"><textarea id="orderReviewNotifyMsg" rows="6"></textarea></div>
+      <a class="btn btn-gold whatsapp-btn" id="orderReviewNotifyBtn" href="#" target="_blank" rel="noopener" style="width:100%; text-align:center; display:block;">Send via WhatsApp</a>
+    </div>
+  </div>
+</div>
+
 <script src="admin.js"></script>
 </body>
 </html>

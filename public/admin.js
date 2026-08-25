@@ -310,13 +310,11 @@ function priceSummary(p) {
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
         <div style="display:flex; gap:6px;">
-          <button class="btn btn-navy confirm-btn">Confirm</button>
+          <button class="btn btn-navy review-btn">Review &amp; Confirm</button>
           <button class="btn btn-red cancel-btn">Cancel</button>
         </div>
       `;
-      row.querySelector('.confirm-btn').addEventListener('click', async () => {
-        try { await api(`/api/admin/orders/${o.id}/confirm`, { method: 'PUT' }); loadOrders(); } catch (e) { alert(e.message); }
-      });
+      row.querySelector('.review-btn').addEventListener('click', () => openOrderReview(o));
       row.querySelector('.cancel-btn').addEventListener('click', async () => {
         if (!confirm('Cancel this order? It will also show as cancelled in the DMS.')) return;
         try { await api(`/api/admin/orders/${o.id}/cancel`, { method: 'PUT' }); loadOrders(); } catch (e) { alert(e.message); }
@@ -324,6 +322,103 @@ function priceSummary(p) {
       box.appendChild(row);
     }
   }
+
+  // ---- Order review modal (adjust quantities, then confirm) ----
+  $('closeOrderReview').addEventListener('click', () => $('orderReviewOverlay').style.display = 'none');
+  $('orderReviewOverlay').addEventListener('click', (e) => { if (e.target.id === 'orderReviewOverlay') $('orderReviewOverlay').style.display = 'none'; });
+
+  let reviewingOrder = null;
+
+  function openOrderReview(order) {
+    reviewingOrder = order;
+    $('orderReviewError').style.display = 'none';
+    $('orderReviewNotifyBox').style.display = 'none';
+    $('orderReviewItems').style.display = 'block';
+    $('orderReviewConfirmBtn').style.display = 'inline-block';
+    $('orderReviewCancelBtn').style.display = 'inline-block';
+    $('orderReviewConfirmBtn').disabled = false;
+    $('orderReviewConfirmBtn').textContent = 'Confirm Order';
+
+    $('orderReviewCustomerBox').innerHTML = `
+      <div style="font-weight:700; font-size:14.5px; color:var(--ink);">${escapeHtml(order.customer_name)}</div>
+      ${order.shop_name ? escapeHtml(order.shop_name) + ' &middot; ' : ''}${escapeHtml(order.whatsapp || '')}
+      ${order.note ? `<div style="color:var(--gold); margin-top:4px;">Note: ${escapeHtml(order.note)}</div>` : ''}
+    `;
+
+    const itemsBox = $('orderReviewItems');
+    itemsBox.innerHTML = (order.items || []).map((it) => `
+      <div class="review-item-row" data-item-id="${it.id}" data-price="${it.price}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);">
+        <div>
+          <div style="font-weight:600; font-size:13px;">${escapeHtml(it.product_name)}</div>
+          <div style="font-size:11.5px; color:var(--ink-soft);">Ordered: ${it.quantity} ${escapeHtml(it.unit || '')} &middot; ${money(it.price)} each</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <label style="font-size:11px; color:var(--ink-soft); margin:0;">Give qty</label>
+          <input type="number" class="review-qty-input" value="${it.quantity}" min="0" step="any" style="width:72px; padding:6px 8px;" />
+        </div>
+      </div>
+    `).join('');
+    itemsBox.querySelectorAll('.review-qty-input').forEach((inp) => inp.addEventListener('input', updateOrderReviewTotal));
+    updateOrderReviewTotal();
+    $('orderReviewOverlay').style.display = 'flex';
+  }
+
+  function updateOrderReviewTotal() {
+    let total = 0;
+    document.querySelectorAll('#orderReviewItems .review-item-row').forEach((row) => {
+      const price = Number(row.dataset.price) || 0;
+      const qty = Number(row.querySelector('.review-qty-input').value) || 0;
+      total += price * qty;
+    });
+    $('orderReviewTotal').textContent = money(total);
+  }
+
+  $('orderReviewConfirmBtn').addEventListener('click', async () => {
+    if (!reviewingOrder) return;
+    const errEl = $('orderReviewError');
+    errEl.style.display = 'none';
+    const items = [];
+    document.querySelectorAll('#orderReviewItems .review-item-row').forEach((row) => {
+      items.push({ id: Number(row.dataset.itemId), confirmed_quantity: row.querySelector('.review-qty-input').value });
+    });
+    const btn = $('orderReviewConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = 'Confirming...';
+    try {
+      const data = await api(`/api/admin/orders/${reviewingOrder.id}/confirm`, { method: 'PUT', body: JSON.stringify({ items }) });
+      $('orderReviewItems').style.display = 'none';
+      $('orderReviewCancelBtn').style.display = 'none';
+      btn.style.display = 'none';
+      if (data.altered && data.whatsapp) {
+        const box = $('orderReviewNotifyBox');
+        const msgEl = $('orderReviewNotifyMsg');
+        const linkEl = $('orderReviewNotifyBtn');
+        msgEl.value = data.whatsapp.message;
+        const updateLink = () => { linkEl.href = `https://wa.me/${formatWhatsAppNumber(data.whatsapp.phone)}?text=${encodeURIComponent(msgEl.value)}`; };
+        updateLink();
+        msgEl.oninput = updateLink;
+        box.style.display = 'block';
+      } else {
+        $('orderReviewCustomerBox').insertAdjacentHTML('beforeend', '<div style="color:#8fd19e; margin-top:10px; font-weight:600;">Order confirmed - exactly as ordered.</div>');
+      }
+      loadOrders();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Confirm Order';
+    }
+  });
+
+  $('orderReviewCancelBtn').addEventListener('click', async () => {
+    if (!reviewingOrder) return;
+    if (!confirm('Cancel this order? It will also show as cancelled in the DMS.')) return;
+    try {
+      await api(`/api/admin/orders/${reviewingOrder.id}/cancel`, { method: 'PUT' });
+      $('orderReviewOverlay').style.display = 'none';
+      loadOrders();
+    } catch (e) { alert(e.message); }
+  });
 
   // ---- Dashboard ----
   async function loadDashboard() {
@@ -380,16 +475,27 @@ function priceSummary(p) {
       return;
     }
     for (const o of orders) {
-      const itemsText = (o.items || []).map((it) => `${it.product_name} x ${it.quantity}${it.unit ? ' ' + it.unit : ''}`).join(', ');
+      const itemsText = (o.items || []).map((it) => {
+        const hasAdjustment = it.confirmed_quantity != null && Number(it.confirmed_quantity) !== Number(it.quantity);
+        const qtyPart = hasAdjustment ? `${it.quantity} → ${it.confirmed_quantity}` : `${it.quantity}`;
+        return `${it.product_name} x ${qtyPart}${it.unit ? ' ' + it.unit : ''}`;
+      }).join(', ');
+      const billTotal = (o.items || []).reduce((s, it) => s + (it.confirmed_quantity != null ? Number(it.confirmed_quantity) : Number(it.quantity)) * Number(it.price), 0);
       const row = document.createElement('div');
       row.className = 'admin-row';
       row.style.alignItems = 'flex-start';
       row.innerHTML = `
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(o.customer_name)} <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : 'pill-confirmed'}">${o.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}</span></div>
+          <div style="font-weight:600; font-size:13.5px;">
+            ${escapeHtml(o.customer_name)}
+            <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : 'pill-confirmed'}">${o.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}</span>
+            ${o.altered ? '<span class="pill-adjusted">Adjusted</span>' : ''}
+            ${o.confirmed_via ? `<span style="font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.02em;">via ${o.confirmed_via === 'dms' ? 'DMS' : 'Admin Portal'}</span>` : ''}
+          </div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(o.shop_name || '')} ${o.shop_name ? '·' : ''} ${escapeHtml(o.whatsapp || '')}</div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">${escapeHtml(itemsText)}</div>
           ${o.note ? `<div style="font-size:12px; color:var(--gold); margin-top:4px;">Note: ${escapeHtml(o.note)}</div>` : ''}
+          ${o.status !== 'cancelled' ? `<div style="font-size:12.5px; font-weight:700; margin-top:4px;">${money(billTotal)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
       `;

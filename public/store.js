@@ -44,6 +44,8 @@
       passwordChanged: 'Password changed.', changePassword: 'Change password', reorder: 'Reorder',
       noReviewsYet: 'No reviews yet - be the first!', pickARating: 'Please pick a star rating.',
       rateThis: 'Rate this', switchLang: 'اردو',
+      statusConfirmed: 'Confirmed', statusCancelled: 'Cancelled', statusPending: 'Pending',
+      adjusted: 'Adjusted', adjustedNote: 'The quantity on some item(s) was changed by the shop before confirming - check the crossed-out vs bold amount below.',
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
@@ -73,6 +75,8 @@
       passwordChanged: 'پاسورڈ تبدیل ہو گیا۔', changePassword: 'پاسورڈ تبدیل کریں', reorder: 'دوبارہ آرڈر کریں',
       noReviewsYet: 'ابھی تک کوئی رائے موجود نہیں - سب سے پہلے آپ لکھیں!', pickARating: 'براہ کرم ستارے منتخب کریں۔',
       rateThis: 'ریٹ کریں', switchLang: 'English',
+      statusConfirmed: 'کنفرم', statusCancelled: 'منسوخ', statusPending: 'زیر التوا',
+      adjusted: 'تبدیل شدہ', adjustedNote: 'دکان نے کنفرم کرنے سے پہلے کچھ اشیاء کی مقدار تبدیل کی ہے - نیچے کٹی ہوئی اور موٹی مقدار دیکھیں۔',
     },
   };
   let lang = localStorage.getItem('store_lang') || 'en';
@@ -624,9 +628,22 @@
   }
 
   function statusLabel(status) {
-    if (status === 'confirmed') return 'Confirmed';
-    if (status === 'cancelled') return 'Cancelled';
-    return 'Pending';
+    if (status === 'confirmed') return t('statusConfirmed');
+    if (status === 'cancelled') return t('statusCancelled');
+    return t('statusPending');
+  }
+
+  function orderItemLineHtml(it) {
+    const unit = escapeHtml(it.unit || '');
+    const hasAdjustment = it.confirmed_quantity != null && Number(it.confirmed_quantity) !== Number(it.quantity);
+    const qtyPart = hasAdjustment
+      ? `<span style="text-decoration:line-through; opacity:.55;">${it.quantity}</span> &rarr; <b style="color:var(--gold);">${it.confirmed_quantity}</b> ${unit}`
+      : `${it.quantity} ${unit}`;
+    return `${escapeHtml(it.product_name)} - ${qtyPart} x ${money(it.price)}`;
+  }
+
+  function orderBillTotal(o) {
+    return o.items.reduce((s, it) => s + (it.confirmed_quantity != null ? Number(it.confirmed_quantity) : Number(it.quantity)) * Number(it.price), 0);
   }
 
   function renderMyOrders(orders) {
@@ -638,13 +655,17 @@
       card.className = 'order-card';
       const dateStr = (o.order_date || '').toString().replace('T', ' ').slice(0, 16);
       card.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
           <span style="font-weight:700; font-size:13px;">${dateStr}</span>
-          <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : o.status === 'confirmed' ? 'pill-confirmed' : 'pill-new'}">${statusLabel(o.status)}</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${o.altered ? `<span class="pill-adjusted">${t('adjusted')}</span>` : ''}
+            <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : o.status === 'confirmed' ? 'pill-confirmed' : 'pill-new'}">${statusLabel(o.status)}</span>
+          </div>
         </div>
-        <div class="items">${o.items.map((it) => `${escapeHtml(it.product_name)} - ${it.quantity} ${escapeHtml(it.unit || '')} x ${money(it.price)}`).join('<br>')}</div>
-        <div style="font-weight:700; margin-top:8px;">${money(o.items.reduce((s, it) => s + it.quantity * it.price, 0))}</div>
-        <button class="btn btn-navy reorder-btn" style="width:100%; margin-top:10px;">Reorder</button>
+        <div class="items">${o.items.map(orderItemLineHtml).join('<br>')}</div>
+        ${o.altered ? `<div class="info-note" style="margin-top:6px; font-size:11.5px;">${t('adjustedNote')}</div>` : ''}
+        <div style="font-weight:700; margin-top:8px;">${money(orderBillTotal(o))}</div>
+        <button class="btn btn-navy reorder-btn" style="width:100%; margin-top:10px;">${t('reorder')}</button>
       `;
       card.querySelector('.reorder-btn').addEventListener('click', () => reorder(o));
       box.appendChild(card);
