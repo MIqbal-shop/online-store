@@ -150,6 +150,19 @@ async function init() {
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  // In-stock toggle (admin flips this per product - no numeric quantity
+  // tracking, just "can customers order this right now or not") and an
+  // optional category, used for the storefront's search/filter bar.
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS in_stock BOOLEAN DEFAULT TRUE`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category TEXT DEFAULT ''`);
+
+  // Optional note a customer can attach at checkout (e.g. "deliver after 5pm").
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''`);
+
+  // Lets the admin block a problem account from logging in, without
+  // deleting their history.
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT FALSE`);
 }
 
 module.exports = { pool, init };
