@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require('../db');
 const { hashPassword, makeSalt, verifyPassword, makeApiKey, createSession, destroySession, tokenFromReq, requireAdmin } = require('../auth');
 const { sendWhatsAppMessage } = require('../whatsapp');
+const { confirmOrder, cancelOrder } = require('../orderLogic');
 
 // GET /api/admin/setup-status - the admin panel checks this first to decide
 // whether to show "create your account" or the normal login form.
@@ -224,17 +225,26 @@ router.get('/orders/history', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PUT /api/admin/orders/:id/confirm - body (optional): { items: [{ id, confirmed_quantity }] }
+// Leave items out (or leave any item unlisted) to confirm it exactly as
+// ordered. List an item with a different confirmed_quantity to send less
+// than what was ordered - the response's `altered` flag and `whatsapp`
+// object (present only when something actually changed) let the caller
+// offer a ready-made "here's what we can actually send you" WhatsApp
+// message to forward to the customer.
 router.put('/orders/:id/confirm', async (req, res, next) => {
   try {
-    await pool.query(`UPDATE orders SET status='confirmed' WHERE id=$1`, [req.params.id]);
-    res.json({ ok: true });
+    const result = await confirmOrder(req.params.id, req.body.items || [], 'admin');
+    if (!result) return res.status(404).json({ error: 'Order not found.' });
+    res.json(result);
   } catch (err) { next(err); }
 });
 
 router.put('/orders/:id/cancel', async (req, res, next) => {
   try {
-    await pool.query(`UPDATE orders SET status='cancelled' WHERE id=$1`, [req.params.id]);
-    res.json({ ok: true });
+    const order = await cancelOrder(req.params.id, 'admin');
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ ok: true, order });
   } catch (err) { next(err); }
 });
 
@@ -250,12 +260,12 @@ router.get('/dashboard', async (req, res, next) => {
       FROM orders
     `);
     const { rows: revenue } = await pool.query(`
-      SELECT COALESCE(SUM(oi.price * oi.quantity), 0) AS total
+      SELECT COALESCE(SUM(oi.price * COALESCE(oi.confirmed_quantity, oi.quantity)), 0) AS total
       FROM order_items oi JOIN orders o ON oi.order_id = o.id
       WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
     `);
     const { rows: topProducts } = await pool.query(`
-      SELECT oi.product_name, SUM(oi.quantity) AS total_qty
+      SELECT oi.product_name, SUM(COALESCE(oi.confirmed_quantity, oi.quantity)) AS total_qty
       FROM order_items oi JOIN orders o ON oi.order_id = o.id
       WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
       GROUP BY oi.product_name ORDER BY total_qty DESC LIMIT 5
