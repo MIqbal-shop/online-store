@@ -56,6 +56,27 @@ router.post('/logout', async (req, res) => {
 
 router.use(requireAdmin);
 
+// PUT /api/admin/password - change the admin's own login password.
+// Requires the current password so a stolen/left-open session can't be
+// used to lock the real owner out.
+router.put('/password', async (req, res, next) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password) return res.status(400).json({ error: 'Please enter your current password.' });
+    if (!new_password || new_password.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+
+    const { rows } = await pool.query('SELECT * FROM admin_auth WHERE id=1');
+    const account = rows[0];
+    if (!account || !verifyPassword(current_password, account.password_hash, account.password_salt)) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+    const salt = makeSalt();
+    const hash = hashPassword(new_password, salt);
+    await pool.query('UPDATE admin_auth SET password_hash=$1, password_salt=$2 WHERE id=1', [hash, salt]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // ---- Store branding (name, tagline, logo) ----
 
 router.put('/store-info', async (req, res, next) => {
