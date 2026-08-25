@@ -163,6 +163,46 @@ async function init() {
   // Lets the admin block a problem account from logging in, without
   // deleting their history.
   await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT FALSE`);
+
+  // Wishlist - a simple join table, one row per (customer, product) they've
+  // saved. No extra columns needed; the primary key doubles as the
+  // "already saved?" check.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (customer_id, product_id)
+    )
+  `);
+
+  // Ratings/reviews - covers a specific product (product_id set) as well as
+  // general feedback about the service/website as a whole (target_type
+  // 'general', product_id null). customer_name is snapshotted at review
+  // time so it still reads fine even if the account is later renamed.
+  // Each customer can leave only ONE review per product, and only one
+  // general review - submitting again edits their existing one instead of
+  // piling up duplicates (enforced by the two partial unique indexes below).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id SERIAL PRIMARY KEY,
+      target_type TEXT NOT NULL DEFAULT 'product', -- 'product' | 'general'
+      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      customer_name TEXT,
+      rating INTEGER NOT NULL,
+      comment TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS reviews_one_per_customer_product
+    ON reviews (customer_id, product_id) WHERE target_type = 'product'
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS reviews_one_general_per_customer
+    ON reviews (customer_id) WHERE target_type = 'general'
+  `);
 }
 
 module.exports = { pool, init };
