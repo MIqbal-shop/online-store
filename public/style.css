@@ -289,6 +289,8 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .dash-card .num { font-family: 'Anton', sans-serif; font-size: 26px; color: var(--gold); }
 .dash-card .label { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
 
+.btn { text-decoration: none; }
+.whatsapp-btn { padding: 9px 16px; font-size: 11.5px; }
 .stock-toggle-btn { background: rgba(255,255,255,0.06); color: var(--paper-dim); border: 1.5px solid var(--line); }
 .stock-toggle-btn.active-in { background: rgba(90,200,120,0.18); color: #8fd19e; border-color: rgba(90,200,120,0.4); }
 .stock-toggle-btn.active-out { background: rgba(214,69,69,0.18); color: #ff9a9a; border-color: rgba(214,69,69,0.4); }

@@ -472,6 +472,9 @@ function priceSummary(p) {
       const row = document.createElement('div');
       row.className = 'admin-row';
       row.style.alignItems = 'flex-start';
+      const waNumber = formatWhatsAppNumber(r.whatsapp);
+      const waMessage = `${storeName}: Your new password is: ${r.temp_password}\nPlease log in and change it from Settings.`;
+      const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
       row.innerHTML = `
         <div style="flex:1;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || '')} <span class="pill-status ${r.sent ? 'pill-new' : 'pill-cancelled'}">${r.sent ? 'Sent' : 'Not sent yet'}</span></div>
@@ -479,7 +482,10 @@ function priceSummary(p) {
           <div class="key-box" style="margin-top:6px; display:inline-block; padding:6px 12px;">${escapeHtml(r.temp_password)}</div>
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
-        ${!r.sent ? '<button class="btn btn-navy mark-sent-btn">Mark as sent</button>' : ''}
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>
+          ${!r.sent ? '<button class="btn btn-navy mark-sent-btn">Mark as sent</button>' : ''}
+        </div>
       `;
       const markBtn = row.querySelector('.mark-sent-btn');
       if (markBtn) markBtn.addEventListener('click', async () => {
@@ -489,13 +495,25 @@ function priceSummary(p) {
     }
   }
 
+  // Formats a stored WhatsApp number into the digits-only, country-code-first
+  // shape wa.me expects (e.g. "03001234567" -> "923001234567"). Assumes
+  // Pakistan when the number starts with a leading 0 - adjust here if your
+  // customers are elsewhere.
+  function formatWhatsAppNumber(raw) {
+    let digits = String(raw || '').replace(/[^0-9]/g, '');
+    if (digits.startsWith('0')) digits = '92' + digits.slice(1);
+    return digits;
+  }
+
   // ---- Store (name, tagline, logo) ----
   let currentLogoData = null;
+  let storeName = 'Our Store';
 
   async function loadStoreSettings() {
     try {
       const data = await fetch('/api/store-info').then((r) => r.json());
       const store = data.store || {};
+      storeName = store.store_name || 'Our Store';
       $('s_name').value = store.store_name || '';
       $('s_tagline').value = store.tagline || '';
       currentLogoData = store.logo_image || null;
