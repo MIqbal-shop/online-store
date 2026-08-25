@@ -33,6 +33,8 @@
     <button class="admin-tab" data-tab="orders"><span class="ico">🛍️</span><span class="lbl">Orders</span></button>
     <button class="admin-tab" data-tab="history"><span class="ico">📜</span><span class="lbl">Order History</span></button>
     <button class="admin-tab" data-tab="customers"><span class="ico">👥</span><span class="lbl">Customers</span></button>
+    <button class="admin-tab" data-tab="broadcast"><span class="ico">📢</span><span class="lbl">Broadcast</span></button>
+    <button class="admin-tab" data-tab="reviews"><span class="ico">⭐</span><span class="lbl">Reviews</span></button>
     <button class="admin-tab" data-tab="store"><span class="ico">🏬</span><span class="lbl">Store</span></button>
     <button class="admin-tab" data-tab="resets"><span class="ico">🔐</span><span class="lbl">Password Resets</span></button>
     <button class="admin-tab" data-tab="account"><span class="ico">🔑</span><span class="lbl">Account</span></button>
@@ -91,6 +93,30 @@
     <div id="tab-customers" style="display:none;">
       <h2>Customers</h2>
       <div class="card" id="customersList"></div>
+    </div>
+
+    <!-- Broadcast tab -->
+    <div id="tab-broadcast" style="display:none;">
+      <h2>Broadcast Message</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        Send one message to every customer at once - e.g. "Eid ki wajah se 3 din band rahenge". If a WhatsApp
+        Business API is configured on this server it sends automatically; either way you also get a ready WhatsApp
+        button for each customer, just like Password Resets.
+      </p>
+      <div class="card" style="padding:16px; margin-top:12px;">
+        <div class="field"><label>Message</label><textarea id="b_message" rows="3" placeholder="Type your announcement here..."></textarea></div>
+        <p id="broadcastError" class="error-text" style="display:none;"></p>
+        <button class="btn btn-navy" id="sendBroadcastBtn">Send to All Customers</button>
+        <p id="broadcastMsg" style="font-size:12.5px; color:var(--green); margin-top:8px; display:none;"></p>
+      </div>
+      <div class="card" id="broadcastResults" style="margin-top:16px;"></div>
+    </div>
+
+    <!-- Reviews tab -->
+    <div id="tab-reviews" style="display:none;">
+      <h2>Reviews</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">Ratings and feedback left by customers, for products and for your service/website overall.</p>
+      <div class="card" id="reviewsAdminList" style="margin-top:12px;"></div>
     </div>
 
     <!-- Store tab -->

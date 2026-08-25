@@ -17,38 +17,38 @@
     </div>
 
     <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin">Log in</button>
-      <button class="auth-tab" id="tabSignup">Create account</button>
+      <button class="auth-tab active" id="tabLogin" data-i18n="login">Log in</button>
+      <button class="auth-tab" id="tabSignup" data-i18n="createAccount">Create account</button>
     </div>
 
     <!-- Login form -->
     <div id="loginForm">
-      <div class="field"><label>WhatsApp number</label><input id="l_whatsapp" placeholder="03xx xxxxxxx" /></div>
-      <div class="field"><label>Password</label><input id="l_password" type="password" /></div>
+      <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="l_whatsapp" placeholder="03xx xxxxxxx" /></div>
+      <div class="field"><label data-i18n="password">Password</label><input id="l_password" type="password" /></div>
       <p id="loginError" class="error-text" style="display:none;"></p>
-      <button class="btn btn-gold" id="loginBtn" style="width:100%;">Log in</button>
-      <p style="text-align:center; margin-top:14px;"><a href="#" id="forgotPasswordLink" style="color:var(--gold); font-weight:700; font-size:13px;">Forgot password?</a></p>
+      <button class="btn btn-gold" id="loginBtn" style="width:100%;" data-i18n="login">Log in</button>
+      <p style="text-align:center; margin-top:14px;"><a href="#" id="forgotPasswordLink" style="color:var(--gold); font-weight:700; font-size:13px;" data-i18n="forgotPassword">Forgot password?</a></p>
     </div>
 
     <!-- Signup form -->
     <div id="signupForm" style="display:none;">
       <div class="type-choice">
-        <button id="typeOldBtn">Existing customer</button>
-        <button id="typeNewBtn">New customer</button>
+        <button id="typeOldBtn" data-i18n="existingCustomer">Existing customer</button>
+        <button id="typeNewBtn" data-i18n="newCustomer">New customer</button>
       </div>
 
-      <div class="field"><label>Your name</label><input id="s_name" placeholder="Enter your name" /></div>
-      <div class="field"><label>WhatsApp number</label><input id="s_whatsapp" placeholder="03xx xxxxxxx" /></div>
+      <div class="field"><label data-i18n="yourName">Your name</label><input id="s_name" placeholder="Enter your name" data-i18n-placeholder="enterYourName" /></div>
+      <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="s_whatsapp" placeholder="03xx xxxxxxx" /></div>
 
       <div id="newOnlyFields" style="display:none;">
-        <div class="field"><label>Shop name</label><input id="s_shop" placeholder="Your shop's name" /></div>
-        <div class="field"><label>Phone / cell number</label><input id="s_phone" placeholder="03xx xxxxxxx" /></div>
-        <div class="field"><label>Address</label><textarea id="s_address" rows="2" placeholder="Enter your full address"></textarea></div>
+        <div class="field"><label data-i18n="shopName">Shop name</label><input id="s_shop" placeholder="Your shop's name" data-i18n-placeholder="yourShopName" /></div>
+        <div class="field"><label data-i18n="phoneNumber">Phone / cell number</label><input id="s_phone" placeholder="03xx xxxxxxx" /></div>
+        <div class="field"><label data-i18n="address">Address</label><textarea id="s_address" rows="2" placeholder="Enter your full address" data-i18n-placeholder="enterFullAddress"></textarea></div>
       </div>
 
-      <div class="field"><label>Password</label><input id="s_password" type="password" placeholder="At least 6 characters" /></div>
+      <div class="field"><label data-i18n="password">Password</label><input id="s_password" type="password" placeholder="At least 6 characters" data-i18n-placeholder="atLeast6Chars" /></div>
       <p id="signupError" class="error-text" style="display:none;"></p>
-      <button class="btn btn-gold" id="signupBtn" style="width:100%;">Create account</button>
+      <button class="btn btn-gold" id="signupBtn" style="width:100%;" data-i18n="createAccount">Create account</button>
     </div>
   </div>
 </div>
@@ -57,14 +57,14 @@
 <div class="overlay" id="forgotOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
-      <h2>Reset password</h2>
+      <h2 data-i18n="resetPassword">Reset password</h2>
       <button class="close-btn" id="closeForgot">&times;</button>
     </div>
-    <p class="info-note">Enter the WhatsApp number on your account. We'll send a new password to it.</p>
-    <div class="field"><label>WhatsApp number</label><input id="f_whatsapp" placeholder="03xx xxxxxxx" /></div>
+    <p class="info-note" data-i18n="resetPasswordNote">Enter the WhatsApp number on your account. We'll send a new password to it.</p>
+    <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="f_whatsapp" placeholder="03xx xxxxxxx" /></div>
     <p id="forgotError" class="error-text" style="display:none;"></p>
     <p id="forgotMsg" class="info-note" style="display:none; color:#8fd19e;"></p>
-    <button class="btn btn-gold" id="forgotSubmitBtn" style="width:100%;">Send new password</button>
+    <button class="btn btn-gold" id="forgotSubmitBtn" style="width:100%;" data-i18n="sendNewPassword">Send new password</button>
   </div>
 </div>
 
@@ -78,27 +78,30 @@
         <div class="tag" id="brandTag">Order directly from your shop</div>
       </div>
     </div>
-    <button class="menu-btn" id="menuBtn" aria-label="Open menu">
-      <span></span><span></span><span></span>
-    </button>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="lang-btn" id="langBtn" type="button">اردو</button>
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   </div>
 
   <div class="wrap">
     <div class="hero" id="heroBox">
-      <h1 class="display">Choose your <span class="accent">products</span></h1>
-      <p>Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.</p>
+      <h1 class="display"><span data-i18n="chooseYour">Choose your</span> <span class="accent" data-i18n="products">products</span></h1>
+      <p data-i18n="heroSubtitle">Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.</p>
     </div>
 
     <div class="filter-bar">
-      <input class="search-input" id="searchInput" placeholder="Search products..." />
+      <input class="search-input" id="searchInput" placeholder="Search products..." data-i18n-placeholder="searchProducts" />
     </div>
     <div class="category-chips" id="categoryChips" style="margin-top:12px;"></div>
 
     <div id="productGrid" class="grid"></div>
-    <p id="emptyMsg" class="empty-note" style="display:none;">No products are listed right now.</p>
+    <p id="emptyMsg" class="empty-note" style="display:none;" data-i18n="noProductsListed">No products are listed right now.</p>
   </div>
 
-  <p class="footer-note">After placing your order, our team will contact you on WhatsApp.</p>
+  <p class="footer-note" data-i18n="footerNote">After placing your order, our team will contact you on WhatsApp.</p>
 </div>
 
 <!-- Sticky bottom bar - appears once something is added to the cart -->
@@ -107,7 +110,7 @@
     <span id="stickyCartCount">0 items</span>
     <span id="stickyCartTotal">Rs 0</span>
   </div>
-  <button class="btn btn-gold" id="stickyCartBtn">View cart</button>
+  <button class="btn btn-gold" id="stickyCartBtn" data-i18n="viewCart">View cart</button>
 </div>
 
 <!-- Sidebar - Account & Cart, collapsible -->
@@ -118,16 +121,23 @@
     <button class="close-btn" id="closeSidebar">&times;</button>
   </div>
   <button class="sidebar-link" id="profileBtn">
-    <span>Account</span>
+    <span data-i18n="account">Account</span>
   </button>
   <button class="sidebar-link" id="myOrdersBtn">
-    <span>My Orders</span>
+    <span data-i18n="myOrders">My Orders</span>
+  </button>
+  <button class="sidebar-link" id="favoritesBtn">
+    <span data-i18n="myFavorites">My Favorites</span>
+    <span class="count" id="favoritesCount">0</span>
+  </button>
+  <button class="sidebar-link" id="feedbackBtn">
+    <span data-i18n="feedback">Feedback</span>
   </button>
   <button class="sidebar-link" id="settingsBtn">
-    <span>Settings</span>
+    <span data-i18n="settings">Settings</span>
   </button>
   <button class="sidebar-link" id="cartBtn">
-    <span>Cart</span>
+    <span data-i18n="cart">Cart</span>
     <span class="count" id="cartCount">0</span>
   </button>
 </div>
@@ -136,16 +146,16 @@
 <div class="overlay" id="cartOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
-      <h2>Your cart</h2>
+      <h2 data-i18n="yourCart">Your cart</h2>
       <button class="close-btn" id="closeCart">&times;</button>
     </div>
     <div id="cartLines"></div>
-    <div id="cartEmptyNote" class="empty-note" style="display:none;">Your cart is empty.</div>
+    <div id="cartEmptyNote" class="empty-note" style="display:none;" data-i18n="cartEmpty">Your cart is empty.</div>
     <div id="cartTotalRow" class="total-row" style="display:none;">
-      <span>Total</span>
+      <span data-i18n="total">Total</span>
       <span id="cartTotal">Rs 0</span>
     </div>
-    <button class="btn btn-gold" id="checkoutBtn" style="width:100%;">Review order</button>
+    <button class="btn btn-gold" id="checkoutBtn" style="width:100%;" data-i18n="reviewOrder">Review order</button>
   </div>
 </div>
 
@@ -153,14 +163,14 @@
 <div class="overlay" id="checkoutOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
-      <h2>Confirm order</h2>
+      <h2 data-i18n="confirmOrder">Confirm order</h2>
       <button class="close-btn" id="closeCheckout">&times;</button>
     </div>
-    <p class="info-note">This order will be placed using your saved details below. Need to change something? Use the "Edit info" link.</p>
+    <p class="info-note" data-i18n="checkoutNote">This order will be placed using your saved details below. Need to change something? Use the "Edit info" link.</p>
     <div id="checkoutProfileBox"></div>
-    <div class="field"><label>Order note (optional)</label><textarea id="checkoutNote" rows="2" placeholder="e.g. deliver after 5pm"></textarea></div>
+    <div class="field"><label data-i18n="orderNote">Order note (optional)</label><textarea id="checkoutNote" rows="2" placeholder="e.g. deliver after 5pm" data-i18n-placeholder="orderNotePlaceholder"></textarea></div>
     <p id="checkoutError" class="error-text" style="display:none;"></p>
-    <button class="btn btn-gold" id="submitOrderBtn" style="width:100%; margin-top:6px;">Place order</button>
+    <button class="btn btn-gold" id="submitOrderBtn" style="width:100%; margin-top:6px;" data-i18n="placeOrder">Place order</button>
   </div>
 </div>
 
@@ -168,17 +178,17 @@
 <div class="overlay" id="profileOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
-      <h2>Your account</h2>
+      <h2 data-i18n="yourAccount">Your account</h2>
       <button class="close-btn" id="closeProfile">&times;</button>
     </div>
-    <div class="field"><label>Your name</label><input id="p_name" /></div>
-    <div class="field"><label>Shop name</label><input id="p_shop" /></div>
-    <div class="field"><label>Phone / cell number</label><input id="p_phone" /></div>
-    <div class="field"><label>Address</label><textarea id="p_address" rows="2"></textarea></div>
+    <div class="field"><label data-i18n="yourName">Your name</label><input id="p_name" /></div>
+    <div class="field"><label data-i18n="shopName">Shop name</label><input id="p_shop" /></div>
+    <div class="field"><label data-i18n="phoneNumber">Phone / cell number</label><input id="p_phone" /></div>
+    <div class="field"><label data-i18n="address">Address</label><textarea id="p_address" rows="2"></textarea></div>
     <p id="profileError" class="error-text" style="display:none;"></p>
-    <p id="profileMsg" class="info-note" style="display:none; color:#8fd19e;">Saved.</p>
-    <button class="btn btn-gold" id="saveProfileBtn" style="width:100%;">Save changes</button>
-    <button class="btn btn-outline" id="logoutBtn" style="width:100%; margin-top:10px;">Log out</button>
+    <p id="profileMsg" class="info-note" style="display:none; color:#8fd19e;" data-i18n="saved">Saved.</p>
+    <button class="btn btn-gold" id="saveProfileBtn" style="width:100%;" data-i18n="saveChanges">Save changes</button>
+    <button class="btn btn-outline" id="logoutBtn" style="width:100%; margin-top:10px;" data-i18n="logOut">Log out</button>
   </div>
 </div>
 
@@ -186,9 +196,9 @@
 <div class="overlay" id="successOverlay" style="display:none;">
   <div class="sheet success-box">
     <div class="icon">&#10003;</div>
-    <h2>Order received!</h2>
-    <p style="color:var(--paper-dim); font-size:13.5px;">Thank you! Our team will contact you on WhatsApp shortly.</p>
-    <button class="btn btn-gold" id="successCloseBtn" style="margin-top:16px;">OK</button>
+    <h2 data-i18n="orderReceived">Order received!</h2>
+    <p style="color:var(--paper-dim); font-size:13.5px;" data-i18n="orderReceivedNote">Thank you! Our team will contact you on WhatsApp shortly.</p>
+    <button class="btn btn-gold" id="successCloseBtn" style="margin-top:16px;" data-i18n="ok">OK</button>
   </div>
 </div>
 
@@ -196,11 +206,65 @@
 <div class="overlay" id="myOrdersOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
-      <h2>My Orders</h2>
+      <h2 data-i18n="myOrders">My Orders</h2>
       <button class="close-btn" id="closeMyOrders">&times;</button>
     </div>
     <div id="myOrdersList"></div>
-    <div id="myOrdersEmptyNote" class="empty-note" style="display:none;">You haven't placed any orders yet.</div>
+    <div id="myOrdersEmptyNote" class="empty-note" style="display:none;" data-i18n="noOrdersYet">You haven't placed any orders yet.</div>
+  </div>
+</div>
+
+<!-- My Favorites -->
+<div class="overlay" id="favoritesOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 data-i18n="myFavorites">My Favorites</h2>
+      <button class="close-btn" id="closeFavorites">&times;</button>
+    </div>
+    <div id="favoritesList"></div>
+    <div id="favoritesEmptyNote" class="empty-note" style="display:none;" data-i18n="noFavoritesYet">You haven't saved any products yet - tap the heart on a product to save it here.</div>
+  </div>
+</div>
+
+<!-- Product reviews (ratings + feedback for one product) -->
+<div class="overlay" id="reviewsOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 id="reviewsTitle" data-i18n="ratingsReviews">Ratings &amp; Reviews</h2>
+      <button class="close-btn" id="closeReviews">&times;</button>
+    </div>
+    <div id="reviewsSummaryBox" class="reviews-summary"></div>
+    <div class="field">
+      <label data-i18n="yourRating">Your rating</label>
+      <div class="star-picker" id="reviewStarPicker">
+        <span class="star-pick" data-val="1">&#9733;</span><span class="star-pick" data-val="2">&#9733;</span><span class="star-pick" data-val="3">&#9733;</span><span class="star-pick" data-val="4">&#9733;</span><span class="star-pick" data-val="5">&#9733;</span>
+      </div>
+    </div>
+    <div class="field"><label data-i18n="yourReviewOptional">Your review (optional)</label><textarea id="reviewComment" rows="2" placeholder="What did you think?" data-i18n-placeholder="whatDidYouThink"></textarea></div>
+    <p id="reviewError" class="error-text" style="display:none;"></p>
+    <button class="btn btn-gold" id="submitReviewBtn" style="width:100%;" data-i18n="submitReview">Submit review</button>
+    <div id="reviewsList" style="margin-top:16px;"></div>
+  </div>
+</div>
+
+<!-- General feedback (service / website, not tied to one product) -->
+<div class="overlay" id="feedbackOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 data-i18n="feedback">Feedback</h2>
+      <button class="close-btn" id="closeFeedback">&times;</button>
+    </div>
+    <p class="info-note" data-i18n="feedbackNote">Tell us how we're doing - about our service, delivery, or this website.</p>
+    <div class="field">
+      <label data-i18n="yourRating">Your rating</label>
+      <div class="star-picker" id="feedbackStarPicker">
+        <span class="star-pick" data-val="1">&#9733;</span><span class="star-pick" data-val="2">&#9733;</span><span class="star-pick" data-val="3">&#9733;</span><span class="star-pick" data-val="4">&#9733;</span><span class="star-pick" data-val="5">&#9733;</span>
+      </div>
+    </div>
+    <div class="field"><label data-i18n="yourFeedbackOptional">Your feedback (optional)</label><textarea id="feedbackComment" rows="2" placeholder="What did you think?" data-i18n-placeholder="whatDidYouThink"></textarea></div>
+    <p id="feedbackError" class="error-text" style="display:none;"></p>
+    <button class="btn btn-gold" id="submitFeedbackBtn" style="width:100%;" data-i18n="submitFeedback">Submit feedback</button>
+    <div id="feedbackList" style="margin-top:16px;"></div>
   </div>
 </div>
 
@@ -208,15 +272,15 @@
 <div class="overlay" id="settingsOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
-      <h2>Settings</h2>
+      <h2 data-i18n="settings">Settings</h2>
       <button class="close-btn" id="closeSettings">&times;</button>
     </div>
-    <div class="field"><label>Current password</label><input id="st_current" type="password" /></div>
-    <div class="field"><label>New password</label><input id="st_new" type="password" placeholder="At least 6 characters" /></div>
-    <div class="field"><label>Confirm new password</label><input id="st_confirm" type="password" /></div>
+    <div class="field"><label data-i18n="currentPassword">Current password</label><input id="st_current" type="password" /></div>
+    <div class="field"><label data-i18n="newPassword">New password</label><input id="st_new" type="password" placeholder="At least 6 characters" data-i18n-placeholder="atLeast6Chars" /></div>
+    <div class="field"><label data-i18n="confirmNewPassword">Confirm new password</label><input id="st_confirm" type="password" /></div>
     <p id="settingsError" class="error-text" style="display:none;"></p>
-    <p id="settingsMsg" class="info-note" style="display:none; color:#8fd19e;">Password changed.</p>
-    <button class="btn btn-gold" id="saveSettingsBtn" style="width:100%;">Change password</button>
+    <p id="settingsMsg" class="info-note" style="display:none; color:#8fd19e;" data-i18n="passwordChanged">Password changed.</p>
+    <button class="btn btn-gold" id="saveSettingsBtn" style="width:100%;" data-i18n="changePassword">Change password</button>
   </div>
 </div>
 

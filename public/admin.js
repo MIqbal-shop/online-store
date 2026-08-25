@@ -76,11 +76,12 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['dashboard', 'products', 'orders', 'history', 'customers', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
       if (btn.dataset.tab === 'resets') loadPasswordResets();
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'customers') loadCustomers();
       if (btn.dataset.tab === 'history') { populateHistoryFilters(); loadHistory(); }
+      if (btn.dataset.tab === 'reviews') loadReviews();
     });
   });
 
@@ -503,6 +504,96 @@ function priceSummary(p) {
     let digits = String(raw || '').replace(/[^0-9]/g, '');
     if (digits.startsWith('0')) digits = '92' + digits.slice(1);
     return digits;
+  }
+
+  // ---- Broadcast (send one WhatsApp message to every customer) ----
+  $('sendBroadcastBtn').addEventListener('click', async () => {
+    const errEl = $('broadcastError');
+    const msgEl = $('broadcastMsg');
+    errEl.style.display = 'none';
+    msgEl.style.display = 'none';
+    const message = $('b_message').value.trim();
+    if (!message) { errEl.textContent = 'Please write a message first.'; errEl.style.display = 'block'; return; }
+    const btn = $('sendBroadcastBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    try {
+      const data = await api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ message }) });
+      renderBroadcastResults(data, message);
+      msgEl.textContent = data.configured
+        ? `Sent automatically to ${data.sent_count} of ${data.total} customers. Use the WhatsApp buttons below for anyone missed.`
+        : `WhatsApp isn't auto-configured on this server yet, so nothing was sent automatically - tap the WhatsApp button next to each customer below to send it yourself.`;
+      msgEl.style.display = 'block';
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send to All Customers';
+    }
+  });
+
+  function renderBroadcastResults(data, message) {
+    const box = $('broadcastResults');
+    box.innerHTML = '';
+    if (!data.results || data.results.length === 0) {
+      box.innerHTML = '<div class="empty-note">No customers to send to yet.</div>';
+      return;
+    }
+    for (const r of data.results) {
+      const waNumber = formatWhatsAppNumber(r.whatsapp);
+      const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+      const row = document.createElement('div');
+      row.className = 'broadcast-result-row';
+      row.innerHTML = `
+        <div>
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.name)}</div>
+          <div style="font-size:12px; color:var(--ink-soft);">${escapeHtml(r.whatsapp || '')}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="${r.sent ? 'pill-sent' : 'pill-not-sent'}">${r.sent ? 'Sent' : 'Not sent'}</span>
+          ${!r.sent ? `<a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener" style="padding:8px 14px; font-size:12px;">WhatsApp</a>` : ''}
+        </div>
+      `;
+      box.appendChild(row);
+    }
+  }
+
+  // ---- Reviews (moderation) ----
+  async function loadReviews() {
+    try {
+      const data = await api('/api/admin/reviews');
+      renderReviewsAdmin(data.reviews || []);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderReviewsAdmin(reviews) {
+    const box = $('reviewsAdminList');
+    box.innerHTML = '';
+    if (reviews.length === 0) {
+      box.innerHTML = '<div class="empty-note">No reviews yet.</div>';
+      return;
+    }
+    for (const r of reviews) {
+      const row = document.createElement('div');
+      row.className = 'admin-row';
+      row.style.alignItems = 'flex-start';
+      const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+      row.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || 'Customer')} <span style="color:#ffd45e;">${stars}</span></div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${r.target_type === 'general' ? 'General feedback (service/website)' : 'Product: ' + escapeHtml(r.product_name || '(deleted product)')}</div>
+          ${r.comment ? `<div style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.comment)}</div>` : ''}
+          <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
+        </div>
+        <button class="btn btn-red delete-review-btn">Delete</button>
+      `;
+      row.querySelector('.delete-review-btn').addEventListener('click', async () => {
+        if (!confirm('Delete this review?')) return;
+        try { await api(`/api/admin/reviews/${r.id}`, { method: 'DELETE' }); loadReviews(); } catch (e) { alert(e.message); }
+      });
+      box.appendChild(row);
+    }
   }
 
   // ---- Store (name, tagline, logo) ----

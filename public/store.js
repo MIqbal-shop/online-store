@@ -8,6 +8,89 @@
   let products = [];
   let cart = {}; // product_id -> { product, qty }
   let signupType = null; // 'new' | 'old'
+  let favoriteIds = new Set(); // product ids the shopper has saved
+  let reviewSummary = {}; // product_id -> { avg_rating, count }
+  let currentReviewProductId = null; // which product the reviews overlay is showing
+  let reviewStarValue = 0;
+  let feedbackStarValue = 0;
+
+  // ---- Language switch (English / Urdu) ----
+  const I18N = {
+    en: {
+      login: 'Log in', createAccount: 'Create account', whatsappNumber: 'WhatsApp number', password: 'Password',
+      forgotPassword: 'Forgot password?', existingCustomer: 'Existing customer', newCustomer: 'New customer',
+      yourName: 'Your name', enterYourName: 'Enter your name', shopName: 'Shop name', yourShopName: "Your shop's name",
+      phoneNumber: 'Phone / cell number', address: 'Address', enterFullAddress: 'Enter your full address',
+      atLeast6Chars: 'At least 6 characters', resetPassword: 'Reset password',
+      resetPasswordNote: "Enter the WhatsApp number on your account. We'll send a new password to it.",
+      sendNewPassword: 'Send new password', chooseYour: 'Choose your', products: 'products',
+      heroSubtitle: "Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.",
+      searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.',
+      footerNote: 'After placing your order, our team will contact you on WhatsApp.', viewCart: 'View cart',
+      account: 'Account', myOrders: 'My Orders', myFavorites: 'My Favorites', feedback: 'Feedback',
+      settings: 'Settings', cart: 'Cart', yourCart: 'Your cart', cartEmpty: 'Your cart is empty.', total: 'Total',
+      reviewOrder: 'Review order', confirmOrder: 'Confirm order',
+      checkoutNote: 'This order will be placed using your saved details below. Need to change something? Use the "Edit info" link.',
+      orderNote: 'Order note (optional)', orderNotePlaceholder: 'e.g. deliver after 5pm', placeOrder: 'Place order',
+      yourAccount: 'Your account', saved: 'Saved.', saveChanges: 'Save changes', logOut: 'Log out',
+      orderReceived: 'Order received!', orderReceivedNote: 'Thank you! Our team will contact you on WhatsApp shortly.',
+      ok: 'OK', noOrdersYet: "You haven't placed any orders yet.",
+      noFavoritesYet: "You haven't saved any products yet - tap the heart on a product to save it here.",
+      ratingsReviews: 'Ratings & Reviews', yourRating: 'Your rating', yourReviewOptional: 'Your review (optional)',
+      whatDidYouThink: 'What did you think?', submitReview: 'Submit review',
+      feedbackNote: "Tell us how we're doing - about our service, delivery, or this website.",
+      yourFeedbackOptional: 'Your feedback (optional)', submitFeedback: 'Submit feedback',
+      currentPassword: 'Current password', newPassword: 'New password', confirmNewPassword: 'Confirm new password',
+      passwordChanged: 'Password changed.', changePassword: 'Change password', reorder: 'Reorder',
+      noReviewsYet: 'No reviews yet - be the first!', pickARating: 'Please pick a star rating.',
+      switchLang: 'اردو',
+    },
+    ur: {
+      login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
+      forgotPassword: 'پاسورڈ بھول گئے؟', existingCustomer: 'پرانا کسٹمر', newCustomer: 'نیا کسٹمر',
+      yourName: 'آپ کا نام', enterYourName: 'اپنا نام لکھیں', shopName: 'دکان کا نام', yourShopName: 'آپ کی دکان کا نام',
+      phoneNumber: 'فون نمبر', address: 'پتہ', enterFullAddress: 'اپنا مکمل پتہ لکھیں',
+      atLeast6Chars: 'کم از کم 6 حروف', resetPassword: 'پاسورڈ ری سیٹ کریں',
+      resetPasswordNote: 'اپنے اکاؤنٹ کا واٹس ایپ نمبر لکھیں۔ ہم اس پر نیا پاسورڈ بھیج دیں گے۔',
+      sendNewPassword: 'نیا پاسورڈ بھیجیں', chooseYour: 'اپنی', products: 'مصنوعات چنیں',
+      heroSubtitle: 'جو چاہیے کارٹ میں شامل کریں، پھر آرڈر کنفرم کریں - ہماری ٹیم واٹس ایپ پر رابطہ کرے گی۔',
+      searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔',
+      footerNote: 'آرڈر دینے کے بعد ہماری ٹیم واٹس ایپ پر آپ سے رابطہ کرے گی۔', viewCart: 'کارٹ دیکھیں',
+      account: 'اکاؤنٹ', myOrders: 'میرے آرڈرز', myFavorites: 'پسندیدہ', feedback: 'رائے دیں',
+      settings: 'سیٹنگز', cart: 'کارٹ', yourCart: 'آپ کا کارٹ', cartEmpty: 'آپ کا کارٹ خالی ہے۔', total: 'کل رقم',
+      reviewOrder: 'آرڈر دیکھیں', confirmOrder: 'آرڈر کنفرم کریں',
+      checkoutNote: 'یہ آرڈر آپ کی محفوظ کردہ تفصیلات کے ساتھ بھیجا جائے گا۔ کچھ بدلنا ہو تو "معلومات ترمیم کریں" پر کلک کریں۔',
+      orderNote: 'آرڈر نوٹ (اختیاری)', orderNotePlaceholder: 'مثلاً شام 5 بجے کے بعد ڈیلیور کریں', placeOrder: 'آرڈر دیں',
+      yourAccount: 'آپ کا اکاؤنٹ', saved: 'محفوظ ہو گیا۔', saveChanges: 'تبدیلیاں محفوظ کریں', logOut: 'لاگ آؤٹ',
+      orderReceived: 'آرڈر موصول ہو گیا!', orderReceivedNote: 'شکریہ! ہماری ٹیم جلد ہی واٹس ایپ پر رابطہ کرے گی۔',
+      ok: 'ٹھیک ہے', noOrdersYet: 'ابھی تک آپ نے کوئی آرڈر نہیں دیا۔',
+      noFavoritesYet: 'ابھی تک آپ نے کوئی پروڈکٹ پسندیدہ میں شامل نہیں کی - دل کے نشان پر کلک کر کے شامل کریں۔',
+      ratingsReviews: 'ریٹنگ اور رائے', yourRating: 'اپنی ریٹنگ دیں', yourReviewOptional: 'اپنی رائے (اختیاری)',
+      whatDidYouThink: 'آپ کا کیا خیال ہے؟', submitReview: 'رائے بھیجیں',
+      feedbackNote: 'ہمیں بتائیں ہم کیسا کام کر رہے ہیں - سروس، ڈلیوری یا اس ویب سائٹ کے بارے میں۔',
+      yourFeedbackOptional: 'آپ کی رائے (اختیاری)', submitFeedback: 'رائے بھیجیں',
+      currentPassword: 'موجودہ پاسورڈ', newPassword: 'نیا پاسورڈ', confirmNewPassword: 'نیا پاسورڈ دوبارہ لکھیں',
+      passwordChanged: 'پاسورڈ تبدیل ہو گیا۔', changePassword: 'پاسورڈ تبدیل کریں', reorder: 'دوبارہ آرڈر کریں',
+      noReviewsYet: 'ابھی تک کوئی رائے موجود نہیں - سب سے پہلے آپ لکھیں!', pickARating: 'براہ کرم ستارے منتخب کریں۔',
+      switchLang: 'English',
+    },
+  };
+  let lang = localStorage.getItem('store_lang') || 'en';
+  function t(key) { return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key; }
+  function applyI18n() {
+    document.documentElement.lang = lang === 'ur' ? 'ur' : 'en';
+    document.documentElement.dir = lang === 'ur' ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    const langBtn = $('langBtn');
+    if (langBtn) langBtn.textContent = t('switchLang');
+  }
+  function setLang(next) {
+    lang = next;
+    localStorage.setItem('store_lang', lang);
+    applyI18n();
+    renderProducts(); // rating lines / reorder button text depend on lang
+  }
 
   function escapeHtml(s) {
     return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -87,6 +170,7 @@
     $('authGate').style.display = 'none';
     $('shopRoot').style.display = 'block';
     loadProducts();
+    loadFavoriteIds();
   }
 
   $('tabLogin').addEventListener('click', () => {
@@ -107,6 +191,7 @@
     $('sidebar').classList.remove('open');
     $('sidebarOverlay').style.display = 'none';
   }
+  $('langBtn').addEventListener('click', () => setLang(lang === 'ur' ? 'en' : 'ur'));
   $('menuBtn').addEventListener('click', openSidebar);
   $('closeSidebar').addEventListener('click', closeSidebar);
   $('sidebarOverlay').addEventListener('click', closeSidebar);
@@ -216,8 +301,53 @@
       const data = await fetch('/api/products').then((r) => r.json());
       products = data.products || [];
       renderCategoryChips();
+      await loadReviewSummary();
       renderProducts();
     } catch (e) { console.error(e); }
+  }
+
+  async function loadReviewSummary() {
+    try {
+      const data = await fetch('/api/reviews/summary').then((r) => r.json());
+      reviewSummary = data.summary || {};
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadFavoriteIds() {
+    try {
+      const data = await api('/api/customers/me/favorites');
+      favoriteIds = new Set((data.products || []).map((p) => p.id));
+      updateFavoritesCount();
+      renderProducts();
+    } catch (e) { console.error(e); }
+  }
+
+  function updateFavoritesCount() {
+    const el = $('favoritesCount');
+    if (el) el.textContent = favoriteIds.size;
+  }
+
+  async function toggleFavorite(productId) {
+    const wasFav = favoriteIds.has(productId);
+    try {
+      if (wasFav) {
+        favoriteIds.delete(productId);
+        await api(`/api/customers/me/favorites/${productId}`, { method: 'DELETE' });
+      } else {
+        favoriteIds.add(productId);
+        await api('/api/customers/me/favorites', { method: 'POST', body: JSON.stringify({ product_id: productId }) });
+      }
+    } catch (e) {
+      // Roll back on failure so the heart doesn't lie about what's saved.
+      if (wasFav) favoriteIds.add(productId); else favoriteIds.delete(productId);
+    }
+    updateFavoritesCount();
+    renderProducts();
+  }
+
+  function starsHtml(avg) {
+    const rounded = Math.round(Number(avg) || 0);
+    return '&#9733;'.repeat(Math.max(0, Math.min(5, rounded))) + '&#9734;'.repeat(5 - Math.max(0, Math.min(5, rounded)));
   }
 
   function renderCategoryChips() {
@@ -274,9 +404,15 @@
       wrap.className = 'tile-wrap' + (inStock ? '' : ' out-of-stock');
       const tile = document.createElement('div');
       tile.className = 'product-tile ' + TILE_COLORS[i % TILE_COLORS.length];
+      const isFav = favoriteIds.has(p.id);
+      const summary = reviewSummary[p.id];
       tile.innerHTML = `
         ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
+        <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
         <div class="product-name">${escapeHtml(p.name)}</div>
+        <div class="rating-line ${summary ? 'clickable' : 'no-reviews'}" data-open-reviews="${p.id}">
+          ${summary ? `<span class="rating-stars">${starsHtml(summary.avg_rating)}</span><span>${summary.avg_rating}</span><span class="rating-count">(${summary.count})</span>` : `<span>${t('noReviewsYet')}</span>`}
+        </div>
         ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
         <div class="product-img-box">${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}</div>
         ${options.length > 1 ? `
@@ -303,6 +439,8 @@
         tile.querySelector('.minus').addEventListener('click', () => changeQty(p, info, -1));
         tile.querySelector('.plus').addEventListener('click', () => changeQty(p, info, 1));
       }
+      tile.querySelector('.fav-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(p.id); });
+      tile.querySelector('[data-open-reviews]').addEventListener('click', (e) => { e.stopPropagation(); openReviews(p); });
       attachTilt(tile);
       wrap.appendChild(tile);
       grid.appendChild(wrap);
@@ -528,6 +666,155 @@
     openCart();
   }
 
+  // ---- My Favorites ----
+  $('favoritesBtn').addEventListener('click', () => { closeSidebar(); openFavorites(); });
+  $('closeFavorites').addEventListener('click', () => $('favoritesOverlay').style.display = 'none');
+  $('favoritesOverlay').addEventListener('click', (e) => { if (e.target.id === 'favoritesOverlay') $('favoritesOverlay').style.display = 'none'; });
+
+  function openFavorites() {
+    $('favoritesOverlay').style.display = 'flex';
+    renderFavorites();
+  }
+
+  function renderFavorites() {
+    const favProducts = products.filter((p) => favoriteIds.has(p.id));
+    const box = $('favoritesList');
+    box.innerHTML = '';
+    $('favoritesEmptyNote').style.display = favProducts.length ? 'none' : 'block';
+    for (const p of favProducts) {
+      const options = unitOptions(p);
+      const info = options[0];
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-weight:700; font-size:13.5px;">${escapeHtml(p.name)}</span>
+          <span>${money(info.price)}${info.label ? ' / ' + escapeHtml(info.label) : ''}</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn btn-navy add-cart-btn" style="flex:1;" ${p.in_stock === false ? 'disabled' : ''}>${p.in_stock === false ? 'Out of stock' : 'Add to cart'}</button>
+          <button class="btn btn-outline remove-fav-btn">Remove</button>
+        </div>
+      `;
+      card.querySelector('.add-cart-btn').addEventListener('click', () => { changeQty(p, info, 1); $('favoritesOverlay').style.display = 'none'; openCart(); });
+      card.querySelector('.remove-fav-btn').addEventListener('click', async () => { await toggleFavorite(p.id); renderFavorites(); });
+      box.appendChild(card);
+    }
+  }
+
+  // ---- Star picker (shared logic for product reviews + general feedback) ----
+  function wireStarPicker(pickerId, onChange) {
+    const stars = document.querySelectorAll(`#${pickerId} .star-pick`);
+    stars.forEach((star) => {
+      star.addEventListener('click', () => {
+        const val = Number(star.dataset.val);
+        onChange(val);
+        stars.forEach((s) => s.classList.toggle('filled', Number(s.dataset.val) <= val));
+      });
+    });
+  }
+  wireStarPicker('reviewStarPicker', (val) => { reviewStarValue = val; });
+  wireStarPicker('feedbackStarPicker', (val) => { feedbackStarValue = val; });
+
+  function renderReviewCards(containerEl, reviews) {
+    if (!reviews.length) { containerEl.innerHTML = `<p class="empty-note">${t('noReviewsYet')}</p>`; return; }
+    containerEl.innerHTML = reviews.map((r) => `
+      <div class="review-card">
+        <span class="rname">${escapeHtml(r.customer_name || 'Customer')}</span><span class="rstars">${starsHtml(r.rating)}</span>
+        ${r.comment ? `<div class="rcomment">${escapeHtml(r.comment)}</div>` : ''}
+        <div class="rdate">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
+      </div>
+    `).join('');
+  }
+
+  // ---- Product reviews overlay ----
+  $('closeReviews').addEventListener('click', () => $('reviewsOverlay').style.display = 'none');
+  $('reviewsOverlay').addEventListener('click', (e) => { if (e.target.id === 'reviewsOverlay') $('reviewsOverlay').style.display = 'none'; });
+
+  async function openReviews(product) {
+    currentReviewProductId = product.id;
+    reviewStarValue = 0;
+    $('reviewsTitle').textContent = product.name;
+    document.querySelectorAll('#reviewStarPicker .star-pick').forEach((s) => s.classList.remove('filled'));
+    $('reviewComment').value = '';
+    $('reviewError').style.display = 'none';
+    $('reviewsList').innerHTML = '<p class="info-note">Loading...</p>';
+    $('reviewsOverlay').style.display = 'flex';
+    const summary = reviewSummary[product.id];
+    $('reviewsSummaryBox').innerHTML = summary
+      ? `<span class="avg">${summary.avg_rating}</span><span class="stars">${starsHtml(summary.avg_rating)}</span><span class="count">(${summary.count})</span>`
+      : '';
+    try {
+      const data = await fetch(`/api/reviews?product_id=${product.id}`).then((r) => r.json());
+      renderReviewCards($('reviewsList'), data.reviews || []);
+    } catch (e) {
+      $('reviewsList').innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  $('submitReviewBtn').addEventListener('click', async () => {
+    const errEl = $('reviewError');
+    errEl.style.display = 'none';
+    if (!reviewStarValue) { errEl.textContent = t('pickARating'); errEl.style.display = 'block'; return; }
+    const btn = $('submitReviewBtn');
+    btn.disabled = true;
+    try {
+      await api('/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ target_type: 'product', product_id: currentReviewProductId, rating: reviewStarValue, comment: $('reviewComment').value.trim() }),
+      });
+      await loadReviewSummary();
+      const product = products.find((p) => p.id === currentReviewProductId);
+      if (product) await openReviews(product);
+      renderProducts();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- General feedback overlay (service / website) ----
+  $('feedbackBtn').addEventListener('click', () => { closeSidebar(); openFeedback(); });
+  $('closeFeedback').addEventListener('click', () => $('feedbackOverlay').style.display = 'none');
+  $('feedbackOverlay').addEventListener('click', (e) => { if (e.target.id === 'feedbackOverlay') $('feedbackOverlay').style.display = 'none'; });
+
+  async function openFeedback() {
+    feedbackStarValue = 0;
+    document.querySelectorAll('#feedbackStarPicker .star-pick').forEach((s) => s.classList.remove('filled'));
+    $('feedbackComment').value = '';
+    $('feedbackError').style.display = 'none';
+    $('feedbackList').innerHTML = '<p class="info-note">Loading...</p>';
+    $('feedbackOverlay').style.display = 'flex';
+    try {
+      const data = await fetch('/api/reviews?general=1').then((r) => r.json());
+      renderReviewCards($('feedbackList'), data.reviews || []);
+    } catch (e) {
+      $('feedbackList').innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  $('submitFeedbackBtn').addEventListener('click', async () => {
+    const errEl = $('feedbackError');
+    errEl.style.display = 'none';
+    if (!feedbackStarValue) { errEl.textContent = t('pickARating'); errEl.style.display = 'block'; return; }
+    const btn = $('submitFeedbackBtn');
+    btn.disabled = true;
+    try {
+      await api('/api/reviews', {
+        method: 'POST',
+        body: JSON.stringify({ target_type: 'general', rating: feedbackStarValue, comment: $('feedbackComment').value.trim() }),
+      });
+      await openFeedback();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
   // ---- Settings (change password) ----
   $('settingsBtn').addEventListener('click', () => {
     closeSidebar();
@@ -572,6 +859,7 @@
 
   // ---- Boot ----
   (async () => {
+    applyI18n();
     await loadStoreInfo();
     if (token) {
       try {
