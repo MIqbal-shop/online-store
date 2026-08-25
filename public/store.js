@@ -186,14 +186,30 @@
 
   // ---- Products ----
   let selectedUnit = {}; // product_id -> 'carton' | 'box' | 'piece' | 'single'
+  let searchQuery = '';
+  let selectedCategory = '';
 
   async function loadProducts() {
     try {
       const data = await fetch('/api/products').then((r) => r.json());
       products = data.products || [];
+      renderCategoryChips();
       renderProducts();
     } catch (e) { console.error(e); }
   }
+
+  function renderCategoryChips() {
+    const cats = [...new Set(products.map((p) => (p.category || '').trim()).filter(Boolean))];
+    const box = $('categoryChips');
+    if (cats.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `<button class="category-chip ${selectedCategory === '' ? 'active' : ''}" data-cat="">All</button>`
+      + cats.map((c) => `<button class="category-chip ${selectedCategory === c ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    box.querySelectorAll('.category-chip').forEach((btn) => {
+      btn.addEventListener('click', () => { selectedCategory = btn.dataset.cat; renderCategoryChips(); renderProducts(); });
+    });
+  }
+
+  $('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value.trim().toLowerCase(); renderProducts(); });
 
   // Returns the list of buyable options for a product - one for 'single'
   // products, two or three for carton/box/piece ones.
@@ -219,18 +235,25 @@
   function renderProducts() {
     const grid = $('productGrid');
     grid.innerHTML = '';
-    $('emptyMsg').style.display = products.length ? 'none' : 'block';
-    products.forEach((p, i) => {
+    const visible = products.filter((p) => {
+      const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery);
+      const matchesCategory = !selectedCategory || (p.category || '').trim() === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+    $('emptyMsg').style.display = visible.length ? 'none' : 'block';
+    visible.forEach((p, i) => {
+      const inStock = p.in_stock !== false;
       const options = unitOptions(p);
       const which = selectedUnit[p.id] || options[0].key;
       const info = options.find((o) => o.key === which) || options[0];
       const qty = cart[cartKey(p.id, info.key)]?.qty || 0;
 
       const wrap = document.createElement('div');
-      wrap.className = 'tile-wrap';
+      wrap.className = 'tile-wrap' + (inStock ? '' : ' out-of-stock');
       const tile = document.createElement('div');
       tile.className = 'product-tile ' + TILE_COLORS[i % TILE_COLORS.length];
       tile.innerHTML = `
+        ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
         <div class="product-name">${escapeHtml(p.name)}</div>
         ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
         <div class="product-img-box">${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}</div>
@@ -241,9 +264,9 @@
         ` : ''}
         <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
         <div class="qty-row">
-          <button class="qty-btn minus">-</button>
+          <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
           <span class="qty-val">${qty}</span>
-          <button class="qty-btn plus">+</button>
+          <button class="qty-btn plus" ${inStock ? '' : 'disabled'}>+</button>
         </div>
       `;
       if (options.length > 1) {
@@ -254,8 +277,10 @@
           });
         });
       }
-      tile.querySelector('.minus').addEventListener('click', () => changeQty(p, info, -1));
-      tile.querySelector('.plus').addEventListener('click', () => changeQty(p, info, 1));
+      if (inStock) {
+        tile.querySelector('.minus').addEventListener('click', () => changeQty(p, info, -1));
+        tile.querySelector('.plus').addEventListener('click', () => changeQty(p, info, 1));
+      }
       attachTilt(tile);
       wrap.appendChild(tile);
       grid.appendChild(wrap);
@@ -331,6 +356,7 @@
     if (Object.keys(cart).length === 0) return;
     $('cartOverlay').style.display = 'none';
     renderCheckoutProfile();
+    $('checkoutNote').value = '';
     $('checkoutOverlay').style.display = 'flex';
   });
   $('closeCheckout').addEventListener('click', () => $('checkoutOverlay').style.display = 'none');
@@ -352,11 +378,12 @@
     const errEl = $('checkoutError');
     errEl.style.display = 'none';
     const items = Object.values(cart).map((l) => ({ product_name: l.product.name, quantity: l.qty, unit: l.unitLabel, price: l.price }));
+    const note = $('checkoutNote').value.trim();
     const btn = $('submitOrderBtn');
     btn.disabled = true;
     btn.textContent = 'Placing order...';
     try {
-      await api('/api/orders', { method: 'POST', body: JSON.stringify({ items }) });
+      await api('/api/orders', { method: 'POST', body: JSON.stringify({ items, note }) });
       cart = {};
       updateCartCount();
       renderProducts();
@@ -415,6 +442,69 @@
     $('profileOverlay').style.display = 'none';
     showAuthGate();
   });
+
+  // ---- My Orders ----
+  $('myOrdersBtn').addEventListener('click', () => { closeSidebar(); openMyOrders(); });
+  $('closeMyOrders').addEventListener('click', () => $('myOrdersOverlay').style.display = 'none');
+  $('myOrdersOverlay').addEventListener('click', (e) => { if (e.target.id === 'myOrdersOverlay') $('myOrdersOverlay').style.display = 'none'; });
+
+  async function openMyOrders() {
+    $('myOrdersOverlay').style.display = 'flex';
+    $('myOrdersList').innerHTML = '<p class="info-note">Loading...</p>';
+    $('myOrdersEmptyNote').style.display = 'none';
+    try {
+      const data = await api('/api/customers/me/orders');
+      renderMyOrders(data.orders || []);
+    } catch (e) {
+      $('myOrdersList').innerHTML = `<p class="error-text">${escapeHtml(e.message)}</p>`;
+    }
+  }
+
+  function statusLabel(status) {
+    if (status === 'confirmed') return 'Confirmed';
+    if (status === 'cancelled') return 'Cancelled';
+    return 'Pending';
+  }
+
+  function renderMyOrders(orders) {
+    const box = $('myOrdersList');
+    box.innerHTML = '';
+    $('myOrdersEmptyNote').style.display = orders.length ? 'none' : 'block';
+    for (const o of orders) {
+      const card = document.createElement('div');
+      card.className = 'order-card';
+      const dateStr = (o.order_date || '').toString().replace('T', ' ').slice(0, 16);
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <span style="font-weight:700; font-size:13px;">${dateStr}</span>
+          <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : o.status === 'confirmed' ? 'pill-confirmed' : 'pill-new'}">${statusLabel(o.status)}</span>
+        </div>
+        <div class="items">${o.items.map((it) => `${escapeHtml(it.product_name)} - ${it.quantity} ${escapeHtml(it.unit || '')} x ${money(it.price)}`).join('<br>')}</div>
+        <div style="font-weight:700; margin-top:8px;">${money(o.items.reduce((s, it) => s + it.quantity * it.price, 0))}</div>
+        <button class="btn btn-navy reorder-btn" style="width:100%; margin-top:10px;">Reorder</button>
+      `;
+      card.querySelector('.reorder-btn').addEventListener('click', () => reorder(o));
+      box.appendChild(card);
+    }
+  }
+
+  // Adds every item from a past order back into the cart, matched against
+  // today's product list/prices by name (a discontinued item is skipped).
+  function reorder(order) {
+    for (const it of order.items) {
+      const product = products.find((p) => p.name === it.product_name);
+      if (!product || product.in_stock === false) continue;
+      const options = unitOptions(product);
+      const matchedOption = options.find((o) => o.label === it.unit) || options[0];
+      const key = cartKey(product.id, matchedOption.key);
+      const current = cart[key]?.qty || 0;
+      cart[key] = { product, unitKey: matchedOption.key, unitLabel: matchedOption.label, price: matchedOption.price, qty: current + Number(it.quantity) };
+    }
+    updateCartCount();
+    renderProducts();
+    $('myOrdersOverlay').style.display = 'none';
+    openCart();
+  }
 
   // ---- Settings (change password) ----
   $('settingsBtn').addEventListener('click', () => {

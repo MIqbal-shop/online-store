@@ -89,6 +89,11 @@
       <p>Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.</p>
     </div>
 
+    <div class="filter-bar">
+      <input class="search-input" id="searchInput" placeholder="Search products..." />
+    </div>
+    <div class="category-chips" id="categoryChips" style="margin-top:12px;"></div>
+
     <div id="productGrid" class="grid"></div>
     <p id="emptyMsg" class="empty-note" style="display:none;">No products are listed right now.</p>
   </div>
@@ -114,6 +119,9 @@
   </div>
   <button class="sidebar-link" id="profileBtn">
     <span>Account</span>
+  </button>
+  <button class="sidebar-link" id="myOrdersBtn">
+    <span>My Orders</span>
   </button>
   <button class="sidebar-link" id="settingsBtn">
     <span>Settings</span>
@@ -150,6 +158,7 @@
     </div>
     <p class="info-note">This order will be placed using your saved details below. Need to change something? Use the "Edit info" link.</p>
     <div id="checkoutProfileBox"></div>
+    <div class="field"><label>Order note (optional)</label><textarea id="checkoutNote" rows="2" placeholder="e.g. deliver after 5pm"></textarea></div>
     <p id="checkoutError" class="error-text" style="display:none;"></p>
     <button class="btn btn-gold" id="submitOrderBtn" style="width:100%; margin-top:6px;">Place order</button>
   </div>
@@ -180,6 +189,18 @@
     <h2>Order received!</h2>
     <p style="color:var(--paper-dim); font-size:13.5px;">Thank you! Our team will contact you on WhatsApp shortly.</p>
     <button class="btn btn-gold" id="successCloseBtn" style="margin-top:16px;">OK</button>
+  </div>
+</div>
+
+<!-- My Orders -->
+<div class="overlay" id="myOrdersOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2>My Orders</h2>
+      <button class="close-btn" id="closeMyOrders">&times;</button>
+    </div>
+    <div id="myOrdersList"></div>
+    <div id="myOrdersEmptyNote" class="empty-note" style="display:none;">You haven't placed any orders yet.</div>
   </div>
 </div>
 

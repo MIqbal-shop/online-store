@@ -25,8 +25,11 @@
 <div class="admin-shell" id="adminShell" style="display:none;">
   <div class="admin-side">
     <div class="name">Admin Panel</div>
-    <button class="admin-tab active" data-tab="products">📦 Products</button>
+    <button class="admin-tab active" data-tab="dashboard">📊 Dashboard</button>
+    <button class="admin-tab" data-tab="products">📦 Products</button>
     <button class="admin-tab" data-tab="orders">🛍️ Orders</button>
+    <button class="admin-tab" data-tab="history">📜 Order History</button>
+    <button class="admin-tab" data-tab="customers">👥 Customers</button>
     <button class="admin-tab" data-tab="store">🏬 Store</button>
     <button class="admin-tab" data-tab="resets">🔐 Password Resets</button>
     <button class="admin-tab" data-tab="settings">🔑 DMS Connection</button>
@@ -34,8 +37,16 @@
   </div>
 
   <div class="admin-main">
+    <!-- Dashboard tab -->
+    <div id="tab-dashboard">
+      <h2>Dashboard</h2>
+      <div class="dash-grid" id="dashGrid"></div>
+      <h3 style="margin-top:22px;">Top products (last 30 days)</h3>
+      <div class="card" id="dashTopProducts"></div>
+    </div>
+
     <!-- Products tab -->
-    <div id="tab-products">
+    <div id="tab-products" style="display:none;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
         <h2 style="margin:0;">Products</h2>
         <button class="btn btn-gold" id="newProductBtn">+ New Product</button>
@@ -46,7 +57,36 @@
     <!-- Orders tab -->
     <div id="tab-orders" style="display:none;">
       <h2>Orders</h2>
-      <div class="card" id="ordersList"></div>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        New orders waiting for your decision. Once confirmed or cancelled, they move to Order History.
+      </p>
+      <div class="card" id="ordersList" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- History tab -->
+    <div id="tab-history" style="display:none;">
+      <h2>Order History</h2>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+        <select id="h_year"></select>
+        <select id="h_month">
+          <option value="">All months</option>
+          <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+          <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+          <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        </select>
+        <select id="h_day">
+          <option value="">All days</option>
+        </select>
+        <button class="btn btn-navy" id="h_filterBtn">Filter</button>
+      </div>
+      <div class="card" id="historyList"></div>
+    </div>
+
+    <!-- Customers tab -->
+    <div id="tab-customers" style="display:none;">
+      <h2>Customers</h2>
+      <div class="card" id="customersList"></div>
     </div>
 
     <!-- Store tab -->
@@ -127,6 +167,7 @@
     </div>
 
     <div class="field"><label>Description (optional)</label><textarea id="p_description" rows="2"></textarea></div>
+    <div class="field"><label>Category (optional)</label><input id="p_category" placeholder="e.g. Grocery, Cosmetics" /></div>
     <div class="field">
       <label>Image (optional)</label>
       <input id="p_image_file" type="file" accept="image/*" />
@@ -135,6 +176,14 @@
     <div class="field" style="display:flex; align-items:center; gap:8px;">
       <input id="p_active" type="checkbox" style="width:auto;" checked />
       <label style="margin:0;">Show on website</label>
+    </div>
+    <div class="field">
+      <label>Stock</label>
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn stock-toggle-btn" id="p_stock_in" style="flex:1;">In stock</button>
+        <button type="button" class="btn stock-toggle-btn" id="p_stock_out" style="flex:1;">Out of stock</button>
+      </div>
+      <input type="hidden" id="p_in_stock" value="true" />
     </div>
     <p id="productError" class="error-text" style="display:none;"></p>
     <div style="display:flex; gap:10px;">

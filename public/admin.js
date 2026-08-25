@@ -64,6 +64,7 @@
   function showAdmin() {
     $('loginWrap').style.display = 'none';
     $('adminShell').style.display = 'flex';
+    loadDashboard();
     loadProducts();
     loadOrders();
     loadApiKey();
@@ -75,8 +76,11 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['products', 'orders', 'store', 'resets', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['dashboard', 'products', 'orders', 'history', 'customers', 'store', 'resets', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
       if (btn.dataset.tab === 'resets') loadPasswordResets();
+      if (btn.dataset.tab === 'dashboard') loadDashboard();
+      if (btn.dataset.tab === 'customers') loadCustomers();
+      if (btn.dataset.tab === 'history') { populateHistoryFilters(); loadHistory(); }
     });
   });
 
@@ -105,19 +109,33 @@ function priceSummary(p) {
       return;
     }
     for (const p of products) {
+      const inStock = p.in_stock !== false;
       const row = document.createElement('div');
       row.className = 'admin-row';
       row.innerHTML = `
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'}</div>
-          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)}</div>
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'} <span class="pill-status ${inStock ? 'pill-in' : 'pill-out'}">${inStock ? 'In stock' : 'Out of stock'}</span></div>
+          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
         </div>
-        <button class="btn btn-ghost edit-btn">Edit</button>
+        <div style="display:flex; gap:6px;">
+          <button class="btn stock-toggle-btn ${inStock ? 'active-in' : ''} stock-in-btn" style="padding:8px 12px; font-size:12px;">In stock</button>
+          <button class="btn stock-toggle-btn ${!inStock ? 'active-out' : ''} stock-out-btn" style="padding:8px 12px; font-size:12px;">Out of stock</button>
+          <button class="btn btn-ghost edit-btn">Edit</button>
+        </div>
       `;
       row.querySelector('.edit-btn').addEventListener('click', () => openProductModal(p));
+      row.querySelector('.stock-in-btn').addEventListener('click', () => toggleStock(p.id, true));
+      row.querySelector('.stock-out-btn').addEventListener('click', () => toggleStock(p.id, false));
       box.appendChild(row);
     }
+  }
+
+  async function toggleStock(id, in_stock) {
+    try {
+      await api(`/api/admin/products/${id}/stock`, { method: 'PUT', body: JSON.stringify({ in_stock }) });
+      loadProducts();
+    } catch (e) { alert(e.message); }
   }
 
   function escapeHtml(s) {
@@ -143,7 +161,9 @@ function priceSummary(p) {
     $('p_price_box').value = product?.price_box ?? '';
     $('p_price_piece').value = product?.price_piece ?? '';
     $('p_description').value = product?.description || '';
+    $('p_category').value = product?.category || '';
     $('p_active').checked = product ? !!product.active : true;
+    setStockToggle(product ? product.in_stock !== false : true);
     applyPackingTypeUI(pt);
     currentImageData = product?.image || null;
     if (currentImageData) { $('p_image_preview').src = currentImageData; $('p_image_preview').style.display = 'block'; }
@@ -159,6 +179,14 @@ function priceSummary(p) {
     $('p_box_field').style.display = pt === 'carton_box_piece' ? 'block' : 'none';
   }
   $('p_packing_type').addEventListener('change', (e) => applyPackingTypeUI(e.target.value));
+
+  function setStockToggle(inStock) {
+    $('p_in_stock').value = inStock ? 'true' : 'false';
+    $('p_stock_in').classList.toggle('active-in', inStock);
+    $('p_stock_out').classList.toggle('active-out', !inStock);
+  }
+  $('p_stock_in').addEventListener('click', () => setStockToggle(true));
+  $('p_stock_out').addEventListener('click', () => setStockToggle(false));
 
   $('p_image_file').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -186,8 +214,10 @@ function priceSummary(p) {
       price_box: $('p_price_box').value,
       price_piece: $('p_price_piece').value,
       description: $('p_description').value.trim(),
+      category: $('p_category').value.trim(),
       image: currentImageData,
       active: $('p_active').checked,
+      in_stock: $('p_in_stock').value === 'true',
     };
     if (!body.name) { errEl.textContent = 'Please enter a product name.'; errEl.style.display = 'block'; return; }
     if (pt === 'single' && !body.unit) { errEl.textContent = 'Please enter a unit name.'; errEl.style.display = 'block'; return; }
@@ -240,17 +270,128 @@ function priceSummary(p) {
       row.style.alignItems = 'flex-start';
       row.innerHTML = `
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(o.customer_name)} <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : 'pill-new'}">${o.status === 'cancelled' ? 'Cancelled' : o.status === 'confirmed' ? 'Confirmed' : 'New'}</span></div>
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(o.customer_name)} <span class="pill-status pill-new">New</span></div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(o.shop_name || '')} ${o.shop_name ? '·' : ''} ${escapeHtml(o.whatsapp || '')}</div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">${escapeHtml(itemsText)}</div>
+          ${o.note ? `<div style="font-size:12px; color:var(--gold); margin-top:4px;">Note: ${escapeHtml(o.note)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
-        ${o.status !== 'cancelled' ? '<button class="btn btn-red cancel-btn">Cancel</button>' : ''}
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-navy confirm-btn">Confirm</button>
+          <button class="btn btn-red cancel-btn">Cancel</button>
+        </div>
       `;
-      const cancelBtn = row.querySelector('.cancel-btn');
-      if (cancelBtn) cancelBtn.addEventListener('click', async () => {
+      row.querySelector('.confirm-btn').addEventListener('click', async () => {
+        try { await api(`/api/admin/orders/${o.id}/confirm`, { method: 'PUT' }); loadOrders(); } catch (e) { alert(e.message); }
+      });
+      row.querySelector('.cancel-btn').addEventListener('click', async () => {
         if (!confirm('Cancel this order? It will also show as cancelled in the DMS.')) return;
         try { await api(`/api/admin/orders/${o.id}/cancel`, { method: 'PUT' }); loadOrders(); } catch (e) { alert(e.message); }
+      });
+      box.appendChild(row);
+    }
+  }
+
+  // ---- Dashboard ----
+  async function loadDashboard() {
+    try {
+      const data = await api('/api/admin/dashboard');
+      const grid = $('dashGrid');
+      grid.innerHTML = `
+        <div class="dash-card"><div class="num">${data.pending_orders}</div><div class="label">Pending orders</div></div>
+        <div class="dash-card"><div class="num">${data.confirmed_last_30d}</div><div class="label">Confirmed (30 days)</div></div>
+        <div class="dash-card"><div class="num">${money(data.revenue_last_30d)}</div><div class="label">Revenue (30 days)</div></div>
+        <div class="dash-card"><div class="num">${data.cancelled_last_30d}</div><div class="label">Cancelled (30 days)</div></div>
+      `;
+      const topBox = $('dashTopProducts');
+      if (!data.top_products || data.top_products.length === 0) {
+        topBox.innerHTML = '<div class="empty-note">No confirmed orders yet.</div>';
+      } else {
+        topBox.innerHTML = data.top_products.map((p) => `
+          <div class="admin-row"><span>${escapeHtml(p.product_name)}</span><span style="color:var(--ink-soft);">${p.total_qty} sold</span></div>
+        `).join('');
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  // ---- Order History ----
+  function populateHistoryFilters() {
+    if ($('h_year').options.length > 0) return; // already populated
+    const thisYear = new Date().getFullYear();
+    let yearOptions = '<option value="">All years</option>';
+    for (let y = thisYear; y >= thisYear - 4; y--) yearOptions += `<option value="${y}">${y}</option>`;
+    $('h_year').innerHTML = yearOptions;
+    let dayOptions = '<option value="">All days</option>';
+    for (let d = 1; d <= 31; d++) dayOptions += `<option value="${d}">${d}</option>`;
+    $('h_day').innerHTML = dayOptions;
+  }
+
+  $('h_filterBtn').addEventListener('click', loadHistory);
+
+  async function loadHistory() {
+    const params = new URLSearchParams();
+    if ($('h_year').value) params.set('year', $('h_year').value);
+    if ($('h_month').value) params.set('month', $('h_month').value);
+    if ($('h_day').value) params.set('day', $('h_day').value);
+    try {
+      const data = await api('/api/admin/orders/history?' + params.toString());
+      renderHistory(data.orders || []);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderHistory(orders) {
+    const box = $('historyList');
+    box.innerHTML = '';
+    if (orders.length === 0) {
+      box.innerHTML = '<div class="empty-note">No orders found for this period.</div>';
+      return;
+    }
+    for (const o of orders) {
+      const itemsText = (o.items || []).map((it) => `${it.product_name} x ${it.quantity}${it.unit ? ' ' + it.unit : ''}`).join(', ');
+      const row = document.createElement('div');
+      row.className = 'admin-row';
+      row.style.alignItems = 'flex-start';
+      row.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(o.customer_name)} <span class="pill-status ${o.status === 'cancelled' ? 'pill-cancelled' : 'pill-confirmed'}">${o.status === 'cancelled' ? 'Cancelled' : 'Confirmed'}</span></div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(o.shop_name || '')} ${o.shop_name ? '·' : ''} ${escapeHtml(o.whatsapp || '')}</div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">${escapeHtml(itemsText)}</div>
+          ${o.note ? `<div style="font-size:12px; color:var(--gold); margin-top:4px;">Note: ${escapeHtml(o.note)}</div>` : ''}
+          <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
+        </div>
+      `;
+      box.appendChild(row);
+    }
+  }
+
+  // ---- Customers ----
+  async function loadCustomers() {
+    try {
+      const data = await api('/api/admin/customers');
+      renderCustomers(data.customers || []);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderCustomers(customers) {
+    const box = $('customersList');
+    box.innerHTML = '';
+    if (customers.length === 0) {
+      box.innerHTML = '<div class="empty-note">No customers yet.</div>';
+      return;
+    }
+    for (const c of customers) {
+      const row = document.createElement('div');
+      row.className = 'admin-row';
+      row.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(c.name)} ${c.blocked ? '<span class="pill-status pill-cancelled">Blocked</span>' : ''}</div>
+          <div style="font-size:12px; color:var(--ink-soft);">${escapeHtml(c.shop_name || '')} ${c.shop_name ? '·' : ''} ${escapeHtml(c.whatsapp || '')} &middot; ${c.order_count} orders</div>
+        </div>
+        <button class="btn ${c.blocked ? 'btn-navy' : 'btn-red'} block-btn">${c.blocked ? 'Unblock' : 'Block'}</button>
+      `;
+      row.querySelector('.block-btn').addEventListener('click', async () => {
+        if (!c.blocked && !confirm(`Block ${c.name}? They won't be able to log in or order.`)) return;
+        try { await api(`/api/admin/customers/${c.id}/block`, { method: 'PUT', body: JSON.stringify({ blocked: !c.blocked }) }); loadCustomers(); } catch (e) { alert(e.message); }
       });
       box.appendChild(row);
     }
