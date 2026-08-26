@@ -30,7 +30,7 @@
     </div>
     <button class="admin-tab active" data-tab="dashboard"><span class="ico">📊</span><span class="lbl">Dashboard</span></button>
     <button class="admin-tab" data-tab="products"><span class="ico">📦</span><span class="lbl">Products</span></button>
-    <button class="admin-tab" data-tab="orders"><span class="ico">🛍️</span><span class="lbl">Orders</span></button>
+    <button class="admin-tab" data-tab="orders"><span class="ico">🛍️</span><span class="lbl">Orders</span><span class="tab-badge" id="ordersTabBadge" style="display:none;">0</span></button>
     <button class="admin-tab" data-tab="history"><span class="ico">📜</span><span class="lbl">Order History</span></button>
     <button class="admin-tab" data-tab="customers"><span class="ico">👥</span><span class="lbl">Customers</span></button>
     <button class="admin-tab" data-tab="broadcast"><span class="ico">📢</span><span class="lbl">Broadcast</span></button>
@@ -62,9 +62,13 @@
 
     <!-- Orders tab -->
     <div id="tab-orders" style="display:none;">
-      <h2>Orders</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Orders</h2>
+        <button class="btn btn-outline" id="refreshOrdersBtn" type="button" style="padding:8px 14px; font-size:12.5px;">&#8635; Refresh</button>
+      </div>
       <p style="color:var(--ink-soft); font-size:13.5px;">
         New orders waiting for your decision. Once confirmed or cancelled, they move to Order History.
+        This list refreshes automatically every 20 seconds while you're on this tab.
       </p>
       <div class="card" id="ordersList" style="margin-top:12px;"></div>
     </div>

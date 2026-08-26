@@ -323,6 +323,12 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
   font-size: 13.5px; font-weight: 600;
 }
 .admin-tab.active { background: rgba(240,178,61,0.14); color: var(--gold); }
+.tab-badge {
+  margin-left: auto; background: #d64545; color: #fff; font-size: 10.5px; font-weight: 800;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.admin-side.collapsed .tab-badge { position: absolute; top: 6px; right: 6px; margin-left: 0; }
 .logout-tab { color: #ff9a9a; margin-top: 16px; }
 .admin-main { flex: 1; padding: 30px 34px; max-width: 900px; }
 .admin-main h2 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: 26px; margin: 0 0 16px; }
@@ -330,7 +336,7 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 /* Collapsed desktop sidebar - icons only */
 .admin-side.collapsed { width: 68px; padding: 24px 10px; }
 .admin-side.collapsed .name { display: none; }
-.admin-side.collapsed .admin-tab { justify-content: center; padding: 11px 8px; }
+.admin-side.collapsed .admin-tab { justify-content: center; padding: 11px 8px; position: relative; }
 .admin-side.collapsed .admin-tab .lbl { display: none; }
 .admin-side.collapsed .collapse-btn { transform: rotate(180deg); }
 

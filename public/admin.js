@@ -82,8 +82,26 @@
       if (btn.dataset.tab === 'customers') loadCustomers();
       if (btn.dataset.tab === 'history') { populateHistoryFilters(); loadHistory(); }
       if (btn.dataset.tab === 'reviews') loadReviews();
+      if (btn.dataset.tab === 'orders') loadOrders();
+      currentTab = btn.dataset.tab;
     });
   });
+  let currentTab = 'dashboard';
+
+  // Orders can arrive any time, so on top of refreshing whenever the Orders
+  // tab is opened, also quietly re-fetch every 20s while it's the tab
+  // being looked at - a plain click into the app (login) only fetches
+  // once, so without this a new order sits invisible here until the admin
+  // happens to leave and re-enter the tab.
+  // Orders can arrive any time. While the Orders tab itself is open, fully
+  // re-fetch every 20s so new orders/edits appear without the admin having
+  // to leave and re-enter the tab. From any other tab, just refresh the
+  // sidebar badge count every 20s so a new order is still noticeable.
+  setInterval(() => {
+    if (currentTab === 'orders') loadOrders();
+    else api('/api/admin/orders').then((data) => updateOrdersTabBadge((data.orders || []).length)).catch(() => {});
+  }, 20000);
+  $('refreshOrdersBtn').addEventListener('click', loadOrders);
 
   // ---- Products ----
   let products = [];
@@ -286,7 +304,14 @@ function priceSummary(p) {
     try {
       const data = await api('/api/admin/orders');
       renderOrders(data.orders || []);
+      updateOrdersTabBadge((data.orders || []).length);
     } catch (e) { console.error(e); }
+  }
+
+  function updateOrdersTabBadge(count) {
+    const badge = $('ordersTabBadge');
+    badge.textContent = count > 99 ? '99+' : String(count);
+    badge.style.display = count > 0 ? 'flex' : 'none';
   }
 
   function renderOrders(orders) {
