@@ -334,11 +334,18 @@ function priceSummary(p) {
           ${o.note ? `<div style="font-size:12px; color:var(--gold); margin-top:4px;">Note: ${escapeHtml(o.note)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
-        <div style="display:flex; gap:6px;">
-          <button class="btn btn-navy review-btn">Review &amp; Confirm</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="btn btn-navy quick-confirm-btn">Confirm</button>
+          <button class="btn btn-outline review-btn">Review</button>
           <button class="btn btn-red cancel-btn">Cancel</button>
         </div>
       `;
+      // Quick path: nothing needs to change, confirm exactly as ordered -
+      // no need to open Review at all.
+      row.querySelector('.quick-confirm-btn').addEventListener('click', async () => {
+        if (!confirm(`Confirm this order exactly as ordered (${itemsText})?`)) return;
+        try { await api(`/api/admin/orders/${o.id}/confirm`, { method: 'PUT', body: JSON.stringify({ items: [] }) }); loadOrders(); } catch (e) { alert(e.message); }
+      });
       row.querySelector('.review-btn').addEventListener('click', () => openOrderReview(o));
       row.querySelector('.cancel-btn').addEventListener('click', async () => {
         if (!confirm('Cancel this order? It will also show as cancelled in the DMS.')) return;
@@ -348,7 +355,12 @@ function priceSummary(p) {
     }
   }
 
-  // ---- Order review modal (adjust quantities, then confirm) ----
+  // ---- Order review modal ----
+  // Used only when something needs adjusting: change quantities, message
+  // the customer to ask if the adjusted amounts are OK, and only once
+  // you're ready (e.g. after they reply) hit "Confirm Order" here to
+  // actually finalize it - that final confirm can just as well happen
+  // from the DMS app instead, since both write to the same order.
   $('closeOrderReview').addEventListener('click', () => $('orderReviewOverlay').style.display = 'none');
   $('orderReviewOverlay').addEventListener('click', (e) => { if (e.target.id === 'orderReviewOverlay') $('orderReviewOverlay').style.display = 'none'; });
 
@@ -357,10 +369,6 @@ function priceSummary(p) {
   function openOrderReview(order) {
     reviewingOrder = order;
     $('orderReviewError').style.display = 'none';
-    $('orderReviewNotifyBox').style.display = 'none';
-    $('orderReviewItems').style.display = 'block';
-    $('orderReviewConfirmBtn').style.display = 'inline-block';
-    $('orderReviewCancelBtn').style.display = 'inline-block';
     $('orderReviewConfirmBtn').disabled = false;
     $('orderReviewConfirmBtn').textContent = 'Confirm Order';
 
@@ -372,7 +380,7 @@ function priceSummary(p) {
 
     const itemsBox = $('orderReviewItems');
     itemsBox.innerHTML = (order.items || []).map((it) => `
-      <div class="review-item-row" data-item-id="${it.id}" data-price="${it.price}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);">
+      <div class="review-item-row" data-item-id="${it.id}" data-price="${it.price}" data-name="${escapeHtml(it.product_name)}" data-unit="${escapeHtml(it.unit || '')}" data-ordered-qty="${it.quantity}" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);">
         <div>
           <div style="font-weight:600; font-size:13px;">${escapeHtml(it.product_name)}</div>
           <div style="font-size:11.5px; color:var(--ink-soft);">Ordered: ${it.quantity} ${escapeHtml(it.unit || '')} &middot; ${money(it.price)} each</div>
@@ -383,8 +391,10 @@ function priceSummary(p) {
         </div>
       </div>
     `).join('');
-    itemsBox.querySelectorAll('.review-qty-input').forEach((inp) => inp.addEventListener('input', updateOrderReviewTotal));
+    itemsBox.querySelectorAll('.review-qty-input').forEach((inp) => inp.addEventListener('input', () => { updateOrderReviewTotal(); updateAskMessage(); }));
     updateOrderReviewTotal();
+    updateAskMessage();
+    $('orderReviewAskMsg').oninput = updateAskWhatsAppLink;
     $('orderReviewOverlay').style.display = 'flex';
   }
 
@@ -396,6 +406,38 @@ function priceSummary(p) {
       total += price * qty;
     });
     $('orderReviewTotal').textContent = money(total);
+  }
+
+  // Builds the "here's what we can actually send you, is that OK?" message
+  // from whatever's currently in the qty inputs - regenerated on every
+  // change so it always reflects the latest numbers.
+  function updateAskMessage() {
+    if (!reviewingOrder) return;
+    const orderedLines = [];
+    const givingLines = [];
+    let anyDiff = false;
+    document.querySelectorAll('#orderReviewItems .review-item-row').forEach((row) => {
+      const name = row.dataset.name;
+      const unit = row.dataset.unit || '';
+      const orderedQty = Number(row.dataset.orderedQty);
+      const giveQty = Number(row.querySelector('.review-qty-input').value) || 0;
+      if (giveQty !== orderedQty) anyDiff = true;
+      orderedLines.push(`- ${name}: ${orderedQty} ${unit}`.trim());
+      givingLines.push(`- ${name}: ${giveQty} ${unit}`.trim());
+    });
+    const totalText = $('orderReviewTotal').textContent;
+    const custName = reviewingOrder.customer_name || '';
+    const message = anyDiff
+      ? `Assalam o Alaikum ${custName}!\n\nAap ne yeh order diya tha -\n${orderedLines.join('\n')}\n\nHum filhaal itna bhej sakte hain -\n${givingLines.join('\n')}\n\nNaya total: ${totalText}\n\nKya yeh aapko manzoor hai? Please tasdeeq kar dein.`
+      : `Assalam o Alaikum ${custName}!\n\nAap ka order confirm kar rahe hain, poora ordered saman ke mutabiq -\n${givingLines.join('\n')}\n\nTotal: ${totalText}\n\nKya yeh confirm hai?`;
+    $('orderReviewAskMsg').value = message;
+    updateAskWhatsAppLink();
+  }
+
+  function updateAskWhatsAppLink() {
+    if (!reviewingOrder) return;
+    const link = $('orderReviewAskBtn');
+    link.href = `https://wa.me/${formatWhatsAppNumber(reviewingOrder.whatsapp)}?text=${encodeURIComponent($('orderReviewAskMsg').value)}`;
   }
 
   $('orderReviewConfirmBtn').addEventListener('click', async () => {
@@ -410,26 +452,13 @@ function priceSummary(p) {
     btn.disabled = true;
     btn.textContent = 'Confirming...';
     try {
-      const data = await api(`/api/admin/orders/${reviewingOrder.id}/confirm`, { method: 'PUT', body: JSON.stringify({ items }) });
-      $('orderReviewItems').style.display = 'none';
-      $('orderReviewCancelBtn').style.display = 'none';
-      btn.style.display = 'none';
-      if (data.altered && data.whatsapp) {
-        const box = $('orderReviewNotifyBox');
-        const msgEl = $('orderReviewNotifyMsg');
-        const linkEl = $('orderReviewNotifyBtn');
-        msgEl.value = data.whatsapp.message;
-        const updateLink = () => { linkEl.href = `https://wa.me/${formatWhatsAppNumber(data.whatsapp.phone)}?text=${encodeURIComponent(msgEl.value)}`; };
-        updateLink();
-        msgEl.oninput = updateLink;
-        box.style.display = 'block';
-      } else {
-        $('orderReviewCustomerBox').insertAdjacentHTML('beforeend', '<div style="color:#8fd19e; margin-top:10px; font-weight:600;">Order confirmed - exactly as ordered.</div>');
-      }
+      await api(`/api/admin/orders/${reviewingOrder.id}/confirm`, { method: 'PUT', body: JSON.stringify({ items }) });
+      $('orderReviewOverlay').style.display = 'none';
       loadOrders();
     } catch (e) {
       errEl.textContent = e.message;
       errEl.style.display = 'block';
+    } finally {
       btn.disabled = false;
       btn.textContent = 'Confirm Order';
     }
