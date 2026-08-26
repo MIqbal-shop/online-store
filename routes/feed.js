@@ -22,8 +22,11 @@ async function checkApiKey(req) {
 // id and only re-applies real status changes) never needs this endpoint to
 // track per-caller sync state. Simpler and harder to get wrong.
 //
-// Each item now also carries confirmed_quantity (null until the order has
-// been confirmed by either side), and each order carries altered/
+// Each item now also carries its own `id` (order_items.id on this side) -
+// the DMS keeps that as remote_item_id so that when IT confirms an order
+// with adjusted quantities, it knows exactly which item to update here,
+// and confirmed_quantity (null until the order has been confirmed by
+// either side), and each order carries altered/
 // confirmed_via/confirmed_at - so if the Admin Portal confirmed an order
 // with a reduced quantity, the DMS sees that adjustment on its very next
 // sync, same as it would see a plain confirm.
@@ -55,7 +58,7 @@ router.get('/', async (req, res, next) => {
         confirmed_via: o.confirmed_via,
         confirmed_at: o.confirmed_at,
         items: (byOrder[o.id] || []).map(it => ({
-          product_name: it.product_name, quantity: it.quantity, unit: it.unit, price: it.price,
+          id: it.id, product_name: it.product_name, quantity: it.quantity, unit: it.unit, price: it.price,
           confirmed_quantity: it.confirmed_quantity,
         })),
       })),
