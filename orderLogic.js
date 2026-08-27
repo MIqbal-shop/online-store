@@ -70,9 +70,12 @@ async function confirmOrder(orderId, itemUpdates, confirmedVia) {
     }
 
     const { rows: updatedOrderRows } = await client.query(
-      `UPDATE orders SET status='confirmed', altered=$1, confirmed_via=$2, confirmed_at=NOW() WHERE id=$3 RETURNING *`,
+      `UPDATE orders SET status='confirmed', altered=$1, confirmed_via=$2, confirmed_at=NOW(), review_pending=false WHERE id=$3 RETURNING *`,
       [altered, confirmedVia, orderId]
     );
+    // The review proposal (if any) has served its purpose now that a real
+    // decision has been made - clear it so it doesn't linger.
+    await client.query('UPDATE order_items SET review_quantity=NULL WHERE order_id=$1', [orderId]);
     await client.query('COMMIT');
 
     let whatsapp = null;
@@ -101,10 +104,72 @@ async function confirmOrder(orderId, itemUpdates, confirmedVia) {
 // status flip. Returns the updated order row, or null if it doesn't exist.
 async function cancelOrder(orderId, confirmedVia) {
   const { rows } = await pool.query(
-    `UPDATE orders SET status='cancelled', confirmed_via=$1, confirmed_at=NOW() WHERE id=$2 RETURNING *`,
+    `UPDATE orders SET status='cancelled', confirmed_via=$1, confirmed_at=NOW(), review_pending=false WHERE id=$2 RETURNING *`,
     [confirmedVia, orderId]
   );
+  if (rows[0]) await pool.query('UPDATE order_items SET review_quantity=NULL WHERE order_id=$1', [orderId]);
   return rows[0] || null;
 }
 
-module.exports = { confirmOrder, cancelOrder };
+// setReview(orderId, itemUpdates) - marks an order "under review": staff
+// proposed some (possibly adjusted) quantities and are messaging the
+// customer about them, but haven't confirmed anything yet. This is a pure
+// staging step - it never touches status, and never builds a WhatsApp
+// message itself (both apps build and send that client-side, since they
+// already have everything needed and it lets staff edit the wording
+// before sending). Saved here (not just in one app) so either side shows
+// "under review" and the same proposed numbers, and either side confirming
+// with itemUpdates=null afterwards picks these very numbers back up if it
+// wants to (each app re-sends its own itemUpdates on confirm though, this
+// is just what both apps read to display the box).
+//
+// Returns null if the order doesn't exist, otherwise { order, items }.
+async function setReview(orderId, itemUpdates) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows: orderRows } = await client.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE', [orderId]);
+    const order = orderRows[0];
+    if (!order) { await client.query('ROLLBACK'); return null; }
+
+    const { rows: items } = await client.query('SELECT * FROM order_items WHERE order_id=$1 ORDER BY id', [orderId]);
+    const updateMap = {};
+    for (const u of (itemUpdates || [])) {
+      if (u && u.id != null) updateMap[u.id] = u.review_quantity;
+    }
+
+    const finalItems = [];
+    for (const it of items) {
+      let reviewQty = Number(it.quantity);
+      if (Object.prototype.hasOwnProperty.call(updateMap, it.id) && updateMap[it.id] !== '' && updateMap[it.id] != null) {
+        const requested = Number(updateMap[it.id]);
+        if (!Number.isNaN(requested) && requested >= 0) reviewQty = requested;
+      }
+      await client.query('UPDATE order_items SET review_quantity=$1 WHERE id=$2', [reviewQty, it.id]);
+      finalItems.push({ ...it, review_quantity: reviewQty });
+    }
+
+    const { rows: updatedOrderRows } = await client.query(
+      `UPDATE orders SET review_pending=true WHERE id=$1 RETURNING *`,
+      [orderId]
+    );
+    await client.query('COMMIT');
+    return { order: updatedOrderRows[0], items: finalItems };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// clearReview(orderId) - discards a pending review proposal without
+// confirming or cancelling the order; it just goes back to looking like a
+// plain new order. Returns the updated order row, or null if it doesn't exist.
+async function clearReview(orderId) {
+  const { rows } = await pool.query(`UPDATE orders SET review_pending=false WHERE id=$1 RETURNING *`, [orderId]);
+  if (rows[0]) await pool.query('UPDATE order_items SET review_quantity=NULL WHERE order_id=$1', [orderId]);
+  return rows[0] || null;
+}
+
+module.exports = { confirmOrder, cancelOrder, setReview, clearReview };

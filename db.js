@@ -224,6 +224,17 @@ async function init() {
   // first is simply what sticks, since both write to this same table.
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_via TEXT`);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP`);
+
+  // "Under review" - a not-yet-decided staging step: staff proposed some
+  // (possibly adjusted) quantities and messaged the customer about them,
+  // but haven't actually confirmed the order yet. review_quantity is what
+  // was proposed; it's separate from confirmed_quantity, which only gets
+  // set once the order is genuinely finalized. Kept in this same database
+  // (not just one app's local state) so it's visible - and settable -
+  // from both the Admin Portal and the DMS app equally, same as
+  // confirm/cancel already are.
+  await pool.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS review_quantity NUMERIC`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_pending BOOLEAN DEFAULT FALSE`);
 }
 
 module.exports = { pool, init };
