@@ -3,7 +3,7 @@ const router = express.Router();
 const { pool } = require('../db');
 const { hashPassword, makeSalt, verifyPassword, makeApiKey, createSession, destroySession, tokenFromReq, requireAdmin } = require('../auth');
 const { sendWhatsAppMessage } = require('../whatsapp');
-const { confirmOrder, cancelOrder } = require('../orderLogic');
+const { confirmOrder, cancelOrder, setReview, clearReview } = require('../orderLogic');
 
 // GET /api/admin/setup-status - the admin panel checks this first to decide
 // whether to show "create your account" or the normal login form.
@@ -243,6 +243,28 @@ router.put('/orders/:id/confirm', async (req, res, next) => {
 router.put('/orders/:id/cancel', async (req, res, next) => {
   try {
     const order = await cancelOrder(req.params.id, 'admin');
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
+    res.json({ ok: true, order });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/orders/:id/set-review - body: { items: [{ id, review_quantity }] }
+// Marks the order "under review": doesn't touch status, just records what
+// was proposed to the customer so both the Admin Portal and the DMS show
+// the same "under review" box with the same numbers, from here until
+// someone actually confirms or cancels it.
+router.put('/orders/:id/set-review', async (req, res, next) => {
+  try {
+    const result = await setReview(req.params.id, req.body.items || []);
+    if (!result) return res.status(404).json({ error: 'Order not found.' });
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/orders/:id/clear-review - discard a pending review without confirming/cancelling.
+router.put('/orders/:id/clear-review', async (req, res, next) => {
+  try {
+    const order = await clearReview(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found.' });
     res.json({ ok: true, order });
   } catch (err) { next(err); }
