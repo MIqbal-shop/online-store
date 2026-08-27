@@ -133,7 +133,7 @@ router.get('/products', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, in_stock } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, company, in_stock } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Product ka naam likhna zaroori hai.' });
     const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
@@ -144,8 +144,8 @@ router.post('/products', async (req, res, next) => {
       return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
     }
     const { rows } = await pool.query(
-      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, in_stock)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, company, in_stock)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [
         name.trim(), pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
@@ -153,7 +153,7 @@ router.post('/products', async (req, res, next) => {
         pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         image || null, description || '', active !== false,
-        (category || '').trim(), in_stock !== false,
+        (category || '').trim(), (company || '').trim(), in_stock !== false,
       ]
     );
     res.json({ product: rows[0] });
@@ -162,7 +162,7 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, in_stock } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, active, category, company, in_stock } = req.body;
     const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
     if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
@@ -172,7 +172,7 @@ router.put('/products/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
     }
     const { rows } = await pool.query(
-      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, description=$9, active=$10, category=$11, in_stock=$12 WHERE id=$13 RETURNING *`,
+      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, description=$9, active=$10, category=$11, company=$12, in_stock=$13 WHERE id=$14 RETURNING *`,
       [
         name || '', pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
@@ -180,7 +180,7 @@ router.put('/products/:id', async (req, res, next) => {
         pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         image || null, description || '', active !== false,
-        (category || '').trim(), in_stock !== false, req.params.id,
+        (category || '').trim(), (company || '').trim(), in_stock !== false, req.params.id,
       ]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });

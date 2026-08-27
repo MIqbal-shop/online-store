@@ -18,7 +18,7 @@ router.get('/store-info', async (req, res, next) => {
 // through flagged so the storefront can grey them out and block ordering.
 router.get('/products', async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT id, name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, in_stock, category FROM products WHERE active=true ORDER BY id');
+    const { rows } = await pool.query('SELECT id, name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, in_stock, category, company FROM products WHERE active=true ORDER BY id');
     res.json({ products: rows });
   } catch (err) { next(err); }
 });
