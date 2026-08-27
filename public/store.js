@@ -480,7 +480,6 @@
         : `<div class="rating-badge no-reviews" data-open-reviews="${p.id}"><span class="star-ic">&#9734;</span><span>${t('rateThis')}</span></div>`;
       tile.innerHTML = `
         <div class="product-img-box">
-          <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
           <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
           ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}
         </div>
@@ -497,6 +496,7 @@
           <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
           ${ratingBadge}
         </div>
+        <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
         <div class="qty-row">
           <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
           <span class="qty-val">${qty}</span>
