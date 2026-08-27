@@ -156,6 +156,9 @@ async function init() {
   // optional category, used for the storefront's search/filter bar.
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS in_stock BOOLEAN DEFAULT TRUE`);
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category TEXT DEFAULT ''`);
+  // Brand / manufacturer name (e.g. "Bona Papa") - separate from category
+  // (e.g. "Diapers") so the storefront can filter by either one.
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS company TEXT DEFAULT ''`);
 
   // Optional note a customer can attach at checkout (e.g. "deliver after 5pm").
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''`);
