@@ -11,44 +11,79 @@
 <!-- Auth gate - shown until a valid customer session exists -->
 <div class="auth-gate" id="authGate">
   <div class="auth-card">
-    <div class="auth-logo">
-      <div class="mark" id="authMark">IT</div>
-      <div class="name" id="authName">IQBAL TRADER</div>
-    </div>
 
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin" data-i18n="login">Log in</button>
-      <button class="auth-tab" id="tabSignup" data-i18n="createAccount">Create account</button>
-    </div>
-
-    <!-- Login form -->
-    <div id="loginForm">
-      <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="l_whatsapp" placeholder="03xx xxxxxxx" /></div>
-      <div class="field"><label data-i18n="password">Password</label><input id="l_password" type="password" /></div>
-      <p id="loginError" class="error-text" style="display:none;"></p>
-      <button class="btn btn-gold" id="loginBtn" style="width:100%;" data-i18n="login">Log in</button>
-      <p style="text-align:center; margin-top:14px;"><a href="#" id="forgotPasswordLink" style="color:var(--gold); font-weight:700; font-size:13px;" data-i18n="forgotPassword">Forgot password?</a></p>
-    </div>
-
-    <!-- Signup form -->
-    <div id="signupForm" style="display:none;">
-      <div class="type-choice">
-        <button id="typeOldBtn" data-i18n="existingCustomer">Existing customer</button>
-        <button id="typeNewBtn" data-i18n="newCustomer">New customer</button>
+    <!-- Left brand / visual panel (hidden on very small screens) -->
+    <div class="auth-visual">
+      <div class="auth-visual-glow"></div>
+      <div class="auth-visual-top">
+        <div class="mark" id="authMark">IT</div>
+        <div class="name" id="authName">IQBAL TRADER</div>
       </div>
-
-      <div class="field"><label data-i18n="yourName">Your name</label><input id="s_name" placeholder="Enter your name" data-i18n-placeholder="enterYourName" /></div>
-      <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="s_whatsapp" placeholder="03xx xxxxxxx" /></div>
-
-      <div id="newOnlyFields" style="display:none;">
-        <div class="field"><label data-i18n="shopName">Shop name</label><input id="s_shop" placeholder="Your shop's name" data-i18n-placeholder="yourShopName" /></div>
-        <div class="field"><label data-i18n="phoneNumber">Phone / cell number</label><input id="s_phone" placeholder="03xx xxxxxxx" /></div>
-        <div class="field"><label data-i18n="address">Address</label><textarea id="s_address" rows="2" placeholder="Enter your full address" data-i18n-placeholder="enterFullAddress"></textarea></div>
+      <div class="auth-visual-mid">
+        <h1 data-i18n="authVisualTitle">Your shop,<br>always in sync.</h1>
+        <p data-i18n="authVisualSubtitle">Order directly from your phone or laptop - every order reaches us instantly.</p>
       </div>
+      <div class="auth-visual-features">
+        <div class="auth-feature"><span class="dot"></span><span data-i18n="authFeature1">Real-time order tracking</span></div>
+        <div class="auth-feature"><span class="dot"></span><span data-i18n="authFeature2">Your details saved for faster checkout</span></div>
+        <div class="auth-feature"><span class="dot"></span><span data-i18n="authFeature3">Direct WhatsApp updates</span></div>
+      </div>
+    </div>
 
-      <div class="field"><label data-i18n="password">Password</label><input id="s_password" type="password" placeholder="At least 6 characters" data-i18n-placeholder="atLeast6Chars" /></div>
-      <p id="signupError" class="error-text" style="display:none;"></p>
-      <button class="btn btn-gold" id="signupBtn" style="width:100%;" data-i18n="createAccount">Create account</button>
+    <!-- Right form panel -->
+    <div class="auth-form-panel">
+      <div class="auth-form-inner">
+
+        <div class="auth-top-row">
+          <div class="auth-switch" id="authSwitchLogin">
+            <span data-i18n="newHere">New here?</span>
+            <a href="#" id="goToSignup" data-i18n="createAccount">Create account</a>
+          </div>
+          <div class="auth-switch" id="authSwitchSignup" style="display:none;">
+            <span data-i18n="alreadyMember">Already a member?</span>
+            <a href="#" id="goToLogin" data-i18n="login">Log in</a>
+          </div>
+        </div>
+
+        <!-- Login form -->
+        <div id="loginForm">
+          <h2 class="auth-heading" data-i18n="welcomeBack">Welcome back</h2>
+          <p class="auth-subtext" data-i18n="loginSubtext">Log in to your account to continue ordering.</p>
+          <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="l_whatsapp" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
+          <div class="field"><label data-i18n="password">Password</label><input id="l_password" type="password" /></div>
+          <p id="loginError" class="error-text" style="display:none;"></p>
+          <button class="btn btn-gold" id="loginBtn" style="width:100%;" data-i18n="login">Log in</button>
+          <p class="auth-forgot"><a href="#" id="forgotPasswordLink" data-i18n="forgotPassword">Forgot password?</a></p>
+          <p class="auth-switch-bottom">
+            <span data-i18n="noAccountYet">Don't have an account?</span>
+            <a href="#" id="goToSignup2" data-i18n="createOne">Create one</a>
+          </p>
+        </div>
+
+        <!-- Signup form -->
+        <div id="signupForm" style="display:none;">
+          <h2 class="auth-heading" data-i18n="createYourAccount">Create your account</h2>
+          <p class="auth-subtext" data-i18n="signupSubtext">Tell us about your shop - it only takes a minute.</p>
+
+          <div class="field-row">
+            <div class="field"><label data-i18n="ownerName">Owner name</label><input id="s_name" placeholder="Enter your name" data-i18n-placeholder="enterYourName" /></div>
+            <div class="field"><label data-i18n="shopName">Shop name</label><input id="s_shop" placeholder="Your shop's name" data-i18n-placeholder="yourShopName" /></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label data-i18n="phoneNumber">Cell number</label><input id="s_phone" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
+            <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="s_whatsapp" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
+          </div>
+          <div class="field"><label data-i18n="address">Address</label><textarea id="s_address" rows="2" placeholder="Enter your full address" data-i18n-placeholder="enterFullAddress"></textarea></div>
+          <div class="field"><label data-i18n="password">Password</label><input id="s_password" type="password" placeholder="At least 6 characters" data-i18n-placeholder="atLeast6Chars" /></div>
+          <p id="signupError" class="error-text" style="display:none;"></p>
+          <button class="btn btn-gold" id="signupBtn" style="width:100%;" data-i18n="createAccount">Create account</button>
+          <p class="auth-switch-bottom">
+            <span data-i18n="alreadyHaveAccount">Already have an account?</span>
+            <a href="#" id="goToLogin2" data-i18n="login">Log in</a>
+          </p>
+        </div>
+
+      </div>
     </div>
   </div>
 </div>

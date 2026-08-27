@@ -7,7 +7,6 @@
   let customer = null;
   let products = [];
   let cart = {}; // product_id -> { product, qty }
-  let signupType = null; // 'new' | 'old'
   let favoriteIds = new Set(); // product ids the shopper has saved
   let reviewSummary = {}; // product_id -> { avg_rating, count }
   let currentReviewProductId = null; // which product the reviews overlay is showing
@@ -18,10 +17,18 @@
   const I18N = {
     en: {
       login: 'Log in', createAccount: 'Create account', whatsappNumber: 'WhatsApp number', password: 'Password',
-      forgotPassword: 'Forgot password?', existingCustomer: 'Existing customer', newCustomer: 'New customer',
-      yourName: 'Your name', enterYourName: 'Enter your name', shopName: 'Shop name', yourShopName: "Your shop's name",
-      phoneNumber: 'Phone / cell number', address: 'Address', enterFullAddress: 'Enter your full address',
+      forgotPassword: 'Forgot password?',
+      yourName: 'Your name', ownerName: 'Owner name', enterYourName: 'Enter your name', shopName: 'Shop name', yourShopName: "Your shop's name",
+      phoneNumber: 'Cell number', address: 'Address', enterFullAddress: 'Enter your full address',
       atLeast6Chars: 'At least 6 characters', resetPassword: 'Reset password',
+      newHere: 'New here?', alreadyMember: 'Already a member?', welcomeBack: 'Welcome back',
+      loginSubtext: 'Log in to your account to continue ordering.', noAccountYet: "Don't have an account?",
+      createOne: 'Create one', createYourAccount: 'Create your account',
+      signupSubtext: "Tell us about your shop - it only takes a minute.", alreadyHaveAccount: 'Already have an account?',
+      authVisualTitle: 'Your shop, always in sync.',
+      authVisualSubtitle: 'Order directly from your phone or laptop - every order reaches us instantly.',
+      authFeature1: 'Real-time order tracking', authFeature2: 'Your details saved for faster checkout',
+      authFeature3: 'Direct WhatsApp updates',
       resetPasswordNote: "Enter the WhatsApp number on your account. We'll send a new password to it.",
       sendNewPassword: 'Send new password', chooseYour: 'Choose your', products: 'products',
       heroSubtitle: "Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.",
@@ -49,10 +56,18 @@
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
-      forgotPassword: 'پاسورڈ بھول گئے؟', existingCustomer: 'پرانا کسٹمر', newCustomer: 'نیا کسٹمر',
-      yourName: 'آپ کا نام', enterYourName: 'اپنا نام لکھیں', shopName: 'دکان کا نام', yourShopName: 'آپ کی دکان کا نام',
-      phoneNumber: 'فون نمبر', address: 'پتہ', enterFullAddress: 'اپنا مکمل پتہ لکھیں',
+      forgotPassword: 'پاسورڈ بھول گئے؟',
+      yourName: 'آپ کا نام', ownerName: 'مالک کا نام', enterYourName: 'اپنا نام لکھیں', shopName: 'دکان کا نام', yourShopName: 'آپ کی دکان کا نام',
+      phoneNumber: 'سیل نمبر', address: 'پتہ', enterFullAddress: 'اپنا مکمل پتہ لکھیں',
       atLeast6Chars: 'کم از کم 6 حروف', resetPassword: 'پاسورڈ ری سیٹ کریں',
+      newHere: 'نئے ہیں؟', alreadyMember: 'پہلے سے اکاؤنٹ ہے؟', welcomeBack: 'خوش آمدید',
+      loginSubtext: 'آرڈر جاری رکھنے کے لیے اپنے اکاؤنٹ میں لاگ ان کریں۔', noAccountYet: 'اکاؤنٹ نہیں ہے؟',
+      createOne: 'بنائیں', createYourAccount: 'اپنا اکاؤنٹ بنائیں',
+      signupSubtext: 'اپنی دکان کے بارے میں بتائیں - صرف ایک منٹ لگے گا۔', alreadyHaveAccount: 'پہلے سے اکاؤنٹ ہے؟',
+      authVisualTitle: 'آپ کی دکان، ہمیشہ منسلک۔',
+      authVisualSubtitle: 'اپنے فون یا لیپ ٹاپ سے براہ راست آرڈر کریں - ہر آرڈر فوری طور پر ہم تک پہنچے گا۔',
+      authFeature1: 'آرڈر کی حقیقی وقت میں ٹریکنگ', authFeature2: 'تیز چیک آؤٹ کے لیے آپ کی معلومات محفوظ',
+      authFeature3: 'براہ راست واٹس ایپ اپڈیٹس',
       resetPasswordNote: 'اپنے اکاؤنٹ کا واٹس ایپ نمبر لکھیں۔ ہم اس پر نیا پاسورڈ بھیج دیں گے۔',
       sendNewPassword: 'نیا پاسورڈ بھیجیں', chooseYour: 'اپنی', products: 'مصنوعات چنیں',
       heroSubtitle: 'جو چاہیے کارٹ میں شامل کریں، پھر آرڈر کنفرم کریں - ہماری ٹیم واٹس ایپ پر رابطہ کرے گی۔',
@@ -169,6 +184,7 @@
   function showAuthGate() {
     $('authGate').style.display = 'flex';
     $('shopRoot').style.display = 'none';
+    showLoginView();
   }
   function showShop() {
     $('authGate').style.display = 'none';
@@ -177,14 +193,18 @@
     loadFavoriteIds();
   }
 
-  $('tabLogin').addEventListener('click', () => {
-    $('tabLogin').classList.add('active'); $('tabSignup').classList.remove('active');
+  function showLoginView() {
     $('loginForm').style.display = 'block'; $('signupForm').style.display = 'none';
-  });
-  $('tabSignup').addEventListener('click', () => {
-    $('tabSignup').classList.add('active'); $('tabLogin').classList.remove('active');
+    $('authSwitchLogin').style.display = 'block'; $('authSwitchSignup').style.display = 'none';
+    $('loginError').style.display = 'none'; $('signupError').style.display = 'none';
+  }
+  function showSignupView() {
     $('signupForm').style.display = 'block'; $('loginForm').style.display = 'none';
-  });
+    $('authSwitchSignup').style.display = 'block'; $('authSwitchLogin').style.display = 'none';
+    $('loginError').style.display = 'none'; $('signupError').style.display = 'none';
+  }
+  ['goToSignup', 'goToSignup2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showSignupView(); }));
+  ['goToLogin', 'goToLogin2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showLoginView(); }));
 
   // ---- Sidebar (Account / Cart) ----
   function openSidebar() {
@@ -199,15 +219,6 @@
   $('menuBtn').addEventListener('click', openSidebar);
   $('closeSidebar').addEventListener('click', closeSidebar);
   $('sidebarOverlay').addEventListener('click', closeSidebar);
-
-  $('typeOldBtn').addEventListener('click', () => selectSignupType('old'));
-  $('typeNewBtn').addEventListener('click', () => selectSignupType('new'));
-  function selectSignupType(type) {
-    signupType = type;
-    $('typeOldBtn').classList.toggle('active', type === 'old');
-    $('typeNewBtn').classList.toggle('active', type === 'new');
-    $('newOnlyFields').style.display = type === 'new' ? 'block' : 'none';
-  }
 
   // ---- Forgot password ----
   $('forgotPasswordLink').addEventListener('click', (e) => {
@@ -264,7 +275,6 @@
   $('signupBtn').addEventListener('click', async () => {
     const errEl = $('signupError');
     errEl.style.display = 'none';
-    if (!signupType) { errEl.textContent = 'Please select whether you are a new or existing customer.'; errEl.style.display = 'block'; return; }
     const name = $('s_name').value.trim();
     const whatsapp = $('s_whatsapp').value.trim();
     const shop_name = $('s_shop').value.trim();
@@ -272,18 +282,16 @@
     const address = $('s_address').value.trim();
     const password = $('s_password').value;
 
-    if (!name) { errEl.textContent = 'Please enter your name.'; errEl.style.display = 'block'; return; }
+    if (!name) { errEl.textContent = 'Please enter the owner name.'; errEl.style.display = 'block'; return; }
+    if (!shop_name) { errEl.textContent = 'Please enter your shop name.'; errEl.style.display = 'block'; return; }
+    if (!phone) { errEl.textContent = 'Please enter your cell number.'; errEl.style.display = 'block'; return; }
     if (!whatsapp) { errEl.textContent = 'Please enter your WhatsApp number.'; errEl.style.display = 'block'; return; }
+    if (!address) { errEl.textContent = 'Please enter your address.'; errEl.style.display = 'block'; return; }
     if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
-    if (signupType === 'new' && (!shop_name || !phone || !address)) {
-      errEl.textContent = 'Shop name, phone number, and address are required.';
-      errEl.style.display = 'block';
-      return;
-    }
     try {
       const data = await api('/api/customers/signup', {
         method: 'POST',
-        body: JSON.stringify({ customer_type: signupType, name, whatsapp, shop_name, phone, address, password }),
+        body: JSON.stringify({ customer_type: 'new', name, whatsapp, shop_name, phone, address, password }),
       });
       token = data.token;
       customer = data.customer;
