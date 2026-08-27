@@ -586,6 +586,52 @@ function priceSummary(p) {
     }
   }
 
+  // ---- Delete Order History ----
+  async function loadHistoryDeleteCount() {
+    try {
+      const data = await api('/api/admin/orders/history-count');
+      $('deleteHistoryCountNote').textContent = data.count > 0
+        ? `This will permanently delete all ${data.count} confirmed/cancelled order(s) below. Orders still waiting in the Orders tab are not touched.`
+        : 'There is no confirmed/cancelled order history to delete yet.';
+    } catch (e) { console.error(e); }
+  }
+
+  $('openDeleteHistoryBtn').addEventListener('click', () => {
+    $('dh_password').value = '';
+    $('dh_confirm').value = '';
+    $('deleteHistoryError').style.display = 'none';
+    loadHistoryDeleteCount();
+    $('deleteHistoryOverlay').style.display = 'flex';
+  });
+  $('closeDeleteHistory').addEventListener('click', () => $('deleteHistoryOverlay').style.display = 'none');
+  $('deleteHistoryOverlay').addEventListener('click', (e) => { if (e.target.id === 'deleteHistoryOverlay') $('deleteHistoryOverlay').style.display = 'none'; });
+
+  $('deleteHistorySubmitBtn').addEventListener('click', async () => {
+    const errEl = $('deleteHistoryError');
+    errEl.style.display = 'none';
+    const password = $('dh_password').value;
+    const confirmText = $('dh_confirm').value;
+    if (confirmText !== 'DELETE') {
+      errEl.textContent = 'Type DELETE in the confirmation box.';
+      errEl.style.display = 'block';
+      return;
+    }
+    const btn = $('deleteHistorySubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+    try {
+      await api('/api/admin/orders/delete-history', { method: 'POST', body: JSON.stringify({ password, confirm: confirmText }) });
+      $('deleteHistoryOverlay').style.display = 'none';
+      loadHistory();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Yes, Delete Order History';
+    }
+  });
+
   // ---- Customers ----
   async function loadCustomers() {
     try {

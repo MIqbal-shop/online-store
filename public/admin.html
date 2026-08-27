@@ -91,6 +91,16 @@
         <button class="btn btn-navy" id="h_filterBtn">Filter</button>
       </div>
       <div class="card" id="historyList"></div>
+
+      <div class="card" style="margin-top:20px; padding:16px; border:1px solid #d64545;">
+        <h3 style="color:#ff9a9a; margin:0 0 6px;">Danger Zone</h3>
+        <p style="color:var(--ink-soft); font-size:12.5px; margin:0 0 12px;">
+          Permanently delete every <b>Confirmed</b> and <b>Cancelled</b> order below (and their items). Orders still
+          waiting in the Orders tab are never touched. This does not affect the DMS's own copy of these orders -
+          delete there separately if you want it gone from both places.
+        </p>
+        <button class="btn btn-red" id="openDeleteHistoryBtn">🗑️ Delete Order History</button>
+      </div>
     </div>
 
     <!-- Customers tab -->
@@ -274,6 +284,21 @@
       <a class="btn btn-gold whatsapp-btn" id="orderReviewAskBtn" href="#" target="_blank" rel="noopener" style="flex:1; text-align:center;">WhatsApp Kholein &amp; Save Karein</a>
       <button class="btn btn-outline" id="orderReviewCloseBtn">Band Karein</button>
     </div>
+  </div>
+</div>
+
+<!-- Delete Order History confirmation -->
+<div class="overlay" id="deleteHistoryOverlay" style="display:none;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <h2 style="color:#ff9a9a;">Delete Order History</h2>
+      <button class="close-btn" id="closeDeleteHistory">&times;</button>
+    </div>
+    <p class="info-note" id="deleteHistoryCountNote">This will permanently delete every confirmed and cancelled order. Orders still waiting in the Orders tab are not touched.</p>
+    <div class="field"><label>Your login password</label><input id="dh_password" type="password" /></div>
+    <div class="field"><label>Type <b>DELETE</b> to confirm</label><input id="dh_confirm" /></div>
+    <p id="deleteHistoryError" class="error-text" style="display:none;"></p>
+    <button class="btn btn-red" id="deleteHistorySubmitBtn" style="width:100%;">Yes, Delete Order History</button>
   </div>
 </div>
 
