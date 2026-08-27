@@ -135,7 +135,7 @@ function priceSummary(p) {
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'} <span class="pill-status ${inStock ? 'pill-in' : 'pill-out'}">${inStock ? 'In stock' : 'Out of stock'}</span></div>
-          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
+          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)} ${p.company ? '&middot; ' + escapeHtml(p.company) : ''} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn stock-toggle-btn ${inStock ? 'active-in' : ''} stock-in-btn" style="padding:8px 12px; font-size:12px;">In stock</button>
@@ -212,6 +212,7 @@ function priceSummary(p) {
     $('p_price_box').value = product?.price_box ?? '';
     $('p_price_piece').value = product?.price_piece ?? '';
     $('p_description').value = product?.description || '';
+    $('p_company').value = product?.company || '';
     $('p_category').value = product?.category || '';
     $('p_active').checked = product ? !!product.active : true;
     setStockToggle(product ? product.in_stock !== false : true);
@@ -265,6 +266,7 @@ function priceSummary(p) {
       price_box: $('p_price_box').value,
       price_piece: $('p_price_piece').value,
       description: $('p_description').value.trim(),
+      company: $('p_company').value.trim(),
       category: $('p_category').value.trim(),
       image: currentImageData,
       active: $('p_active').checked,

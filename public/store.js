@@ -307,12 +307,14 @@
   let selectedUnit = {}; // product_id -> 'carton' | 'box' | 'piece' | 'single'
   let searchQuery = '';
   let selectedCategory = '';
+  let selectedCompany = '';
 
   async function loadProducts() {
     try {
       const data = await fetch('/api/products').then((r) => r.json());
       products = data.products || [];
       renderCategoryChips();
+      renderCompanyChips();
       await loadReviewSummary();
       renderProducts();
     } catch (e) { console.error(e); }
@@ -373,6 +375,20 @@
     });
   }
 
+  // Company / brand filter - same chip pattern as category, independent
+  // selection. "All" shows every brand; picking one narrows the grid (and
+  // still combines with the active category + search box).
+  function renderCompanyChips() {
+    const companies = [...new Set(products.map((p) => (p.company || '').trim()).filter(Boolean))];
+    const box = $('companyChips');
+    if (companies.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `<button class="category-chip company-chip ${selectedCompany === '' ? 'active' : ''}" data-co="">All</button>`
+      + companies.map((c) => `<button class="category-chip company-chip ${selectedCompany === c ? 'active' : ''}" data-co="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    box.querySelectorAll('.company-chip').forEach((btn) => {
+      btn.addEventListener('click', () => { selectedCompany = btn.dataset.co; renderCompanyChips(); renderProducts(); });
+    });
+  }
+
   $('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value.trim().toLowerCase(); renderProducts(); });
 
   // Returns the list of buyable options for a product - one for 'single'
@@ -402,7 +418,8 @@
     const visible = products.filter((p) => {
       const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery);
       const matchesCategory = !selectedCategory || (p.category || '').trim() === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesCompany = !selectedCompany || (p.company || '').trim() === selectedCompany;
+      return matchesSearch && matchesCategory && matchesCompany;
     });
     $('emptyMsg').style.display = visible.length ? 'none' : 'block';
     visible.forEach((p, i) => {
@@ -422,16 +439,20 @@
         ? `<div class="rating-badge" data-open-reviews="${p.id}"><span class="star-ic">&#9733;</span><span class="avg-num">${summary.avg_rating}</span><span class="rating-count">(${summary.count})</span></div>`
         : `<div class="rating-badge no-reviews" data-open-reviews="${p.id}"><span class="star-ic">&#9734;</span><span>${t('rateThis')}</span></div>`;
       tile.innerHTML = `
-        ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
-        <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
+        <div class="product-img-box">
+          ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
+          <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
+          ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}
+        </div>
+        ${p.company ? `<div class="product-company">${escapeHtml(p.company)}</div>` : ''}
         <div class="product-name">${escapeHtml(p.name)}</div>
-        ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
-        <div class="product-img-box">${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}</div>
-        ${options.length > 1 ? `
-          <div class="unit-toggle">
-            ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
-          </div>
-        ` : ''}
+        <div class="unit-toggle-slot">
+          ${options.length > 1 ? `
+            <div class="unit-toggle">
+              ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
+            </div>
+          ` : ''}
+        </div>
         <div class="tile-footer">
           <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
           ${ratingBadge}
