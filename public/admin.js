@@ -661,20 +661,78 @@ function priceSummary(p) {
     for (const c of customers) {
       const row = document.createElement('div');
       row.className = 'admin-row';
+      row.style.flexWrap = 'wrap';
+
+      const readyAt = c.deletion_requested_at ? new Date(c.deletion_requested_at).getTime() + 48 * 60 * 60 * 1000 : null;
+      const coolOffDone = readyAt !== null && Date.now() >= readyAt;
+
+      let deleteControlsHtml;
+      if (!c.pending_deletion) {
+        deleteControlsHtml = `<button class="btn btn-red delete-btn">Delete customer</button>`;
+      } else if (!coolOffDone) {
+        deleteControlsHtml = `
+          <div class="delete-pending-box">
+            <span class="delete-pending-label">Deletion scheduled &middot; ${timeRemaining(readyAt)} left</span>
+            <button class="btn btn-navy cancel-delete-btn">Cancel deletion</button>
+          </div>`;
+      } else {
+        deleteControlsHtml = `
+          <div class="delete-pending-box">
+            <span class="delete-pending-label delete-ready-label">48 hours passed - delete now?</span>
+            <button class="btn btn-navy cancel-delete-btn">No, keep</button>
+            <button class="btn btn-red confirm-delete-btn">Yes, delete permanently</button>
+          </div>`;
+      }
+
       row.innerHTML = `
-        <div style="flex:1;">
+        <div style="flex:1; min-width:180px;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(c.name)} ${c.blocked ? '<span class="pill-status pill-cancelled">Blocked</span>' : ''}</div>
           <div style="font-size:12px; color:var(--ink-soft);">${escapeHtml(c.shop_name || '')} ${c.shop_name ? '·' : ''} ${escapeHtml(c.whatsapp || '')} &middot; ${c.order_count} orders</div>
         </div>
-        <button class="btn ${c.blocked ? 'btn-navy' : 'btn-red'} block-btn">${c.blocked ? 'Unblock' : 'Block'}</button>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button class="btn ${c.blocked ? 'btn-navy' : 'btn-red'} block-btn">${c.blocked ? 'Unblock' : 'Block'}</button>
+          ${deleteControlsHtml}
+        </div>
       `;
       row.querySelector('.block-btn').addEventListener('click', async () => {
         if (!c.blocked && !confirm(`Block ${c.name}? They won't be able to log in or order.`)) return;
         try { await api(`/api/admin/customers/${c.id}/block`, { method: 'PUT', body: JSON.stringify({ blocked: !c.blocked }) }); loadCustomers(); } catch (e) { alert(e.message); }
       });
+      const deleteBtn = row.querySelector('.delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+          if (!confirm(`Delete ${c.name}? Their account will be permanently removed after a mandatory 48-hour cool-off. You can cancel any time before then.`)) return;
+          try { await api(`/api/admin/customers/${c.id}/schedule-delete`, { method: 'PUT' }); loadCustomers(); } catch (e) { alert(e.message); }
+        });
+      }
+      const cancelBtn = row.querySelector('.cancel-delete-btn');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', async () => {
+          try { await api(`/api/admin/customers/${c.id}/cancel-delete`, { method: 'PUT' }); loadCustomers(); } catch (e) { alert(e.message); }
+        });
+      }
+      const confirmBtn = row.querySelector('.confirm-delete-btn');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', async () => {
+          if (!confirm(`Permanently delete ${c.name} and their entire order history? This cannot be undone, and removes it from the DMS app too.`)) return;
+          try { await api(`/api/admin/customers/${c.id}`, { method: 'DELETE' }); loadCustomers(); } catch (e) { alert(e.message); }
+        });
+      }
       box.appendChild(row);
     }
   }
+
+  // Ticks every minute so the "Xh Ym left" label on a scheduled deletion
+  // stays roughly current without needing a full reload.
+  function timeRemaining(readyAtMs) {
+    const ms = Math.max(0, readyAtMs - Date.now());
+    const totalMinutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours <= 0) return `${minutes}m`;
+    return `${hours}h ${minutes}m`;
+  }
+  setInterval(() => { if (currentTab === 'customers') loadCustomers(); }, 60000);
 
   // ---- Account (admin's own password) ----
   $('saveAccountBtn').addEventListener('click', async () => {

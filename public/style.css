@@ -387,6 +387,15 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 .btn-red { background: rgba(214,69,69,0.15); color: #ff9a9a; }
 .btn-red:hover { background: rgba(214,69,69,0.25); }
 
+/* ---- Customer delete: 48-hour cool-off state ---- */
+.delete-pending-box {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+}
+.delete-pending-label { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.delete-ready-label { color: #ff9a9a; font-weight: 700; }
+
 .admin-login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; }
 .admin-login-wrap::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, rgba(240,178,61,0.10), transparent 55%); pointer-events: none; }
 .admin-login-card { position: relative; width: 100%; max-width: 380px; padding: 32px 26px; }
