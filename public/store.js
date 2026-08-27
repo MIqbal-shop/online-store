@@ -33,6 +33,7 @@
       sendNewPassword: 'Send new password', chooseYour: 'Choose your', products: 'products',
       heroSubtitle: "Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.",
       searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.', categoryLabel: 'Category',
+      inStock: 'In Stock', outOfStock: 'Out of Stock',
       footerNote: 'After placing your order, our team will contact you on WhatsApp.', viewCart: 'View cart',
       account: 'Account', myOrders: 'My Orders', myFavorites: 'My Favorites', feedback: 'Feedback',
       settings: 'Settings', cart: 'Cart', yourCart: 'Your cart', cartEmpty: 'Your cart is empty.', total: 'Total',
@@ -72,6 +73,7 @@
       sendNewPassword: 'نیا پاسورڈ بھیجیں', chooseYour: 'اپنی', products: 'مصنوعات چنیں',
       heroSubtitle: 'جو چاہیے کارٹ میں شامل کریں، پھر آرڈر کنفرم کریں - ہماری ٹیم واٹس ایپ پر رابطہ کرے گی۔',
       searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔', categoryLabel: 'کیٹگری',
+      inStock: 'دستیاب ہے', outOfStock: 'دستیاب نہیں',
       footerNote: 'آرڈر دینے کے بعد ہماری ٹیم واٹس ایپ پر آپ سے رابطہ کرے گی۔', viewCart: 'کارٹ دیکھیں',
       account: 'اکاؤنٹ', myOrders: 'میرے آرڈرز', myFavorites: 'پسندیدہ', feedback: 'رائے دیں',
       settings: 'سیٹنگز', cart: 'کارٹ', yourCart: 'آپ کا کارٹ', cartEmpty: 'آپ کا کارٹ خالی ہے۔', total: 'کل رقم',
@@ -478,7 +480,7 @@
         : `<div class="rating-badge no-reviews" data-open-reviews="${p.id}"><span class="star-ic">&#9734;</span><span>${t('rateThis')}</span></div>`;
       tile.innerHTML = `
         <div class="product-img-box">
-          ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
+          <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
           <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
           ${p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`}
         </div>

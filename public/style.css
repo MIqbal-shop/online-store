@@ -149,11 +149,16 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 .tile-coral { background: linear-gradient(155deg, #e2632c, #a8431a); color: #2a1206; }
 .tile-crimson { background: linear-gradient(155deg, #d64545, #922727); color: #2c0d0d; }
 .tile-wrap.out-of-stock .product-tile { filter: grayscale(0.6); opacity: 0.68; }
-.out-of-stock-badge {
-  position: absolute; top: 10px; left: 10px; z-index: 5;
-  background: rgba(20,16,12,0.88); color: #ff9a9a; font-size: 9.5px; font-weight: 800;
-  padding: 4px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em;
+.stock-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 5;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 999px; font-size: 9.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.03em; backdrop-filter: blur(3px);
 }
+.stock-badge .stock-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.stock-badge.in-stock { background: rgba(20,16,12,0.55); color: #8fe0a3; }
+.stock-badge.out-stock { background: rgba(20,16,12,0.72); color: #ff9a9a; }
+html[dir="rtl"] .stock-badge { left: auto; right: 8px; }
 
 .product-company { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.75; margin-top: 10px; transform: translateZ(25px); }
 .product-name {
@@ -527,7 +532,6 @@ html[dir="rtl"] .sidebar-link, html[dir="rtl"] .profile-row, html[dir="rtl"] .ca
 .fav-btn:active { transform: scale(0.88); }
 .fav-btn.active { color: #ff5f5f; background: rgba(20,16,12,0.75); }
 html[dir="rtl"] .fav-btn { right: auto; left: 8px; }
-html[dir="rtl"] .out-of-stock-badge { left: auto; right: 10px; }
 
 /* ---- Star ratings (modern badge, sits beside the price) ---- */
 .rating-badge {
