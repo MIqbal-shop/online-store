@@ -39,10 +39,18 @@ router.get('/', async (req, res, next) => {
     const { rows: items } = await pool.query(
       `SELECT oi.* FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE o.order_date >= (NOW() - INTERVAL '60 days')::timestamp`
     );
+    // Orders removed here (a customer was deleted) within the same 60-day
+    // window - the DMS diffs this against its own local copies and drops
+    // any it still has, so a deleted customer's history disappears there
+    // too on its very next sync.
+    const { rows: deletedRows } = await pool.query(
+      `SELECT order_id FROM deleted_order_ids WHERE deleted_at >= (NOW() - INTERVAL '60 days')::timestamp`
+    );
     const byOrder = {};
     for (const it of items) { (byOrder[it.order_id] = byOrder[it.order_id] || []).push(it); }
 
     res.json({
+      deleted_order_ids: deletedRows.map((r) => r.order_id),
       orders: orders.map(o => ({
         id: o.id,
         customer_type: o.customer_type,

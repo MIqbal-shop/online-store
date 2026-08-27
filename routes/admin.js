@@ -347,6 +347,7 @@ router.get('/customers', async (req, res, next) => {
   try {
     const { rows } = await pool.query(`
       SELECT c.id, c.name, c.shop_name, c.phone, c.whatsapp, c.address, c.customer_type, c.blocked,
+        c.pending_deletion, c.deletion_requested_at,
         COUNT(o.id) AS order_count
       FROM customers c LEFT JOIN orders o ON o.customer_id = c.id
       GROUP BY c.id ORDER BY c.id DESC
@@ -358,6 +359,68 @@ router.get('/customers', async (req, res, next) => {
 router.put('/customers/:id/block', async (req, res, next) => {
   try {
     await pool.query('UPDATE customers SET blocked=$1 WHERE id=$2', [req.body.blocked !== false, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ---- Delete a customer (mandatory 48-hour cool-off, see db.js) ----
+
+// Step 1: start the 48-hour countdown. Can be called again to just refresh
+// the timestamp (rare - the UI never needs to, but it's harmless).
+router.put('/customers/:id/schedule-delete', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE customers SET pending_deletion=true, deletion_requested_at=NOW() WHERE id=$1 RETURNING id, pending_deletion, deletion_requested_at',
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Customer nahi mila.' });
+    res.json({ customer: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// Cancel a pending deletion - available at any point, before or after the
+// 48 hours have passed.
+router.put('/customers/:id/cancel-delete', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE customers SET pending_deletion=false, deletion_requested_at=NULL WHERE id=$1 RETURNING id',
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Customer nahi mila.' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Step 2: the actual delete. Rejected unless a deletion was requested AND
+// at least 48 hours have passed - enforced here, not just in the UI, so
+// there's never a way to skip the cool-off. Removes the customer, which
+// cascades to their orders/order_items/favorites/reviews; their order ids
+// are tombstoned first so the DMS app's own next sync clears its copy too.
+router.delete('/customers/:id', async (req, res, next) => {
+  try {
+    const { rows: found } = await pool.query(
+      'SELECT id, pending_deletion, deletion_requested_at FROM customers WHERE id=$1',
+      [req.params.id]
+    );
+    const customer = found[0];
+    if (!customer) return res.status(404).json({ error: 'Customer nahi mila.' });
+    if (!customer.pending_deletion || !customer.deletion_requested_at) {
+      return res.status(400).json({ error: 'Deletion pehle schedule karein - "Delete customer" par tap karein.' });
+    }
+    const readyAt = new Date(customer.deletion_requested_at).getTime() + 48 * 60 * 60 * 1000;
+    if (Date.now() < readyAt) {
+      return res.status(400).json({ error: '48 hours abhi poore nahi huay - is dauran sirf cancel kiya ja sakta hai.' });
+    }
+
+    const { rows: orderIds } = await pool.query('SELECT id FROM orders WHERE customer_id=$1', [req.params.id]);
+    if (orderIds.length) {
+      await pool.query(
+        `INSERT INTO deleted_order_ids (order_id, deleted_at)
+         SELECT unnest($1::int[]), NOW() ON CONFLICT (order_id) DO NOTHING`,
+        [orderIds.map((r) => r.id)]
+      );
+    }
+    await pool.query('DELETE FROM customers WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
