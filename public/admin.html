@@ -262,17 +262,17 @@
     <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--line);">
       <div style="font-weight:700; font-size:13px; margin-bottom:6px;">Message the customer</div>
       <p style="font-size:11.5px; color:var(--ink-soft); margin-bottom:8px;">
-        Send this before confirming, so the customer knows what's actually being sent and can agree first.
-        Updates automatically as you change quantities above - feel free to edit it too.
+        Sending this marks the order "Under Review" (here and in the DMS) with these numbers, so the customer knows
+        what's actually being offered and can agree first. Updates automatically as you change quantities above -
+        feel free to edit it too. Confirming happens afterwards, from the order list.
       </p>
       <div class="field"><textarea id="orderReviewAskMsg" rows="6"></textarea></div>
-      <a class="btn btn-gold whatsapp-btn" id="orderReviewAskBtn" href="#" target="_blank" rel="noopener" style="width:100%; text-align:center; display:block;">Send via WhatsApp</a>
     </div>
 
     <p id="orderReviewError" class="error-text" style="display:none; margin-top:12px;"></p>
     <div style="display:flex; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--line);">
-      <button class="btn btn-navy" id="orderReviewConfirmBtn" style="flex:1;">Confirm Order</button>
-      <button class="btn btn-red" id="orderReviewCancelBtn">Cancel Order</button>
+      <a class="btn btn-gold whatsapp-btn" id="orderReviewAskBtn" href="#" target="_blank" rel="noopener" style="flex:1; text-align:center;">WhatsApp Kholein &amp; Save Karein</a>
+      <button class="btn btn-outline" id="orderReviewCloseBtn">Band Karein</button>
     </div>
   </div>
 </div>

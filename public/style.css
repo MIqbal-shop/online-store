@@ -281,6 +281,10 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .pill-cancelled { background: rgba(214,69,69,0.18); color: #ff9a9a; }
 .pill-confirmed { background: rgba(90,200,120,0.18); color: #8fd19e; }
 .pill-adjusted { font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; background: rgba(120,150,255,0.18); color: #a9b8ff; }
+.pill-review { font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; background: rgba(56,189,248,0.18); color: #7dd3fc; }
+.review-compare-box { background: rgba(56,189,248,0.08); border: 1.5px solid rgba(56,189,248,0.35); border-radius: 12px; padding: 12px 14px; margin-top: 8px; }
+.review-compare-box .heading { font-size: 11.5px; font-weight: 700; color: #7dd3fc; margin-bottom: 6px; }
+.review-compare-box .total-row { display:flex; justify-content:space-between; font-weight:700; margin-top:8px; padding-top:8px; border-top:1px solid rgba(56,189,248,0.25); color: #7dd3fc; }
 .pill-out { background: rgba(214,69,69,0.18); color: #ff9a9a; }
 .pill-in { background: rgba(90,200,120,0.18); color: #8fd19e; }
 .thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: rgba(255,255,255,0.06); flex-shrink: 0; }
