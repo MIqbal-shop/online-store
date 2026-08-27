@@ -118,9 +118,16 @@
 
     <div class="filter-bar">
       <input class="search-input" id="searchInput" placeholder="Search products..." data-i18n-placeholder="searchProducts" />
+      <div class="category-filter-wrap" id="categoryFilterWrap" style="display:none;">
+        <button type="button" class="category-filter-btn" id="categoryFilterBtn">
+          <span class="cf-icon">&#9776;</span>
+          <span id="categoryFilterLabel">Category</span>
+          <span class="cf-chevron">&#9662;</span>
+        </button>
+        <div class="category-filter-panel" id="categoryFilterPanel" style="display:none;"></div>
+      </div>
     </div>
     <div class="category-chips" id="companyChips" style="margin-top:12px;"></div>
-    <div class="category-chips" id="categoryChips" style="margin-top:10px;"></div>
 
     <div id="productGrid" class="grid"></div>
     <p id="emptyMsg" class="empty-note" style="display:none;" data-i18n="noProductsListed">No products are listed right now.</p>

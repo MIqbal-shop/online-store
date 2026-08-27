@@ -32,7 +32,7 @@
       resetPasswordNote: "Enter the WhatsApp number on your account. We'll send a new password to it.",
       sendNewPassword: 'Send new password', chooseYour: 'Choose your', products: 'products',
       heroSubtitle: "Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.",
-      searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.',
+      searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.', categoryLabel: 'Category',
       footerNote: 'After placing your order, our team will contact you on WhatsApp.', viewCart: 'View cart',
       account: 'Account', myOrders: 'My Orders', myFavorites: 'My Favorites', feedback: 'Feedback',
       settings: 'Settings', cart: 'Cart', yourCart: 'Your cart', cartEmpty: 'Your cart is empty.', total: 'Total',
@@ -71,7 +71,7 @@
       resetPasswordNote: 'اپنے اکاؤنٹ کا واٹس ایپ نمبر لکھیں۔ ہم اس پر نیا پاسورڈ بھیج دیں گے۔',
       sendNewPassword: 'نیا پاسورڈ بھیجیں', chooseYour: 'اپنی', products: 'مصنوعات چنیں',
       heroSubtitle: 'جو چاہیے کارٹ میں شامل کریں، پھر آرڈر کنفرم کریں - ہماری ٹیم واٹس ایپ پر رابطہ کرے گی۔',
-      searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔',
+      searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔', categoryLabel: 'کیٹگری',
       footerNote: 'آرڈر دینے کے بعد ہماری ٹیم واٹس ایپ پر آپ سے رابطہ کرے گی۔', viewCart: 'کارٹ دیکھیں',
       account: 'اکاؤنٹ', myOrders: 'میرے آرڈرز', myFavorites: 'پسندیدہ', feedback: 'رائے دیں',
       settings: 'سیٹنگز', cart: 'کارٹ', yourCart: 'آپ کا کارٹ', cartEmpty: 'آپ کا کارٹ خالی ہے۔', total: 'کل رقم',
@@ -108,6 +108,7 @@
     lang = next;
     localStorage.setItem('store_lang', lang);
     applyI18n();
+    renderCategoryChips(); // "Category" button label depends on lang
     renderProducts(); // rating lines / reorder button text depend on lang
   }
 
@@ -365,24 +366,46 @@
   }
 
   function renderCategoryChips() {
-    // Category chips only appear once a company is picked - they narrow
-    // that company's own products, not the whole catalogue.
-    const box = $('categoryChips');
-    if (!selectedCompany) { box.innerHTML = ''; return; }
-    const cats = [...new Set(
-      products.filter((p) => (p.company || '').trim() === selectedCompany)
-        .map((p) => (p.category || '').trim()).filter(Boolean)
-    )];
-    if (cats.length === 0) { box.innerHTML = ''; return; }
-    box.innerHTML = `<button class="category-chip ${selectedCategory === '' ? 'active' : ''}" data-cat="">All</button>`
+    // A single tidy "Category" button with a dropdown panel - always
+    // available, independent of which company is selected.
+    const cats = [...new Set(products.map((p) => (p.category || '').trim()).filter(Boolean))];
+    const wrap = $('categoryFilterWrap');
+    const panel = $('categoryFilterPanel');
+    const btn = $('categoryFilterBtn');
+    const label = $('categoryFilterLabel');
+    if (cats.length === 0) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'inline-block';
+    panel.innerHTML = `<button class="category-chip ${selectedCategory === '' ? 'active' : ''}" data-cat="">All</button>`
       + cats.map((c) => `<button class="category-chip ${selectedCategory === c ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
-    box.querySelectorAll('.category-chip').forEach((btn) => {
-      btn.addEventListener('click', () => { selectedCategory = btn.dataset.cat; renderCategoryChips(); renderProducts(); });
+    panel.querySelectorAll('.category-chip').forEach((chipBtn) => {
+      chipBtn.addEventListener('click', () => {
+        selectedCategory = chipBtn.dataset.cat;
+        renderCategoryChips();
+        renderProducts();
+        panel.style.display = 'none';
+        btn.classList.remove('open');
+      });
     });
+    label.textContent = selectedCategory || t('categoryLabel') || 'Category';
+    btn.classList.toggle('has-filter', !!selectedCategory);
   }
 
-  // Company / brand filter - shown first. Picking a company resets the
-  // category choice and reveals that company's own category chips below.
+  $('categoryFilterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = $('categoryFilterPanel');
+    const opening = panel.style.display !== 'flex';
+    panel.style.display = opening ? 'flex' : 'none';
+    $('categoryFilterBtn').classList.toggle('open', opening);
+  });
+  document.addEventListener('click', (e) => {
+    const wrap = $('categoryFilterWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      $('categoryFilterPanel').style.display = 'none';
+      $('categoryFilterBtn').classList.remove('open');
+    }
+  });
+
+  // Company / brand filter - independent of the category picker above.
   function renderCompanyChips() {
     const companies = [...new Set(products.map((p) => (p.company || '').trim()).filter(Boolean))];
     const box = $('companyChips');
@@ -392,9 +415,7 @@
     box.querySelectorAll('.company-chip').forEach((btn) => {
       btn.addEventListener('click', () => {
         selectedCompany = btn.dataset.co;
-        selectedCategory = '';
         renderCompanyChips();
-        renderCategoryChips();
         renderProducts();
       });
     });
