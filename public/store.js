@@ -195,16 +195,14 @@
 
   function showLoginView() {
     $('loginForm').style.display = 'block'; $('signupForm').style.display = 'none';
-    $('authSwitchLogin').style.display = 'block'; $('authSwitchSignup').style.display = 'none';
     $('loginError').style.display = 'none'; $('signupError').style.display = 'none';
   }
   function showSignupView() {
     $('signupForm').style.display = 'block'; $('loginForm').style.display = 'none';
-    $('authSwitchSignup').style.display = 'block'; $('authSwitchLogin').style.display = 'none';
     $('loginError').style.display = 'none'; $('signupError').style.display = 'none';
   }
-  ['goToSignup', 'goToSignup2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showSignupView(); }));
-  ['goToLogin', 'goToLogin2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showLoginView(); }));
+  ['goToSignup2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showSignupView(); }));
+  ['goToLogin2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showLoginView(); }));
 
   // ---- Sidebar (Account / Cart) ----
   function openSidebar() {
