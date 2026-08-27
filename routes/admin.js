@@ -79,7 +79,36 @@ router.put('/password', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ---- Store branding (name, tagline, logo) ----
+// GET /api/admin/orders/history-count - how many confirmed+cancelled
+// orders currently exist, for the Delete Order History confirmation UI.
+router.get('/orders/history-count', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(`SELECT COUNT(*) c FROM orders WHERE status IN ('confirmed','cancelled')`);
+    res.json({ count: Number(rows[0].c) });
+  } catch (err) { next(err); }
+});
+
+// POST /api/admin/orders/delete-history - body: { password, confirm: 'DELETE' }
+// Permanently deletes every CONFIRMED and CANCELLED order (order_items go
+// too, via ON DELETE CASCADE) - orders still waiting in the Orders tab
+// (status='new') are left untouched. Requires re-entering the admin login
+// password plus typing DELETE, same as the DMS's own reset flow, since
+// this is irreversible. Purely local to this database - it has no effect
+// on the DMS's own copy of these same orders, which keeps its own history
+// independently and can be cleared there separately.
+router.post('/orders/delete-history', async (req, res, next) => {
+  try {
+    const { password, confirm } = req.body;
+    if (confirm !== 'DELETE') return res.status(400).json({ error: 'Type DELETE in the confirmation box.' });
+    const { rows } = await pool.query('SELECT * FROM admin_auth WHERE id=1');
+    const account = rows[0];
+    if (!account || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
+      return res.status(400).json({ error: 'Password is incorrect.' });
+    }
+    const result = await pool.query(`DELETE FROM orders WHERE status IN ('confirmed','cancelled')`);
+    res.json({ ok: true, deleted: result.rowCount });
+  } catch (err) { next(err); }
+});
 
 router.put('/store-info', async (req, res, next) => {
   try {
