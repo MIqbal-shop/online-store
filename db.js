@@ -238,6 +238,44 @@ async function init() {
   // confirm/cancel already are.
   await pool.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS review_quantity NUMERIC`);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_pending BOOLEAN DEFAULT FALSE`);
+
+  // ---- Customer deletion, with a mandatory 48-hour cool-off ----
+  //
+  // Deleting a customer account is a two-step, admin-only action:
+  //   1. Admin requests deletion -> pending_deletion=true, deletion_requested_at=NOW().
+  //      Admin can cancel this at any time (clears both fields again).
+  //   2. Only once 48 hours have passed does the actual DELETE endpoint do
+  //      anything - it's rejected outright before that, even if called
+  //      directly. There's no auto-delete: after the 48 hours the admin
+  //      panel simply stops offering "Cancel" and instead asks for one
+  //      final Yes/No, and nothing is removed until that Yes actually
+  //      happens.
+  // Deleting the customer row cascades (via the FK below) to their orders,
+  // order_items, favorites, and reviews - on both this site AND the DMS
+  // app, since the DMS only ever mirrors what this database has.
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMP`);
+
+  // orders.customer_id originally had no ON DELETE behaviour (NO ACTION),
+  // which would block deleting a customer who has any order history.
+  // Re-create the constraint with CASCADE so removing the customer removes
+  // their orders (and, via order_items' own CASCADE, their order lines)
+  // in one step.
+  await pool.query(`ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_customer_id_fkey`);
+  await pool.query(`ALTER TABLE orders ADD CONSTRAINT orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE`);
+
+  // Tombstone of recently-deleted order ids - the DMS app only ever PULLS
+  // from /api/orders/feed (it never gets pushed to), so without this it
+  // would keep whatever copy of a deleted order it already synced. The
+  // feed route includes recent entries from here so the DMS can remove its
+  // own local copy on its very next sync. 60 days matches the feed's own
+  // order window, so this never needs pruning beyond that.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS deleted_order_ids (
+      order_id INTEGER PRIMARY KEY,
+      deleted_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 }
 
 module.exports = { pool, init };
