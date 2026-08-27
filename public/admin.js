@@ -117,6 +117,7 @@
 function priceSummary(p) {
     if (p.packing_type === 'carton_box_piece') return `${money(p.price_carton)}/Carton &middot; ${money(p.price_box)}/Box &middot; ${money(p.price_piece)}/Piece`;
     if (p.packing_type === 'carton_piece') return `${money(p.price_carton)}/Carton &middot; ${money(p.price_piece)}/Piece`;
+    if (p.packing_type === 'box_piece') return `${money(p.price_box)}/Box &middot; ${money(p.price_piece)}/Piece`;
     return `${money(p.price)} ${p.unit ? '/ ' + escapeHtml(p.unit) : ''}`;
   }
 
@@ -228,9 +229,14 @@ function priceSummary(p) {
   function applyPackingTypeUI(pt) {
     $('p_single_fields').style.display = pt === 'single' ? 'block' : 'none';
     $('p_multi_fields').style.display = pt === 'single' ? 'none' : 'block';
-    $('p_box_field').style.display = pt === 'carton_box_piece' ? 'block' : 'none';
+    $('p_carton_field').style.display = (pt === 'carton_piece' || pt === 'carton_box_piece') ? 'block' : 'none';
+    $('p_box_field').style.display = (pt === 'carton_box_piece' || pt === 'box_piece') ? 'block' : 'none';
+    $('p_packing_type').value = pt;
+    document.querySelectorAll('.packing-opt').forEach((btn) => btn.classList.toggle('active', btn.dataset.pt === pt));
   }
-  $('p_packing_type').addEventListener('change', (e) => applyPackingTypeUI(e.target.value));
+  document.querySelectorAll('.packing-opt').forEach((btn) => {
+    btn.addEventListener('click', () => applyPackingTypeUI(btn.dataset.pt));
+  });
 
   function setStockToggle(inStock) {
     $('p_in_stock').value = inStock ? 'true' : 'false';
@@ -276,6 +282,9 @@ function priceSummary(p) {
     if (pt === 'single' && !body.unit) { errEl.textContent = 'Please enter a unit name.'; errEl.style.display = 'block'; return; }
     if (pt === 'carton_piece' && (body.price_carton === '' || body.price_piece === '')) {
       errEl.textContent = 'Please enter both Carton price and Piece price.'; errEl.style.display = 'block'; return;
+    }
+    if (pt === 'box_piece' && (body.price_box === '' || body.price_piece === '')) {
+      errEl.textContent = 'Please enter both Box price and Piece price.'; errEl.style.display = 'block'; return;
     }
     if (pt === 'carton_box_piece' && (body.price_carton === '' || body.price_box === '' || body.price_piece === '')) {
       errEl.textContent = 'Please enter Carton, Box, and Piece prices.'; errEl.style.display = 'block'; return;

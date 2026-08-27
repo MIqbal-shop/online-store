@@ -313,8 +313,8 @@
     try {
       const data = await fetch('/api/products').then((r) => r.json());
       products = data.products || [];
-      renderCategoryChips();
       renderCompanyChips();
+      renderCategoryChips();
       await loadReviewSummary();
       renderProducts();
     } catch (e) { console.error(e); }
@@ -365,8 +365,14 @@
   }
 
   function renderCategoryChips() {
-    const cats = [...new Set(products.map((p) => (p.category || '').trim()).filter(Boolean))];
+    // Category chips only appear once a company is picked - they narrow
+    // that company's own products, not the whole catalogue.
     const box = $('categoryChips');
+    if (!selectedCompany) { box.innerHTML = ''; return; }
+    const cats = [...new Set(
+      products.filter((p) => (p.company || '').trim() === selectedCompany)
+        .map((p) => (p.category || '').trim()).filter(Boolean)
+    )];
     if (cats.length === 0) { box.innerHTML = ''; return; }
     box.innerHTML = `<button class="category-chip ${selectedCategory === '' ? 'active' : ''}" data-cat="">All</button>`
       + cats.map((c) => `<button class="category-chip ${selectedCategory === c ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
@@ -375,9 +381,8 @@
     });
   }
 
-  // Company / brand filter - same chip pattern as category, independent
-  // selection. "All" shows every brand; picking one narrows the grid (and
-  // still combines with the active category + search box).
+  // Company / brand filter - shown first. Picking a company resets the
+  // category choice and reveals that company's own category chips below.
   function renderCompanyChips() {
     const companies = [...new Set(products.map((p) => (p.company || '').trim()).filter(Boolean))];
     const box = $('companyChips');
@@ -385,7 +390,13 @@
     box.innerHTML = `<button class="category-chip company-chip ${selectedCompany === '' ? 'active' : ''}" data-co="">All</button>`
       + companies.map((c) => `<button class="category-chip company-chip ${selectedCompany === c ? 'active' : ''}" data-co="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
     box.querySelectorAll('.company-chip').forEach((btn) => {
-      btn.addEventListener('click', () => { selectedCompany = btn.dataset.co; renderCompanyChips(); renderProducts(); });
+      btn.addEventListener('click', () => {
+        selectedCompany = btn.dataset.co;
+        selectedCategory = '';
+        renderCompanyChips();
+        renderCategoryChips();
+        renderProducts();
+      });
     });
   }
 
@@ -404,6 +415,12 @@
     if (p.packing_type === 'carton_piece') {
       return [
         { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
+        { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+      ];
+    }
+    if (p.packing_type === 'box_piece') {
+      return [
+        { key: 'box', label: 'Box', price: Number(p.price_box) },
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
       ];
     }
