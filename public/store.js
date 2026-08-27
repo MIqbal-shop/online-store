@@ -159,8 +159,10 @@
       for (const markEl of [$('brandMark'), $('authMark')]) {
         if (store.logo_image) {
           markEl.innerHTML = `<img src="${store.logo_image}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+          markEl.classList.add('has-image');
         } else {
           markEl.textContent = initials;
+          markEl.classList.remove('has-image');
         }
       }
     } catch (e) { console.error(e); }

@@ -269,10 +269,12 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .auth-visual-top { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
 .auth-mark-badge {
   width: 48px; height: 48px; border-radius: 14px; flex-shrink: 0; overflow: hidden;
-  background: linear-gradient(135deg, rgba(240,178,61,0.20), rgba(240,178,61,0.04));
-  border: 1.5px solid var(--gold);
   display: flex; align-items: center; justify-content: center;
   font-family: 'Anton', sans-serif; font-size: 17px; letter-spacing: 0.02em; color: var(--gold);
+}
+.auth-mark-badge:not(.has-image) {
+  background: linear-gradient(135deg, rgba(240,178,61,0.20), rgba(240,178,61,0.04));
+  border: 1.5px solid var(--gold);
 }
 .auth-mark-badge img { width: 100%; height: 100%; object-fit: cover; }
 .auth-visual-top .name {
