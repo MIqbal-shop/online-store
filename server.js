@@ -9,7 +9,11 @@ process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', 
 process.on('uncaughtException', (err) => console.error('[uncaughtException]', err));
 
 app.use(cors());
-app.use(express.json({ limit: '5mb' })); // raised for base64 product images
+// Vercel's own serverless functions already cap the whole request body at
+// ~4.5MB regardless of this setting - this just makes Express give our own
+// friendly error instead of a raw platform 413 when something oversized
+// slips through on other hosts (e.g. Render).
+app.use(express.json({ limit: '4mb' }));
 
 // Database setup runs once per process - works both for a long-running
 // server (Render) and a serverless cold start (Vercel). Every request
