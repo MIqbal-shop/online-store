@@ -8,6 +8,7 @@
   let products = [];
   let cart = {}; // product_id -> { product, qty }
   let favoriteIds = new Set(); // product ids the shopper has saved
+  let notifyRequestedIds = new Set(); // product ids with an active "notify me" request
   let reviewSummary = {}; // product_id -> { avg_rating, count }
   let currentReviewProductId = null; // which product the reviews overlay is showing
   let reviewStarValue = 0;
@@ -34,6 +35,8 @@
       heroSubtitle: "Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.",
       searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.', categoryLabel: 'Category',
       inStock: 'In Stock', outOfStock: 'Out of Stock',
+      notifyText: 'Want a WhatsApp message when this is back in stock?', notifyMe: 'Notify me',
+      notifyRequesting: 'Requesting...', notifyRequested: 'Requested ✓',
       footerNote: 'After placing your order, our team will contact you on WhatsApp.', viewCart: 'View cart',
       account: 'Account', myOrders: 'My Orders', myFavorites: 'My Favorites', feedback: 'Feedback',
       settings: 'Settings', cart: 'Cart', yourCart: 'Your cart', cartEmpty: 'Your cart is empty.', total: 'Total',
@@ -74,6 +77,8 @@
       heroSubtitle: 'جو چاہیے کارٹ میں شامل کریں، پھر آرڈر کنفرم کریں - ہماری ٹیم واٹس ایپ پر رابطہ کرے گی۔',
       searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔', categoryLabel: 'کیٹگری',
       inStock: 'دستیاب ہے', outOfStock: 'دستیاب نہیں',
+      notifyText: 'جب یہ دوبارہ دستیاب ہو تو واٹس ایپ پیغام چاہیے؟', notifyMe: 'مطلع کریں',
+      notifyRequesting: 'درخواست جا رہی ہے...', notifyRequested: 'درخواست بھیج دی ✓',
       footerNote: 'آرڈر دینے کے بعد ہماری ٹیم واٹس ایپ پر آپ سے رابطہ کرے گی۔', viewCart: 'کارٹ دیکھیں',
       account: 'اکاؤنٹ', myOrders: 'میرے آرڈرز', myFavorites: 'پسندیدہ', feedback: 'رائے دیں',
       settings: 'سیٹنگز', cart: 'کارٹ', yourCart: 'آپ کا کارٹ', cartEmpty: 'آپ کا کارٹ خالی ہے۔', total: 'کل رقم',
@@ -196,6 +201,7 @@
     $('shopRoot').style.display = 'block';
     loadProducts();
     loadFavoriteIds();
+    loadNotifyRequestedIds();
   }
 
   function showLoginView() {
@@ -339,6 +345,26 @@
     } catch (e) { console.error(e); }
   }
 
+  async function loadNotifyRequestedIds() {
+    try {
+      const data = await api('/api/customers/me/notify-requests');
+      notifyRequestedIds = new Set(data.product_ids || []);
+      renderProducts();
+    } catch (e) { console.error(e); }
+  }
+
+  async function requestStockNotify(productId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = t('notifyRequesting'); }
+    try {
+      await api(`/api/products/${productId}/notify-me`, { method: 'POST' });
+      notifyRequestedIds.add(productId);
+      renderProducts();
+    } catch (e) {
+      alert(e.message);
+      if (btn) { btn.disabled = false; btn.textContent = t('notifyMe'); }
+    }
+  }
+
   function updateFavoritesCount() {
     const el = $('favoritesCount');
     if (el) el.textContent = favoriteIds.size;
@@ -474,6 +500,7 @@
       const tile = document.createElement('div');
       tile.className = 'product-tile ' + TILE_COLORS[i % TILE_COLORS.length];
       const isFav = favoriteIds.has(p.id);
+      const alreadyRequested = notifyRequestedIds.has(p.id);
       const summary = reviewSummary[p.id];
       const ratingBadge = summary
         ? `<div class="rating-badge" data-open-reviews="${p.id}"><span class="star-ic">&#9733;</span><span class="avg-num">${summary.avg_rating}</span><span class="rating-count">(${summary.count})</span></div>`
@@ -498,12 +525,20 @@
         </div>
         <div class="qty-row">
           <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
-          <div class="qty-controls">
-            <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
-            <span class="qty-val">${qty}</span>
-            <button class="qty-btn plus" ${inStock ? '' : 'disabled'}>+</button>
-          </div>
+          ${inStock ? `
+            <div class="qty-controls">
+              <button class="qty-btn minus">-</button>
+              <span class="qty-val">${qty}</span>
+              <button class="qty-btn plus">+</button>
+            </div>
+          ` : ''}
         </div>
+        ${!inStock ? `
+          <div class="notify-row">
+            <span class="notify-text">${t('notifyText')}</span>
+            <button class="notify-btn ${alreadyRequested ? 'requested' : ''}" type="button" ${alreadyRequested ? 'disabled' : ''}>${alreadyRequested ? t('notifyRequested') : t('notifyMe')}</button>
+          </div>
+        ` : ''}
       `;
       if (options.length > 1) {
         tile.querySelectorAll('.unit-opt').forEach((btn) => {
@@ -519,6 +554,8 @@
       }
       tile.querySelector('.fav-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(p.id); });
       tile.querySelector('[data-open-reviews]').addEventListener('click', (e) => { e.stopPropagation(); openReviews(p); });
+      const notifyBtn = tile.querySelector('.notify-btn');
+      if (notifyBtn) notifyBtn.addEventListener('click', (e) => { e.stopPropagation(); requestStockNotify(p.id, notifyBtn); });
       attachTilt(tile);
       wrap.appendChild(tile);
       grid.appendChild(wrap);

@@ -35,6 +35,7 @@
     <button class="admin-tab" data-tab="customers"><span class="ico">👥</span><span class="lbl">Customers</span></button>
     <button class="admin-tab" data-tab="broadcast"><span class="ico">📢</span><span class="lbl">Broadcast</span></button>
     <button class="admin-tab" data-tab="reviews"><span class="ico">⭐</span><span class="lbl">Reviews</span></button>
+    <button class="admin-tab" data-tab="stock-alerts"><span class="ico">🔔</span><span class="lbl">Stock Alerts</span><span class="tab-badge" id="stockAlertsTabBadge" style="display:none;">0</span></button>
     <button class="admin-tab" data-tab="store"><span class="ico">🏬</span><span class="lbl">Store</span></button>
     <button class="admin-tab" data-tab="resets"><span class="ico">🔐</span><span class="lbl">Password Resets</span></button>
     <button class="admin-tab" data-tab="account"><span class="ico">🔑</span><span class="lbl">Account</span></button>
@@ -119,6 +120,16 @@
       <h2>Reviews</h2>
       <p style="color:var(--ink-soft); font-size:13.5px;">Ratings and feedback left by customers, for products and for your service/website overall.</p>
       <div class="card" id="reviewsAdminList" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Stock Alerts tab -->
+    <div id="tab-stock-alerts" style="display:none;">
+      <h2>Stock Alerts</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        Customers who asked to be told when an out-of-stock product is back. Mark a product In Stock in the
+        Products tab first, then come back here and message everyone waiting on it.
+      </p>
+      <div class="card" id="stockAlertsList" style="margin-top:12px;"></div>
     </div>
 
     <!-- Store tab -->

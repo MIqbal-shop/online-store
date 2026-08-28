@@ -185,6 +185,20 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 .qty-btn { width: 30px; height: 30px; border-radius: 10px; border: none; background: rgba(0,0,0,0.18); color: inherit; font-weight: 800; font-size: 16px; }
 .qty-val { min-width: 24px; text-align: center; font-weight: 800; font-size: 14px; }
 
+/* ---- "Notify me when back in stock" (shown instead of qty controls) ---- */
+.notify-row {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.12);
+  display: flex; flex-direction: column; gap: 8px; transform: translateZ(35px);
+}
+.notify-text { font-size: 11px; line-height: 1.4; opacity: 0.85; }
+.notify-btn {
+  width: 100%; padding: 9px; border-radius: 10px; border: none;
+  background: rgba(0,0,0,0.22); color: inherit; font-weight: 800; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.02em;
+}
+.notify-btn:disabled { opacity: 0.7; }
+.notify-btn.requested { background: rgba(30,110,60,0.28); color: #d8ffe4; }
+
 .order-card { background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
 .order-card .items { font-size: 12.5px; color: var(--paper-dim); margin-top: 6px; line-height: 1.6; }
 .unit-opt { flex: 1; padding: 7px 6px; border-radius: 9px; border: 1.5px solid rgba(0,0,0,0.18); background: rgba(0,0,0,0.06); color: inherit; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em; }

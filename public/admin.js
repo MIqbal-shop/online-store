@@ -69,6 +69,7 @@
     loadOrders();
     loadApiKey();
     loadStoreSettings();
+    loadStockAlerts();
   }
 
   // ---- Tabs ----
@@ -76,12 +77,13 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'stock-alerts', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
       if (btn.dataset.tab === 'resets') loadPasswordResets();
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'customers') loadCustomers();
       if (btn.dataset.tab === 'history') loadHistory();
       if (btn.dataset.tab === 'reviews') loadReviews();
+      if (btn.dataset.tab === 'stock-alerts') loadStockAlerts();
       if (btn.dataset.tab === 'orders') loadOrders();
       currentTab = btn.dataset.tab;
     });
@@ -824,6 +826,64 @@ function priceSummary(p) {
       errEl.style.display = 'block';
     }
   });
+
+  // ---- Stock Alerts ("notify me when back in stock") ----
+  async function loadStockAlerts() {
+    try {
+      const data = await api('/api/admin/stock-notify-requests');
+      renderStockAlerts(data.requests || []);
+      const pendingCount = (data.requests || []).filter((r) => !r.notified).length;
+      const badge = $('stockAlertsTabBadge');
+      badge.textContent = pendingCount > 99 ? '99+' : String(pendingCount);
+      badge.style.display = pendingCount > 0 ? 'flex' : 'none';
+    } catch (e) { console.error(e); }
+  }
+
+  function renderStockAlerts(requests) {
+    const box = $('stockAlertsList');
+    box.innerHTML = '';
+    if (requests.length === 0) {
+      box.innerHTML = '<div class="empty-note">No stock alert requests yet.</div>';
+      return;
+    }
+    for (const r of requests) {
+      const row = document.createElement('div');
+      row.className = 'admin-row';
+      row.style.alignItems = 'flex-start';
+      const readyToNotify = r.product_in_stock && !r.notified;
+      const waNumber = formatWhatsAppNumber(r.whatsapp);
+      const waMessage = `${storeName}: Good news - "${r.product_name || 'the product'}" you asked about is back in stock! Order it here whenever you're ready.`;
+      const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+      row.innerHTML = `
+        <div style="flex:1; ${r.notified ? 'opacity:0.55;' : ''}">
+          <div style="font-weight:600; font-size:13.5px;">
+            ${escapeHtml(r.product_name || '(deleted product)')}
+            ${r.notified ? '<span class="pill-status pill-new">Notified</span>' : readyToNotify ? '<span class="pill-status pill-confirmed">Back in stock</span>' : '<span class="pill-status pill-cancelled">Still out of stock</span>'}
+          </div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(r.customer_name || 'Customer')} &middot; ${escapeHtml(r.whatsapp || '')}</div>
+          <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+          ${readyToNotify ? `<a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+          ${!r.notified ? '<button class="btn btn-navy mark-notified-btn">Mark as notified</button>' : '<button class="btn btn-navy unmark-notified-btn">Move back to pending</button>'}
+          <button class="btn btn-red delete-alert-btn">Remove</button>
+        </div>
+      `;
+      const markBtn = row.querySelector('.mark-notified-btn');
+      if (markBtn) markBtn.addEventListener('click', async () => {
+        try { await api(`/api/admin/stock-notify-requests/${r.id}/notified`, { method: 'PUT', body: JSON.stringify({ notified: true }) }); loadStockAlerts(); } catch (e) { alert(e.message); }
+      });
+      const unmarkBtn = row.querySelector('.unmark-notified-btn');
+      if (unmarkBtn) unmarkBtn.addEventListener('click', async () => {
+        try { await api(`/api/admin/stock-notify-requests/${r.id}/notified`, { method: 'PUT', body: JSON.stringify({ notified: false }) }); loadStockAlerts(); } catch (e) { alert(e.message); }
+      });
+      row.querySelector('.delete-alert-btn').addEventListener('click', async () => {
+        if (!confirm('Remove this alert request?')) return;
+        try { await api(`/api/admin/stock-notify-requests/${r.id}`, { method: 'DELETE' }); loadStockAlerts(); } catch (e) { alert(e.message); }
+      });
+      box.appendChild(row);
+    }
+  }
 
   // ---- Password Resets ----
   async function loadPasswordResets() {
