@@ -519,6 +519,33 @@ router.post('/api-key/regenerate', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---- Stock Alerts ("notify me when back in stock" requests) ----
+
+router.get('/stock-notify-requests', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT n.*, p.name AS product_name, p.in_stock AS product_in_stock
+      FROM stock_notify_requests n LEFT JOIN products p ON p.id = n.product_id
+      ORDER BY n.notified ASC, (p.in_stock = true) DESC, n.created_at DESC
+    `);
+    res.json({ requests: rows });
+  } catch (err) { next(err); }
+});
+
+router.put('/stock-notify-requests/:id/notified', async (req, res, next) => {
+  try {
+    await pool.query('UPDATE stock_notify_requests SET notified=$1 WHERE id=$2', [req.body.notified !== false, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+router.delete('/stock-notify-requests/:id', async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM stock_notify_requests WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // ---- Password reset requests (customer clicked "Forgot password") ----
 // Shown in the admin panel so the owner can copy the temp password and
 // forward it to the customer on WhatsApp themselves.
