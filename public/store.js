@@ -173,7 +173,46 @@
           markEl.classList.remove('has-image');
         }
       }
+
+      const bannerBox = $('homepageBanner');
+      if (bannerBox) {
+        if (store.banner_image) {
+          $('bannerImg').src = store.banner_image;
+          bannerBox.style.display = 'block';
+        } else {
+          bannerBox.style.display = 'none';
+        }
+        const links = [];
+        if (store.contact_whatsapp) {
+          const wa = String(store.contact_whatsapp).replace(/[^0-9]/g, '');
+          links.push(`<a href="https://wa.me/${wa}" target="_blank" rel="noopener">&#128172; WhatsApp</a>`);
+        }
+        if (store.contact_phone) {
+          links.push(`<a href="tel:${String(store.contact_phone).replace(/[^0-9+]/g, '')}">&#128222; ${escapeHtml(store.contact_phone)}</a>`);
+        }
+        if (store.contact_email) {
+          links.push(`<a href="mailto:${store.contact_email}">&#9993; Email</a>`);
+        }
+        $('bannerContact').innerHTML = links.join('');
+      }
     } catch (e) { console.error(e); }
+  }
+
+  // Banner smoothly fades and lifts away as the customer scrolls down toward
+  // the products, rather than just disappearing abruptly.
+  function setupBannerScrollFade() {
+    const banner = $('homepageBanner');
+    if (!banner) return;
+    const FADE_DISTANCE = 260;
+    function onScroll() {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const progress = Math.max(0, Math.min(1, y / FADE_DISTANCE));
+      banner.style.opacity = String(1 - progress);
+      banner.style.transform = `translateY(${progress * -50}px) scale(${1 - progress * 0.06})`;
+      banner.style.pointerEvents = progress > 0.85 ? 'none' : 'auto';
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
   }
 
   // ---- 3D tilt effect for product tiles ----
@@ -1034,6 +1073,7 @@
   (async () => {
     applyI18n();
     await loadStoreInfo();
+    setupBannerScrollFade();
     if (token) {
       try {
         const data = await api('/api/customers/me');

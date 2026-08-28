@@ -95,6 +95,29 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .hero h1 .accent { color: var(--gold); }
 .hero p { color: var(--paper-dim); font-size: 15px; margin: 14px 0 0; max-width: 480px; }
 
+/* ---- Homepage banner - fades/lifts away as the customer scrolls down ---- */
+.homepage-banner {
+  position: relative; width: 100%; overflow: hidden; margin-bottom: -1px;
+  transform-origin: top center; will-change: opacity, transform;
+}
+.homepage-banner img { width: 100%; display: block; max-height: 440px; object-fit: cover; }
+.banner-contact {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+  padding: 18px 16px 16px; background: linear-gradient(to top, rgba(10,8,6,0.72), transparent);
+}
+.banner-contact a {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  background: rgba(255,255,255,0.95); color: #241800; font-weight: 800; font-size: 12.5px;
+  padding: 9px 16px; border-radius: 999px; transition: transform .12s ease, background .12s ease;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+}
+.banner-contact a:hover { background: #fff; transform: translateY(-1px); }
+@media (max-width: 560px) {
+  .homepage-banner img { max-height: 260px; }
+  .banner-contact a { font-size: 11.5px; padding: 7px 12px; }
+}
+
 .grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 24px; align-items: stretch; }
 @media (min-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); gap: 18px; } }
 @media (min-width: 900px) { .grid { grid-template-columns: repeat(3, 1fr); gap: 20px; } }

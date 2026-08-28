@@ -1084,6 +1084,7 @@ function priceSummary(p) {
 
   // ---- Store (name, tagline, logo) ----
   let currentLogoData = null;
+  let currentBannerData = null;
   let storeName = 'Our Store';
 
   async function loadStoreSettings() {
@@ -1095,6 +1096,11 @@ function priceSummary(p) {
       $('s_tagline').value = store.tagline || '';
       currentLogoData = store.logo_image || null;
       if (currentLogoData) { $('s_logo_preview').src = currentLogoData; $('s_logo_preview').style.display = 'block'; }
+      currentBannerData = store.banner_image || null;
+      if (currentBannerData) { $('s_banner_preview').src = currentBannerData; $('s_banner_preview').style.display = 'block'; }
+      $('s_contact_whatsapp').value = store.contact_whatsapp || '';
+      $('s_contact_phone').value = store.contact_phone || '';
+      $('s_contact_email').value = store.contact_email || '';
     } catch (e) { console.error(e); }
   }
 
@@ -1113,6 +1119,24 @@ function priceSummary(p) {
       $('s_logo_preview').style.display = 'block';
     } catch (err) {
       alert(`Logo upload failed: ${err.message}`);
+    }
+  });
+
+  $('s_banner_file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const { url } = await api('/api/admin/upload-image', {
+        method: 'POST',
+        body: JSON.stringify({ data: dataUrl, filename: 'store-banner' }),
+      });
+      currentBannerData = url;
+      $('s_banner_preview').src = currentBannerData;
+      $('s_banner_preview').style.display = 'block';
+    } catch (err) {
+      alert(`Banner upload failed: ${err.message}`);
     }
   });
 
@@ -1146,7 +1170,13 @@ function priceSummary(p) {
     try {
       await api('/api/admin/store-info', {
         method: 'PUT',
-        body: JSON.stringify({ store_name, tagline: $('s_tagline').value.trim(), logo_image: currentLogoData }),
+        body: JSON.stringify({
+          store_name, tagline: $('s_tagline').value.trim(), logo_image: currentLogoData,
+          banner_image: currentBannerData,
+          contact_whatsapp: $('s_contact_whatsapp').value.trim(),
+          contact_phone: $('s_contact_phone').value.trim(),
+          contact_email: $('s_contact_email').value.trim(),
+        }),
       });
       msgEl.style.display = 'block';
     } catch (e) {
