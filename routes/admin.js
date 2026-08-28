@@ -113,11 +113,11 @@ router.post('/orders/delete-history', async (req, res, next) => {
 
 router.put('/store-info', async (req, res, next) => {
   try {
-    const { store_name, tagline, logo_image } = req.body;
+    const { store_name, tagline, logo_image, banner_image, contact_whatsapp, contact_phone, contact_email } = req.body;
     if (!store_name || !store_name.trim()) return res.status(400).json({ error: 'Store name is required.' });
     await pool.query(
-      `UPDATE store_settings SET store_name=$1, tagline=$2, logo_image=$3 WHERE id=1`,
-      [store_name.trim(), tagline || '', logo_image || null]
+      `UPDATE store_settings SET store_name=$1, tagline=$2, logo_image=$3, banner_image=$4, contact_whatsapp=$5, contact_phone=$6, contact_email=$7 WHERE id=1`,
+      [store_name.trim(), tagline || '', logo_image || null, banner_image || null, (contact_whatsapp || '').trim(), (contact_phone || '').trim(), (contact_email || '').trim()]
     );
     res.json({ ok: true });
   } catch (err) { next(err); }

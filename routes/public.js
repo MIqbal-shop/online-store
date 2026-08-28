@@ -4,11 +4,12 @@ const { pool } = require('../db');
 const { requireCustomer } = require('../auth');
 
 // GET /api/store-info - branding shown on the storefront (name, tagline,
-// logo). Public because the storefront itself needs it before any login.
+// logo, homepage banner, contact details). Public because the storefront
+// itself needs it before any login.
 router.get('/store-info', async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT store_name, tagline, logo_image FROM store_settings WHERE id=1');
-    res.json({ store: rows[0] || { store_name: 'IQBAL TRADER', tagline: '', logo_image: null } });
+    const { rows } = await pool.query('SELECT store_name, tagline, logo_image, banner_image, contact_whatsapp, contact_phone, contact_email FROM store_settings WHERE id=1');
+    res.json({ store: rows[0] || { store_name: 'IQBAL TRADER', tagline: '', logo_image: null, banner_image: null, contact_whatsapp: '', contact_phone: '', contact_email: '' } });
   } catch (err) { next(err); }
 });
 
