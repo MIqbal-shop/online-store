@@ -276,6 +276,13 @@ async function init() {
       deleted_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  // Admin can hide a review (e.g. abusive, spam, or just unfair) without
+  // permanently deleting it - hidden ones are excluded from the storefront
+  // and from the average-rating calculation, but stay visible to the admin
+  // so they can be unhidden later. A separate, permanent Delete is still
+  // available too.
+  await pool.query(`ALTER TABLE reviews ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE`);
 }
 
 module.exports = { pool, init };
