@@ -18,7 +18,7 @@ router.get('/store-info', async (req, res, next) => {
 // through flagged so the storefront can grey them out and block ordering.
 router.get('/products', async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT id, name, packing_type, price, unit, price_carton, price_box, price_piece, image, description, in_stock, category, company FROM products WHERE active=true ORDER BY id');
+    const { rows } = await pool.query('SELECT id, name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, in_stock, category FROM products WHERE active=true ORDER BY id');
     res.json({ products: rows });
   } catch (err) { next(err); }
 });
@@ -87,7 +87,7 @@ router.get('/reviews/summary', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT product_id, ROUND(AVG(rating)::numeric, 1) AS avg_rating, COUNT(*) AS count
-       FROM reviews WHERE target_type='product' AND product_id IS NOT NULL AND hidden=false
+       FROM reviews WHERE target_type='product' AND product_id IS NOT NULL
        GROUP BY product_id`
     );
     const summary = {};
@@ -103,11 +103,11 @@ router.get('/reviews', async (req, res, next) => {
     let rows;
     if (general) {
       ({ rows } = await pool.query(
-        `SELECT * FROM reviews WHERE target_type='general' AND hidden=false ORDER BY created_at DESC LIMIT 200`
+        `SELECT * FROM reviews WHERE target_type='general' ORDER BY created_at DESC LIMIT 200`
       ));
     } else if (product_id) {
       ({ rows } = await pool.query(
-        `SELECT * FROM reviews WHERE target_type='product' AND product_id=$1 AND hidden=false ORDER BY created_at DESC LIMIT 200`,
+        `SELECT * FROM reviews WHERE target_type='product' AND product_id=$1 ORDER BY created_at DESC LIMIT 200`,
         [product_id]
       ));
     } else {
@@ -156,39 +156,6 @@ router.delete('/reviews/:id', requireCustomer, async (req, res, next) => {
   try {
     await pool.query('DELETE FROM reviews WHERE id=$1 AND customer_id=$2', [req.params.id, req.customerId]);
     res.json({ ok: true });
-  } catch (err) { next(err); }
-});
-
-// POST /api/products/:id/notify-me - customer asks to be told (on
-// WhatsApp) once this out-of-stock product is back. Re-requesting just
-// refreshes the existing row instead of piling up duplicates, and clears
-// any earlier "notified" flag in case it went out of stock again since.
-router.post('/products/:id/notify-me', requireCustomer, async (req, res, next) => {
-  try {
-    const { rows: pRows } = await pool.query('SELECT id FROM products WHERE id=$1', [req.params.id]);
-    if (!pRows[0]) return res.status(404).json({ error: 'Product not found.' });
-    const { rows: cRows } = await pool.query('SELECT name, whatsapp FROM customers WHERE id=$1', [req.customerId]);
-    const customer = cRows[0];
-    await pool.query(
-      `INSERT INTO stock_notify_requests (product_id, customer_id, customer_name, whatsapp)
-       VALUES ($1,$2,$3,$4)
-       ON CONFLICT (customer_id, product_id) DO UPDATE SET notified=false, customer_name=$3, whatsapp=$4, created_at=NOW()`,
-      [req.params.id, req.customerId, customer?.name || '', customer?.whatsapp || '']
-    );
-    res.json({ ok: true });
-  } catch (err) { next(err); }
-});
-
-// GET /api/customers/me/notify-requests - product ids this customer has
-// an active (not-yet-notified) "notify me" request on, so the storefront
-// can show "Requested" instead of the button after a reload.
-router.get('/customers/me/notify-requests', requireCustomer, async (req, res, next) => {
-  try {
-    const { rows } = await pool.query(
-      'SELECT product_id FROM stock_notify_requests WHERE customer_id=$1 AND notified=false',
-      [req.customerId]
-    );
-    res.json({ product_ids: rows.map((r) => r.product_id) });
   } catch (err) { next(err); }
 });
 
