@@ -87,7 +87,7 @@ router.get('/reviews/summary', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT product_id, ROUND(AVG(rating)::numeric, 1) AS avg_rating, COUNT(*) AS count
-       FROM reviews WHERE target_type='product' AND product_id IS NOT NULL
+       FROM reviews WHERE target_type='product' AND product_id IS NOT NULL AND hidden=false
        GROUP BY product_id`
     );
     const summary = {};
@@ -103,11 +103,11 @@ router.get('/reviews', async (req, res, next) => {
     let rows;
     if (general) {
       ({ rows } = await pool.query(
-        `SELECT * FROM reviews WHERE target_type='general' ORDER BY created_at DESC LIMIT 200`
+        `SELECT * FROM reviews WHERE target_type='general' AND hidden=false ORDER BY created_at DESC LIMIT 200`
       ));
     } else if (product_id) {
       ({ rows } = await pool.query(
-        `SELECT * FROM reviews WHERE target_type='product' AND product_id=$1 ORDER BY created_at DESC LIMIT 200`,
+        `SELECT * FROM reviews WHERE target_type='product' AND product_id=$1 AND hidden=false ORDER BY created_at DESC LIMIT 200`,
         [product_id]
       ));
     } else {

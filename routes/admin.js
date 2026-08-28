@@ -238,17 +238,18 @@ router.get('/orders', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/orders/history?year=2026&month=8&day=24 - all confirmed
-// or cancelled orders, optionally narrowed down to a year, a year+month,
-// or an exact day.
+// GET /api/admin/orders/history?start=2026-08-01&end=2026-08-31 - all
+// confirmed or cancelled orders within an inclusive date range. With no
+// range given, returns the full history.
 router.get('/orders/history', async (req, res, next) => {
   try {
-    const { year, month, day } = req.query;
+    const { start, end } = req.query;
     const conditions = [`status IN ('confirmed','cancelled')`];
     const params = [];
-    if (year) { params.push(Number(year)); conditions.push(`EXTRACT(YEAR FROM order_date) = $${params.length}`); }
-    if (month) { params.push(Number(month)); conditions.push(`EXTRACT(MONTH FROM order_date) = $${params.length}`); }
-    if (day) { params.push(Number(day)); conditions.push(`EXTRACT(DAY FROM order_date) = $${params.length}`); }
+    if (start && end) {
+      params.push(start, end);
+      conditions.push(`order_date >= $1::date AND order_date < ($2::date + INTERVAL '1 day')`);
+    }
     const { rows: orders } = await pool.query(
       `SELECT * FROM orders WHERE ${conditions.join(' AND ')} ORDER BY order_date DESC`, params
     );
@@ -310,32 +311,43 @@ router.put('/orders/:id/clear-review', async (req, res, next) => {
 });
 
 // ---- Dashboard (simple sales snapshot) ----
-
+// GET /api/admin/dashboard?start=2026-08-01&end=2026-08-31 - stats for an
+// inclusive date range (Today / a specific date / a month / a year, from
+// the admin panel's period filter). With no range given, falls back to the
+// last 30 days. "Pending orders" is always a live, unfiltered count - it's
+// today's workload, not history.
 router.get('/dashboard', async (req, res, next) => {
   try {
+    const { start, end } = req.query;
+    const hasRange = start && end;
+    const dateCond = hasRange
+      ? `order_date >= $1::date AND order_date < ($2::date + INTERVAL '1 day')`
+      : `order_date >= NOW() - INTERVAL '30 days'`;
+    const rangeParams = hasRange ? [start, end] : [];
+
     const { rows: totals } = await pool.query(`
       SELECT
         COUNT(*) FILTER (WHERE status='new') AS pending_orders,
-        COUNT(*) FILTER (WHERE status='confirmed' AND order_date >= NOW() - INTERVAL '30 days') AS confirmed_last_30d,
-        COUNT(*) FILTER (WHERE status='cancelled' AND order_date >= NOW() - INTERVAL '30 days') AS cancelled_last_30d
+        COUNT(*) FILTER (WHERE status='confirmed' AND ${dateCond}) AS confirmed_count,
+        COUNT(*) FILTER (WHERE status='cancelled' AND ${dateCond}) AS cancelled_count
       FROM orders
-    `);
+    `, rangeParams);
     const { rows: revenue } = await pool.query(`
       SELECT COALESCE(SUM(oi.price * COALESCE(oi.confirmed_quantity, oi.quantity)), 0) AS total
       FROM order_items oi JOIN orders o ON oi.order_id = o.id
-      WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
-    `);
+      WHERE o.status='confirmed' AND ${dateCond.replace(/order_date/g, 'o.order_date')}
+    `, rangeParams);
     const { rows: topProducts } = await pool.query(`
       SELECT oi.product_name, SUM(COALESCE(oi.confirmed_quantity, oi.quantity)) AS total_qty
       FROM order_items oi JOIN orders o ON oi.order_id = o.id
-      WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
+      WHERE o.status='confirmed' AND ${dateCond.replace(/order_date/g, 'o.order_date')}
       GROUP BY oi.product_name ORDER BY total_qty DESC LIMIT 5
-    `);
+    `, rangeParams);
     res.json({
       pending_orders: Number(totals[0].pending_orders),
-      confirmed_last_30d: Number(totals[0].confirmed_last_30d),
-      cancelled_last_30d: Number(totals[0].cancelled_last_30d),
-      revenue_last_30d: Number(revenue[0].total),
+      confirmed_count: Number(totals[0].confirmed_count),
+      cancelled_count: Number(totals[0].cancelled_count),
+      revenue: Number(revenue[0].total),
       top_products: topProducts,
     });
   } catch (err) { next(err); }
@@ -474,6 +486,19 @@ router.delete('/reviews/:id', async (req, res, next) => {
   try {
     await pool.query('DELETE FROM reviews WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Hide/unhide - keeps the review on record but drops it from the
+// storefront and from the average-rating calculation until unhidden.
+router.put('/reviews/:id/hide', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE reviews SET hidden=$1 WHERE id=$2 RETURNING id, hidden',
+      [req.body.hidden !== false, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Review nahi mila.' });
+    res.json({ review: rows[0] });
   } catch (err) { next(err); }
 });
 
