@@ -850,21 +850,24 @@ function priceSummary(p) {
       const row = document.createElement('div');
       row.className = 'admin-row';
       row.style.alignItems = 'flex-start';
-      const readyToNotify = r.product_in_stock && !r.notified;
+      const backInStock = !!r.product_in_stock;
       const waNumber = formatWhatsAppNumber(r.whatsapp);
-      const waMessage = `${storeName}: Good news - "${r.product_name || 'the product'}" you asked about is back in stock! Order it here whenever you're ready.`;
+      const productLabel = r.product_name || 'this product';
+      const waMessage = backInStock
+        ? `Hi! You asked us to notify you about "${productLabel}" - it's back in stock now! You can order it again at iqbaltrader.vercel.app. Enjoy the opportunity!`
+        : `Hi! Sorry for the inconvenience - "${productLabel}" is not available right now. As soon as it's back in stock, we'll message you here on WhatsApp to let you know.`;
       const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
       row.innerHTML = `
         <div style="flex:1; ${r.notified ? 'opacity:0.55;' : ''}">
           <div style="font-weight:600; font-size:13.5px;">
             ${escapeHtml(r.product_name || '(deleted product)')}
-            ${r.notified ? '<span class="pill-status pill-new">Notified</span>' : readyToNotify ? '<span class="pill-status pill-confirmed">Back in stock</span>' : '<span class="pill-status pill-cancelled">Still out of stock</span>'}
+            ${r.notified ? '<span class="pill-status pill-new">Notified</span>' : backInStock ? '<span class="pill-status pill-confirmed">Back in stock</span>' : '<span class="pill-status pill-cancelled">Still out of stock</span>'}
           </div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(r.customer_name || 'Customer')} &middot; ${escapeHtml(r.whatsapp || '')}</div>
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
         <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
-          ${readyToNotify ? `<a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+          <a class="btn ${backInStock ? 'btn-gold' : 'btn-navy'} whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">${backInStock ? 'WhatsApp: It\u2019s back!' : 'WhatsApp: Sorry, not yet'}</a>
           ${!r.notified ? '<button class="btn btn-navy mark-notified-btn">Mark as notified</button>' : '<button class="btn btn-navy unmark-notified-btn">Move back to pending</button>'}
           <button class="btn btn-red delete-alert-btn">Remove</button>
         </div>
