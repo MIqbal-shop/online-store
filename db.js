@@ -283,6 +283,27 @@ async function init() {
   // so they can be unhidden later. A separate, permanent Delete is still
   // available too.
   await pool.query(`ALTER TABLE reviews ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE`);
+
+  // "Notify me when back in stock" requests, raised from the storefront on
+  // an out-of-stock product. One row per customer+product (re-requesting
+  // just refreshes it - see the ON CONFLICT in routes/public.js), so the
+  // admin panel's Stock Alerts tab can show one clean list with a ready
+  // WhatsApp link per person to message once restocked.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stock_notify_requests (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      customer_name TEXT,
+      whatsapp TEXT,
+      notified BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS stock_notify_one_per_customer_product
+    ON stock_notify_requests (customer_id, product_id)
+  `);
 }
 
 module.exports = { pool, init };
