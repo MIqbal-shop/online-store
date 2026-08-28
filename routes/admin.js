@@ -123,6 +123,15 @@ router.put('/store-info', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---- Products (admin manages its own catalogue, independent of the DMS) ----
+
+router.get('/products', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM products ORDER BY id DESC');
+    res.json({ products: rows });
+  } catch (err) { next(err); }
+});
+
 // POST /api/admin/upload-image - body: { data: "data:image/...;base64,...", filename }
 // Takes a photo the admin panel already read into base64 and stores it in
 // Supabase Storage instead, returning a public URL to save on the product
@@ -173,20 +182,11 @@ router.post('/migrate-images', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ---- Products (admin manages its own catalogue, independent of the DMS) ----
-
-router.get('/products', async (req, res, next) => {
-  try {
-    const { rows } = await pool.query('SELECT * FROM products ORDER BY id DESC');
-    res.json({ products: rows });
-  } catch (err) { next(err); }
-});
-
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, in_stock } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Product ka naam likhna zaroori hai.' });
-    const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
+    const pt = ['single', 'carton_piece', 'carton_box_piece', 'box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
     if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
       return res.status(400).json({ error: 'Please enter both Carton price and Piece price.' });
@@ -194,18 +194,23 @@ router.post('/products', async (req, res, next) => {
     if (pt === 'carton_box_piece' && [price_carton, price_box, price_piece].some((v) => v === '' || v == null)) {
       return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
     }
+    if (pt === 'box_piece' && (price_box === '' || price_piece === '' || price_box == null || price_piece == null)) {
+      return res.status(400).json({ error: 'Please enter both Box price and Piece price.' });
+    }
+    const usesCarton = pt === 'carton_piece' || pt === 'carton_box_piece';
+    const usesBox = pt === 'carton_box_piece' || pt === 'box_piece';
     const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u.trim()) : [];
     const { rows } = await pool.query(
-      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, in_stock)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [
         name.trim(), pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
-        pt !== 'single' ? Number(price_carton) || 0 : null,
-        pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
+        usesCarton ? Number(price_carton) || 0 : null,
+        usesBox ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         (imgList[0] || image || null), JSON.stringify(imgList), description || '', active !== false,
-        (category || '').trim(), in_stock !== false,
+        (category || '').trim(), (company || '').trim(), in_stock !== false,
       ]
     );
     res.json({ product: rows[0] });
@@ -214,8 +219,8 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, in_stock } = req.body;
-    const pt = ['single', 'carton_piece', 'carton_box_piece'].includes(packing_type) ? packing_type : 'single';
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock } = req.body;
+    const pt = ['single', 'carton_piece', 'carton_box_piece', 'box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
     if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
       return res.status(400).json({ error: 'Please enter both Carton price and Piece price.' });
@@ -223,17 +228,22 @@ router.put('/products/:id', async (req, res, next) => {
     if (pt === 'carton_box_piece' && [price_carton, price_box, price_piece].some((v) => v === '' || v == null)) {
       return res.status(400).json({ error: 'Please enter Carton, Box, and Piece prices.' });
     }
+    if (pt === 'box_piece' && (price_box === '' || price_piece === '' || price_box == null || price_piece == null)) {
+      return res.status(400).json({ error: 'Please enter both Box price and Piece price.' });
+    }
+    const usesCarton = pt === 'carton_piece' || pt === 'carton_box_piece';
+    const usesBox = pt === 'carton_box_piece' || pt === 'box_piece';
     const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u.trim()) : [];
     const { rows } = await pool.query(
-      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, images=$9, description=$10, active=$11, category=$12, in_stock=$13 WHERE id=$14 RETURNING *`,
+      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, images=$9, description=$10, active=$11, category=$12, company=$13, in_stock=$14 WHERE id=$15 RETURNING *`,
       [
         name || '', pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
-        pt !== 'single' ? Number(price_carton) || 0 : null,
-        pt === 'carton_box_piece' ? Number(price_box) || 0 : null,
+        usesCarton ? Number(price_carton) || 0 : null,
+        usesBox ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         (imgList[0] || image || null), JSON.stringify(imgList), description || '', active !== false,
-        (category || '').trim(), in_stock !== false, req.params.id,
+        (category || '').trim(), (company || '').trim(), in_stock !== false, req.params.id,
       ]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });
@@ -281,17 +291,18 @@ router.get('/orders', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/orders/history?year=2026&month=8&day=24 - all confirmed
-// or cancelled orders, optionally narrowed down to a year, a year+month,
-// or an exact day.
+// GET /api/admin/orders/history?start=2026-08-01&end=2026-08-31 - all
+// confirmed or cancelled orders within an inclusive date range. With no
+// range given, returns the full history.
 router.get('/orders/history', async (req, res, next) => {
   try {
-    const { year, month, day } = req.query;
+    const { start, end } = req.query;
     const conditions = [`status IN ('confirmed','cancelled')`];
     const params = [];
-    if (year) { params.push(Number(year)); conditions.push(`EXTRACT(YEAR FROM order_date) = $${params.length}`); }
-    if (month) { params.push(Number(month)); conditions.push(`EXTRACT(MONTH FROM order_date) = $${params.length}`); }
-    if (day) { params.push(Number(day)); conditions.push(`EXTRACT(DAY FROM order_date) = $${params.length}`); }
+    if (start && end) {
+      params.push(start, end);
+      conditions.push(`order_date >= $1::date AND order_date < ($2::date + INTERVAL '1 day')`);
+    }
     const { rows: orders } = await pool.query(
       `SELECT * FROM orders WHERE ${conditions.join(' AND ')} ORDER BY order_date DESC`, params
     );
@@ -353,32 +364,43 @@ router.put('/orders/:id/clear-review', async (req, res, next) => {
 });
 
 // ---- Dashboard (simple sales snapshot) ----
-
+// GET /api/admin/dashboard?start=2026-08-01&end=2026-08-31 - stats for an
+// inclusive date range (Today / a specific date / a month / a year, from
+// the admin panel's period filter). With no range given, falls back to the
+// last 30 days. "Pending orders" is always a live, unfiltered count - it's
+// today's workload, not history.
 router.get('/dashboard', async (req, res, next) => {
   try {
+    const { start, end } = req.query;
+    const hasRange = start && end;
+    const dateCond = hasRange
+      ? `order_date >= $1::date AND order_date < ($2::date + INTERVAL '1 day')`
+      : `order_date >= NOW() - INTERVAL '30 days'`;
+    const rangeParams = hasRange ? [start, end] : [];
+
     const { rows: totals } = await pool.query(`
       SELECT
         COUNT(*) FILTER (WHERE status='new') AS pending_orders,
-        COUNT(*) FILTER (WHERE status='confirmed' AND order_date >= NOW() - INTERVAL '30 days') AS confirmed_last_30d,
-        COUNT(*) FILTER (WHERE status='cancelled' AND order_date >= NOW() - INTERVAL '30 days') AS cancelled_last_30d
+        COUNT(*) FILTER (WHERE status='confirmed' AND ${dateCond}) AS confirmed_count,
+        COUNT(*) FILTER (WHERE status='cancelled' AND ${dateCond}) AS cancelled_count
       FROM orders
-    `);
+    `, rangeParams);
     const { rows: revenue } = await pool.query(`
       SELECT COALESCE(SUM(oi.price * COALESCE(oi.confirmed_quantity, oi.quantity)), 0) AS total
       FROM order_items oi JOIN orders o ON oi.order_id = o.id
-      WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
-    `);
+      WHERE o.status='confirmed' AND ${dateCond.replace(/order_date/g, 'o.order_date')}
+    `, rangeParams);
     const { rows: topProducts } = await pool.query(`
       SELECT oi.product_name, SUM(COALESCE(oi.confirmed_quantity, oi.quantity)) AS total_qty
       FROM order_items oi JOIN orders o ON oi.order_id = o.id
-      WHERE o.status='confirmed' AND o.order_date >= NOW() - INTERVAL '30 days'
+      WHERE o.status='confirmed' AND ${dateCond.replace(/order_date/g, 'o.order_date')}
       GROUP BY oi.product_name ORDER BY total_qty DESC LIMIT 5
-    `);
+    `, rangeParams);
     res.json({
       pending_orders: Number(totals[0].pending_orders),
-      confirmed_last_30d: Number(totals[0].confirmed_last_30d),
-      cancelled_last_30d: Number(totals[0].cancelled_last_30d),
-      revenue_last_30d: Number(revenue[0].total),
+      confirmed_count: Number(totals[0].confirmed_count),
+      cancelled_count: Number(totals[0].cancelled_count),
+      revenue: Number(revenue[0].total),
       top_products: topProducts,
     });
   } catch (err) { next(err); }
@@ -390,6 +412,7 @@ router.get('/customers', async (req, res, next) => {
   try {
     const { rows } = await pool.query(`
       SELECT c.id, c.name, c.shop_name, c.phone, c.whatsapp, c.address, c.customer_type, c.blocked,
+        c.pending_deletion, c.deletion_requested_at,
         COUNT(o.id) AS order_count
       FROM customers c LEFT JOIN orders o ON o.customer_id = c.id
       GROUP BY c.id ORDER BY c.id DESC
@@ -401,6 +424,68 @@ router.get('/customers', async (req, res, next) => {
 router.put('/customers/:id/block', async (req, res, next) => {
   try {
     await pool.query('UPDATE customers SET blocked=$1 WHERE id=$2', [req.body.blocked !== false, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ---- Delete a customer (mandatory 48-hour cool-off, see db.js) ----
+
+// Step 1: start the 48-hour countdown. Can be called again to just refresh
+// the timestamp (rare - the UI never needs to, but it's harmless).
+router.put('/customers/:id/schedule-delete', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE customers SET pending_deletion=true, deletion_requested_at=NOW() WHERE id=$1 RETURNING id, pending_deletion, deletion_requested_at',
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Customer nahi mila.' });
+    res.json({ customer: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// Cancel a pending deletion - available at any point, before or after the
+// 48 hours have passed.
+router.put('/customers/:id/cancel-delete', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE customers SET pending_deletion=false, deletion_requested_at=NULL WHERE id=$1 RETURNING id',
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Customer nahi mila.' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Step 2: the actual delete. Rejected unless a deletion was requested AND
+// at least 48 hours have passed - enforced here, not just in the UI, so
+// there's never a way to skip the cool-off. Removes the customer, which
+// cascades to their orders/order_items/favorites/reviews; their order ids
+// are tombstoned first so the DMS app's own next sync clears its copy too.
+router.delete('/customers/:id', async (req, res, next) => {
+  try {
+    const { rows: found } = await pool.query(
+      'SELECT id, pending_deletion, deletion_requested_at FROM customers WHERE id=$1',
+      [req.params.id]
+    );
+    const customer = found[0];
+    if (!customer) return res.status(404).json({ error: 'Customer nahi mila.' });
+    if (!customer.pending_deletion || !customer.deletion_requested_at) {
+      return res.status(400).json({ error: 'Deletion pehle schedule karein - "Delete customer" par tap karein.' });
+    }
+    const readyAt = new Date(customer.deletion_requested_at).getTime() + 48 * 60 * 60 * 1000;
+    if (Date.now() < readyAt) {
+      return res.status(400).json({ error: '48 hours abhi poore nahi huay - is dauran sirf cancel kiya ja sakta hai.' });
+    }
+
+    const { rows: orderIds } = await pool.query('SELECT id FROM orders WHERE customer_id=$1', [req.params.id]);
+    if (orderIds.length) {
+      await pool.query(
+        `INSERT INTO deleted_order_ids (order_id, deleted_at)
+         SELECT unnest($1::int[]), NOW() ON CONFLICT (order_id) DO NOTHING`,
+        [orderIds.map((r) => r.id)]
+      );
+    }
+    await pool.query('DELETE FROM customers WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -457,6 +542,19 @@ router.delete('/reviews/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Hide/unhide - keeps the review on record but drops it from the
+// storefront and from the average-rating calculation until unhidden.
+router.put('/reviews/:id/hide', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'UPDATE reviews SET hidden=$1 WHERE id=$2 RETURNING id, hidden',
+      [req.body.hidden !== false, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Review nahi mila.' });
+    res.json({ review: rows[0] });
+  } catch (err) { next(err); }
+});
+
 // ---- API key (this is what gets pasted into the DMS's Settings -> Online Store) ----
 
 router.get('/api-key', async (req, res, next) => {
@@ -471,6 +569,33 @@ router.post('/api-key/regenerate', async (req, res, next) => {
     const newKey = makeApiKey();
     await pool.query('UPDATE admin_auth SET api_key=$1 WHERE id=1', [newKey]);
     res.json({ api_key: newKey });
+  } catch (err) { next(err); }
+});
+
+// ---- Stock Alerts ("notify me when back in stock" requests) ----
+
+router.get('/stock-notify-requests', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT n.*, p.name AS product_name, p.in_stock AS product_in_stock
+      FROM stock_notify_requests n LEFT JOIN products p ON p.id = n.product_id
+      ORDER BY n.notified ASC, (p.in_stock = true) DESC, n.created_at DESC
+    `);
+    res.json({ requests: rows });
+  } catch (err) { next(err); }
+});
+
+router.put('/stock-notify-requests/:id/notified', async (req, res, next) => {
+  try {
+    await pool.query('UPDATE stock_notify_requests SET notified=$1 WHERE id=$2', [req.body.notified !== false, req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+router.delete('/stock-notify-requests/:id', async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM stock_notify_requests WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
