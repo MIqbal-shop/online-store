@@ -80,7 +80,7 @@
       if (btn.dataset.tab === 'resets') loadPasswordResets();
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'customers') loadCustomers();
-      if (btn.dataset.tab === 'history') { populateHistoryFilters(); loadHistory(); }
+      if (btn.dataset.tab === 'history') loadHistory();
       if (btn.dataset.tab === 'reviews') loadReviews();
       if (btn.dataset.tab === 'orders') loadOrders();
       currentTab = btn.dataset.tab;
@@ -514,20 +514,100 @@ function priceSummary(p) {
     }
   });
 
+  // ---- Period filter: Today / Date / Month / Year ----
+  // Shared by the Dashboard and Order History tabs, mirroring the DMS
+  // app's own period picker so both feel the same to use.
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+  function currentMonthStr() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; }
+  function currentYearStr() { return String(new Date().getFullYear()); }
+  function lastDayOfMonth(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  }
+  // Turns a period+value into an inclusive { start, end } YYYY-MM-DD range.
+  function computeRange(period, value) {
+    if (period === 'today') { const d = todayStr(); return { start: d, end: d, label: 'Today' }; }
+    if (period === 'date') { const d = value || todayStr(); return { start: d, end: d, label: d }; }
+    if (period === 'month') { const ym = value || currentMonthStr(); return { start: `${ym}-01`, end: lastDayOfMonth(ym), label: ym }; }
+    if (period === 'year') { const y = value || currentYearStr(); return { start: `${y}-01-01`, end: `${y}-12-31`, label: y }; }
+    const d = todayStr(); return { start: d, end: d, label: 'Today' };
+  }
+
+  // Builds the tabs + matching input into `container`, keeps its own
+  // period/value state, and calls onChange(range) whenever either changes
+  // (including once immediately, so the caller can do its first load).
+  function createPeriodFilter(container, onChange) {
+    let period = 'today';
+    let dateValue = todayStr();
+    let monthValue = currentMonthStr();
+    let yearValue = currentYearStr();
+    const currentYearNum = new Date().getFullYear();
+    const yearOptions = Array.from({ length: 8 }, (_, i) => currentYearNum - 6 + i).reverse();
+
+    function valueFor(p) { return { date: dateValue, month: monthValue, year: yearValue }[p]; }
+
+    function render() {
+      const tabs = [['today', 'Today'], ['date', 'Date'], ['month', 'Month'], ['year', 'Year']];
+      container.innerHTML = `
+        <div class="period-tabs">
+          ${tabs.map(([k, l]) => `<button type="button" class="period-tab ${period === k ? 'active' : ''}" data-period="${k}">${l}</button>`).join('')}
+        </div>
+        <div class="period-input-wrap">
+          ${period === 'date' ? `<input type="date" id="periodInput_${container.id}" value="${dateValue}" />` : ''}
+          ${period === 'month' ? `<input type="month" id="periodInput_${container.id}" value="${monthValue}" />` : ''}
+          ${period === 'year' ? `
+            <select id="periodInput_${container.id}">
+              ${yearOptions.map((y) => `<option value="${y}" ${String(y) === yearValue ? 'selected' : ''}>${y}</option>`).join('')}
+            </select>
+          ` : ''}
+        </div>
+        <span class="period-range-label" id="periodRangeLabel_${container.id}"></span>
+      `;
+      container.querySelectorAll('.period-tab').forEach((btn) => {
+        btn.addEventListener('click', () => { period = btn.dataset.period; render(); fire(); });
+      });
+      const input = document.getElementById(`periodInput_${container.id}`);
+      if (input) {
+        input.addEventListener('change', () => {
+          if (period === 'date') dateValue = input.value || todayStr();
+          if (period === 'month') monthValue = input.value || currentMonthStr();
+          if (period === 'year') yearValue = input.value || currentYearStr();
+          fire();
+        });
+      }
+      const range = computeRange(period, valueFor(period));
+      const rangeLabelEl = document.getElementById(`periodRangeLabel_${container.id}`);
+      if (rangeLabelEl) rangeLabelEl.textContent = range.start === range.end ? range.start : `${range.start} → ${range.end}`;
+    }
+    function fire() {
+      const rangeLabelEl = document.getElementById(`periodRangeLabel_${container.id}`);
+      const range = computeRange(period, valueFor(period));
+      if (rangeLabelEl) rangeLabelEl.textContent = range.start === range.end ? range.start : `${range.start} → ${range.end}`;
+      onChange(range);
+    }
+    render();
+    return { getRange: () => computeRange(period, valueFor(period)) };
+  }
+
   // ---- Dashboard ----
-  async function loadDashboard() {
+  const dashboardFilter = createPeriodFilter($('dashboardPeriodFilter'), (range) => loadDashboard(range));
+
+  async function loadDashboard(range) {
+    range = range || dashboardFilter.getRange();
     try {
-      const data = await api('/api/admin/dashboard');
+      const params = new URLSearchParams({ start: range.start, end: range.end });
+      const data = await api('/api/admin/dashboard?' + params.toString());
       const grid = $('dashGrid');
       grid.innerHTML = `
         <div class="dash-card"><div class="num">${data.pending_orders}</div><div class="label">Pending orders</div></div>
-        <div class="dash-card"><div class="num">${data.confirmed_last_30d}</div><div class="label">Confirmed (30 days)</div></div>
-        <div class="dash-card"><div class="num">${money(data.revenue_last_30d)}</div><div class="label">Revenue (30 days)</div></div>
-        <div class="dash-card"><div class="num">${data.cancelled_last_30d}</div><div class="label">Cancelled (30 days)</div></div>
+        <div class="dash-card"><div class="num">${data.confirmed_count}</div><div class="label">Confirmed</div></div>
+        <div class="dash-card"><div class="num">${money(data.revenue)}</div><div class="label">Revenue</div></div>
+        <div class="dash-card"><div class="num">${data.cancelled_count}</div><div class="label">Cancelled</div></div>
       `;
       const topBox = $('dashTopProducts');
       if (!data.top_products || data.top_products.length === 0) {
-        topBox.innerHTML = '<div class="empty-note">No confirmed orders yet.</div>';
+        topBox.innerHTML = '<div class="empty-note">No confirmed orders in this period.</div>';
       } else {
         topBox.innerHTML = data.top_products.map((p) => `
           <div class="admin-row"><span>${escapeHtml(p.product_name)}</span><span style="color:var(--ink-soft);">${p.total_qty} sold</span></div>
@@ -537,24 +617,11 @@ function priceSummary(p) {
   }
 
   // ---- Order History ----
-  function populateHistoryFilters() {
-    if ($('h_year').options.length > 0) return; // already populated
-    const thisYear = new Date().getFullYear();
-    let yearOptions = '<option value="">All years</option>';
-    for (let y = thisYear; y >= thisYear - 4; y--) yearOptions += `<option value="${y}">${y}</option>`;
-    $('h_year').innerHTML = yearOptions;
-    let dayOptions = '<option value="">All days</option>';
-    for (let d = 1; d <= 31; d++) dayOptions += `<option value="${d}">${d}</option>`;
-    $('h_day').innerHTML = dayOptions;
-  }
+  const historyFilter = createPeriodFilter($('historyPeriodFilter'), (range) => loadHistory(range));
 
-  $('h_filterBtn').addEventListener('click', loadHistory);
-
-  async function loadHistory() {
-    const params = new URLSearchParams();
-    if ($('h_year').value) params.set('year', $('h_year').value);
-    if ($('h_month').value) params.set('month', $('h_month').value);
-    if ($('h_day').value) params.set('day', $('h_day').value);
+  async function loadHistory(range) {
+    range = range || historyFilter.getRange();
+    const params = new URLSearchParams({ start: range.start, end: range.end });
     try {
       const data = await api('/api/admin/orders/history?' + params.toString());
       renderHistory(data.orders || []);
@@ -884,16 +951,22 @@ function priceSummary(p) {
       row.style.alignItems = 'flex-start';
       const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
       row.innerHTML = `
-        <div style="flex:1;">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || 'Customer')} <span style="color:#ffd45e;">${stars}</span></div>
+        <div style="flex:1; ${r.hidden ? 'opacity:0.55;' : ''}">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || 'Customer')} <span style="color:#ffd45e;">${stars}</span> ${r.hidden ? '<span class="pill-status pill-cancelled">Hidden</span>' : ''}</div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${r.target_type === 'general' ? 'General feedback (service/website)' : 'Product: ' + escapeHtml(r.product_name || '(deleted product)')}</div>
           ${r.comment ? `<div style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.comment)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
-        <button class="btn btn-red delete-review-btn">Delete</button>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <button class="btn btn-navy hide-review-btn">${r.hidden ? 'Unhide' : 'Hide'}</button>
+          <button class="btn btn-red delete-review-btn">Delete</button>
+        </div>
       `;
+      row.querySelector('.hide-review-btn').addEventListener('click', async () => {
+        try { await api(`/api/admin/reviews/${r.id}/hide`, { method: 'PUT', body: JSON.stringify({ hidden: !r.hidden }) }); loadReviews(); } catch (e) { alert(e.message); }
+      });
       row.querySelector('.delete-review-btn').addEventListener('click', async () => {
-        if (!confirm('Delete this review?')) return;
+        if (!confirm('Delete this review? This cannot be undone.')) return;
         try { await api(`/api/admin/reviews/${r.id}`, { method: 'DELETE' }); loadReviews(); } catch (e) { alert(e.message); }
       });
       box.appendChild(row);

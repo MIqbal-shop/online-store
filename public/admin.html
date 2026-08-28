@@ -46,8 +46,9 @@
     <!-- Dashboard tab -->
     <div id="tab-dashboard">
       <h2>Dashboard</h2>
+      <div id="dashboardPeriodFilter" class="period-filter"></div>
       <div class="dash-grid" id="dashGrid"></div>
-      <h3 style="margin-top:22px;">Top products (last 30 days)</h3>
+      <h3 style="margin-top:22px;">Top products</h3>
       <div class="card" id="dashTopProducts"></div>
     </div>
 
@@ -76,20 +77,7 @@
     <!-- History tab -->
     <div id="tab-history" style="display:none;">
       <h2>Order History</h2>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
-        <select id="h_year"></select>
-        <select id="h_month">
-          <option value="">All months</option>
-          <option value="1">January</option><option value="2">February</option><option value="3">March</option>
-          <option value="4">April</option><option value="5">May</option><option value="6">June</option>
-          <option value="7">July</option><option value="8">August</option><option value="9">September</option>
-          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-        </select>
-        <select id="h_day">
-          <option value="">All days</option>
-        </select>
-        <button class="btn btn-navy" id="h_filterBtn">Filter</button>
-      </div>
+      <div id="historyPeriodFilter" class="period-filter"></div>
       <div class="card" id="historyList"></div>
 
       <div class="card" style="margin-top:20px; padding:16px; border:1px solid #d64545;">

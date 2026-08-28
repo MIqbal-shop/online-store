@@ -496,11 +496,13 @@
           <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
           ${ratingBadge}
         </div>
-        <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
         <div class="qty-row">
-          <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
-          <span class="qty-val">${qty}</span>
-          <button class="qty-btn plus" ${inStock ? '' : 'disabled'}>+</button>
+          <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
+          <div class="qty-controls">
+            <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
+            <span class="qty-val">${qty}</span>
+            <button class="qty-btn plus" ${inStock ? '' : 'disabled'}>+</button>
+          </div>
         </div>
       `;
       if (options.length > 1) {
