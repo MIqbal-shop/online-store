@@ -156,6 +156,9 @@ async function init() {
   // optional category, used for the storefront's search/filter bar.
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS in_stock BOOLEAN DEFAULT TRUE`);
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category TEXT DEFAULT ''`);
+  // Brand / manufacturer name (e.g. "Bona Papa") - separate from category
+  // (e.g. "Diapers") so the storefront can filter by either one.
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS company TEXT DEFAULT ''`);
 
   // Optional note a customer can attach at checkout (e.g. "deliver after 5pm").
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''`);
@@ -235,6 +238,72 @@ async function init() {
   // confirm/cancel already are.
   await pool.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS review_quantity NUMERIC`);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS review_pending BOOLEAN DEFAULT FALSE`);
+
+  // ---- Customer deletion, with a mandatory 48-hour cool-off ----
+  //
+  // Deleting a customer account is a two-step, admin-only action:
+  //   1. Admin requests deletion -> pending_deletion=true, deletion_requested_at=NOW().
+  //      Admin can cancel this at any time (clears both fields again).
+  //   2. Only once 48 hours have passed does the actual DELETE endpoint do
+  //      anything - it's rejected outright before that, even if called
+  //      directly. There's no auto-delete: after the 48 hours the admin
+  //      panel simply stops offering "Cancel" and instead asks for one
+  //      final Yes/No, and nothing is removed until that Yes actually
+  //      happens.
+  // Deleting the customer row cascades (via the FK below) to their orders,
+  // order_items, favorites, and reviews - on both this site AND the DMS
+  // app, since the DMS only ever mirrors what this database has.
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_deletion BOOLEAN DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS deletion_requested_at TIMESTAMP`);
+
+  // orders.customer_id originally had no ON DELETE behaviour (NO ACTION),
+  // which would block deleting a customer who has any order history.
+  // Re-create the constraint with CASCADE so removing the customer removes
+  // their orders (and, via order_items' own CASCADE, their order lines)
+  // in one step.
+  await pool.query(`ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_customer_id_fkey`);
+  await pool.query(`ALTER TABLE orders ADD CONSTRAINT orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE`);
+
+  // Tombstone of recently-deleted order ids - the DMS app only ever PULLS
+  // from /api/orders/feed (it never gets pushed to), so without this it
+  // would keep whatever copy of a deleted order it already synced. The
+  // feed route includes recent entries from here so the DMS can remove its
+  // own local copy on its very next sync. 60 days matches the feed's own
+  // order window, so this never needs pruning beyond that.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS deleted_order_ids (
+      order_id INTEGER PRIMARY KEY,
+      deleted_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  // Admin can hide a review (e.g. abusive, spam, or just unfair) without
+  // permanently deleting it - hidden ones are excluded from the storefront
+  // and from the average-rating calculation, but stay visible to the admin
+  // so they can be unhidden later. A separate, permanent Delete is still
+  // available too.
+  await pool.query(`ALTER TABLE reviews ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE`);
+
+  // "Notify me when back in stock" requests, raised from the storefront on
+  // an out-of-stock product. One row per customer+product (re-requesting
+  // just refreshes it - see the ON CONFLICT in routes/public.js), so the
+  // admin panel's Stock Alerts tab can show one clean list with a ready
+  // WhatsApp link per person to message once restocked.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stock_notify_requests (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      customer_name TEXT,
+      whatsapp TEXT,
+      notified BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS stock_notify_one_per_customer_product
+    ON stock_notify_requests (customer_id, product_id)
+  `);
 
   // Multiple photos per product (up to a few), stored as Supabase Storage
   // URLs (not base64) - see storage.js. `image` stays as the single
