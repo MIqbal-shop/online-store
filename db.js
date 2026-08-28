@@ -134,6 +134,13 @@ async function init() {
     await pool.query(`INSERT INTO store_settings (id, store_name, tagline) VALUES (1, 'IQBAL TRADER', 'Order directly from your shop')`);
   }
 
+  // Homepage banner (shown above the products, fades out as the customer
+  // scrolls down) and the shop's public contact details shown alongside it.
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_image TEXT`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_whatsapp TEXT`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_phone TEXT`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_email TEXT`);
+
   // Forgot-password requests - a customer can't recover their old password
   // (only a secure hash of it is ever stored), so "forgot password" instead
   // generates a new temporary one here. Since there's no WhatsApp API wired
