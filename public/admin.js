@@ -69,7 +69,6 @@
     loadOrders();
     loadApiKey();
     loadStoreSettings();
-    loadStockAlerts();
   }
 
   // ---- Tabs ----
@@ -77,13 +76,12 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'stock-alerts', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
       if (btn.dataset.tab === 'resets') loadPasswordResets();
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'customers') loadCustomers();
-      if (btn.dataset.tab === 'history') loadHistory();
+      if (btn.dataset.tab === 'history') { populateHistoryFilters(); loadHistory(); }
       if (btn.dataset.tab === 'reviews') loadReviews();
-      if (btn.dataset.tab === 'stock-alerts') loadStockAlerts();
       if (btn.dataset.tab === 'orders') loadOrders();
       currentTab = btn.dataset.tab;
     });
@@ -119,7 +117,6 @@
 function priceSummary(p) {
     if (p.packing_type === 'carton_box_piece') return `${money(p.price_carton)}/Carton &middot; ${money(p.price_box)}/Box &middot; ${money(p.price_piece)}/Piece`;
     if (p.packing_type === 'carton_piece') return `${money(p.price_carton)}/Carton &middot; ${money(p.price_piece)}/Piece`;
-    if (p.packing_type === 'box_piece') return `${money(p.price_box)}/Box &middot; ${money(p.price_piece)}/Piece`;
     return `${money(p.price)} ${p.unit ? '/ ' + escapeHtml(p.unit) : ''}`;
   }
 
@@ -138,7 +135,7 @@ function priceSummary(p) {
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'} <span class="pill-status ${inStock ? 'pill-in' : 'pill-out'}">${inStock ? 'In stock' : 'Out of stock'}</span></div>
-          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)} ${p.company ? '&middot; ' + escapeHtml(p.company) : ''} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
+          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
         </div>
         <div style="display:flex; gap:6px;">
           <button class="btn stock-toggle-btn ${inStock ? 'active-in' : ''} stock-in-btn" style="padding:8px 12px; font-size:12px;">In stock</button>
@@ -200,7 +197,27 @@ function priceSummary(p) {
   $('closeProductModal').addEventListener('click', () => $('productOverlay').style.display = 'none');
   $('productOverlay').addEventListener('click', (e) => { if (e.target.id === 'productOverlay') $('productOverlay').style.display = 'none'; });
 
-  let currentImageData = null;
+  const MAX_PRODUCT_IMAGES = 3;
+  let currentImages = []; // array of uploaded URLs (or leftover base64 for old, un-migrated products)
+
+  function renderImagePreviews() {
+    const box = $('p_image_previews');
+    box.innerHTML = '';
+    currentImages.forEach((url, i) => {
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:relative; width:72px; height:72px;';
+      thumb.innerHTML = `
+        <img src="${url}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
+        <button type="button" data-remove-img="${i}" style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#e4483f; color:#fff; border:none; cursor:pointer; font-size:12px; line-height:1;">✕</button>
+      `;
+      thumb.querySelector('[data-remove-img]').addEventListener('click', () => {
+        currentImages.splice(i, 1);
+        renderImagePreviews();
+      });
+      box.appendChild(thumb);
+    });
+    $('p_image_file').disabled = currentImages.length >= MAX_PRODUCT_IMAGES;
+  }
 
   function openProductModal(product) {
     $('productError').style.display = 'none';
@@ -215,14 +232,15 @@ function priceSummary(p) {
     $('p_price_box').value = product?.price_box ?? '';
     $('p_price_piece').value = product?.price_piece ?? '';
     $('p_description').value = product?.description || '';
-    $('p_company').value = product?.company || '';
     $('p_category').value = product?.category || '';
     $('p_active').checked = product ? !!product.active : true;
     setStockToggle(product ? product.in_stock !== false : true);
     applyPackingTypeUI(pt);
-    currentImageData = product?.image || null;
-    if (currentImageData) { $('p_image_preview').src = currentImageData; $('p_image_preview').style.display = 'block'; }
-    else { $('p_image_preview').style.display = 'none'; }
+    currentImages = Array.isArray(product?.images) && product.images.length
+      ? [...product.images]
+      : (product?.image ? [product.image] : []);
+    renderImagePreviews();
+    $('p_image_status').style.display = 'none';
     $('p_image_file').value = '';
     $('deleteProductBtn').style.display = product ? 'inline-flex' : 'none';
     $('productOverlay').style.display = 'flex';
@@ -231,14 +249,9 @@ function priceSummary(p) {
   function applyPackingTypeUI(pt) {
     $('p_single_fields').style.display = pt === 'single' ? 'block' : 'none';
     $('p_multi_fields').style.display = pt === 'single' ? 'none' : 'block';
-    $('p_carton_field').style.display = (pt === 'carton_piece' || pt === 'carton_box_piece') ? 'block' : 'none';
-    $('p_box_field').style.display = (pt === 'carton_box_piece' || pt === 'box_piece') ? 'block' : 'none';
-    $('p_packing_type').value = pt;
-    document.querySelectorAll('.packing-opt').forEach((btn) => btn.classList.toggle('active', btn.dataset.pt === pt));
+    $('p_box_field').style.display = pt === 'carton_box_piece' ? 'block' : 'none';
   }
-  document.querySelectorAll('.packing-opt').forEach((btn) => {
-    btn.addEventListener('click', () => applyPackingTypeUI(btn.dataset.pt));
-  });
+  $('p_packing_type').addEventListener('change', (e) => applyPackingTypeUI(e.target.value));
 
   function setStockToggle(inStock) {
     $('p_in_stock').value = inStock ? 'true' : 'false';
@@ -248,16 +261,40 @@ function priceSummary(p) {
   $('p_stock_in').addEventListener('click', () => setStockToggle(true));
   $('p_stock_out').addEventListener('click', () => setStockToggle(false));
 
-  $('p_image_file').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      currentImageData = reader.result;
-      $('p_image_preview').src = currentImageData;
-      $('p_image_preview').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read that file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  $('p_image_file').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    const room = MAX_PRODUCT_IMAGES - currentImages.length;
+    if (room <= 0) { alert(`You can add up to ${MAX_PRODUCT_IMAGES} photos per product.`); return; }
+    const toUpload = files.slice(0, room);
+    const statusEl = $('p_image_status');
+    statusEl.style.display = 'block';
+    for (let i = 0; i < toUpload.length; i++) {
+      statusEl.textContent = `Uploading photo ${i + 1} of ${toUpload.length}...`;
+      try {
+        const dataUrl = await readFileAsDataUrl(toUpload[i]);
+        const { url } = await api('/api/admin/upload-image', {
+          method: 'POST',
+          body: JSON.stringify({ data: dataUrl, filename: $('p_name').value.trim() || 'product' }),
+        });
+        currentImages.push(url);
+        renderImagePreviews();
+      } catch (err) {
+        alert(`Photo upload failed: ${err.message}`);
+        break;
+      }
+    }
+    statusEl.style.display = 'none';
   });
 
   $('saveProductBtn').addEventListener('click', async () => {
@@ -274,9 +311,8 @@ function priceSummary(p) {
       price_box: $('p_price_box').value,
       price_piece: $('p_price_piece').value,
       description: $('p_description').value.trim(),
-      company: $('p_company').value.trim(),
       category: $('p_category').value.trim(),
-      image: currentImageData,
+      images: currentImages,
       active: $('p_active').checked,
       in_stock: $('p_in_stock').value === 'true',
     };
@@ -284,9 +320,6 @@ function priceSummary(p) {
     if (pt === 'single' && !body.unit) { errEl.textContent = 'Please enter a unit name.'; errEl.style.display = 'block'; return; }
     if (pt === 'carton_piece' && (body.price_carton === '' || body.price_piece === '')) {
       errEl.textContent = 'Please enter both Carton price and Piece price.'; errEl.style.display = 'block'; return;
-    }
-    if (pt === 'box_piece' && (body.price_box === '' || body.price_piece === '')) {
-      errEl.textContent = 'Please enter both Box price and Piece price.'; errEl.style.display = 'block'; return;
     }
     if (pt === 'carton_box_piece' && (body.price_carton === '' || body.price_box === '' || body.price_piece === '')) {
       errEl.textContent = 'Please enter Carton, Box, and Piece prices.'; errEl.style.display = 'block'; return;
@@ -516,100 +549,20 @@ function priceSummary(p) {
     }
   });
 
-  // ---- Period filter: Today / Date / Month / Year ----
-  // Shared by the Dashboard and Order History tabs, mirroring the DMS
-  // app's own period picker so both feel the same to use.
-  function pad2(n) { return String(n).padStart(2, '0'); }
-  function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
-  function currentMonthStr() { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; }
-  function currentYearStr() { return String(new Date().getFullYear()); }
-  function lastDayOfMonth(ym) {
-    const [y, m] = ym.split('-').map(Number);
-    return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-  }
-  // Turns a period+value into an inclusive { start, end } YYYY-MM-DD range.
-  function computeRange(period, value) {
-    if (period === 'today') { const d = todayStr(); return { start: d, end: d, label: 'Today' }; }
-    if (period === 'date') { const d = value || todayStr(); return { start: d, end: d, label: d }; }
-    if (period === 'month') { const ym = value || currentMonthStr(); return { start: `${ym}-01`, end: lastDayOfMonth(ym), label: ym }; }
-    if (period === 'year') { const y = value || currentYearStr(); return { start: `${y}-01-01`, end: `${y}-12-31`, label: y }; }
-    const d = todayStr(); return { start: d, end: d, label: 'Today' };
-  }
-
-  // Builds the tabs + matching input into `container`, keeps its own
-  // period/value state, and calls onChange(range) whenever either changes
-  // (including once immediately, so the caller can do its first load).
-  function createPeriodFilter(container, onChange) {
-    let period = 'today';
-    let dateValue = todayStr();
-    let monthValue = currentMonthStr();
-    let yearValue = currentYearStr();
-    const currentYearNum = new Date().getFullYear();
-    const yearOptions = Array.from({ length: 8 }, (_, i) => currentYearNum - 6 + i).reverse();
-
-    function valueFor(p) { return { date: dateValue, month: monthValue, year: yearValue }[p]; }
-
-    function render() {
-      const tabs = [['today', 'Today'], ['date', 'Date'], ['month', 'Month'], ['year', 'Year']];
-      container.innerHTML = `
-        <div class="period-tabs">
-          ${tabs.map(([k, l]) => `<button type="button" class="period-tab ${period === k ? 'active' : ''}" data-period="${k}">${l}</button>`).join('')}
-        </div>
-        <div class="period-input-wrap">
-          ${period === 'date' ? `<input type="date" id="periodInput_${container.id}" value="${dateValue}" />` : ''}
-          ${period === 'month' ? `<input type="month" id="periodInput_${container.id}" value="${monthValue}" />` : ''}
-          ${period === 'year' ? `
-            <select id="periodInput_${container.id}">
-              ${yearOptions.map((y) => `<option value="${y}" ${String(y) === yearValue ? 'selected' : ''}>${y}</option>`).join('')}
-            </select>
-          ` : ''}
-        </div>
-        <span class="period-range-label" id="periodRangeLabel_${container.id}"></span>
-      `;
-      container.querySelectorAll('.period-tab').forEach((btn) => {
-        btn.addEventListener('click', () => { period = btn.dataset.period; render(); fire(); });
-      });
-      const input = document.getElementById(`periodInput_${container.id}`);
-      if (input) {
-        input.addEventListener('change', () => {
-          if (period === 'date') dateValue = input.value || todayStr();
-          if (period === 'month') monthValue = input.value || currentMonthStr();
-          if (period === 'year') yearValue = input.value || currentYearStr();
-          fire();
-        });
-      }
-      const range = computeRange(period, valueFor(period));
-      const rangeLabelEl = document.getElementById(`periodRangeLabel_${container.id}`);
-      if (rangeLabelEl) rangeLabelEl.textContent = range.start === range.end ? range.start : `${range.start} → ${range.end}`;
-    }
-    function fire() {
-      const rangeLabelEl = document.getElementById(`periodRangeLabel_${container.id}`);
-      const range = computeRange(period, valueFor(period));
-      if (rangeLabelEl) rangeLabelEl.textContent = range.start === range.end ? range.start : `${range.start} → ${range.end}`;
-      onChange(range);
-    }
-    render();
-    return { getRange: () => computeRange(period, valueFor(period)) };
-  }
-
   // ---- Dashboard ----
-  const dashboardFilter = createPeriodFilter($('dashboardPeriodFilter'), (range) => loadDashboard(range));
-
-  async function loadDashboard(range) {
-    range = range || dashboardFilter.getRange();
+  async function loadDashboard() {
     try {
-      const params = new URLSearchParams({ start: range.start, end: range.end });
-      const data = await api('/api/admin/dashboard?' + params.toString());
+      const data = await api('/api/admin/dashboard');
       const grid = $('dashGrid');
       grid.innerHTML = `
         <div class="dash-card"><div class="num">${data.pending_orders}</div><div class="label">Pending orders</div></div>
-        <div class="dash-card"><div class="num">${data.confirmed_count}</div><div class="label">Confirmed</div></div>
-        <div class="dash-card"><div class="num">${money(data.revenue)}</div><div class="label">Revenue</div></div>
-        <div class="dash-card"><div class="num">${data.cancelled_count}</div><div class="label">Cancelled</div></div>
+        <div class="dash-card"><div class="num">${data.confirmed_last_30d}</div><div class="label">Confirmed (30 days)</div></div>
+        <div class="dash-card"><div class="num">${money(data.revenue_last_30d)}</div><div class="label">Revenue (30 days)</div></div>
+        <div class="dash-card"><div class="num">${data.cancelled_last_30d}</div><div class="label">Cancelled (30 days)</div></div>
       `;
       const topBox = $('dashTopProducts');
       if (!data.top_products || data.top_products.length === 0) {
-        topBox.innerHTML = '<div class="empty-note">No confirmed orders in this period.</div>';
+        topBox.innerHTML = '<div class="empty-note">No confirmed orders yet.</div>';
       } else {
         topBox.innerHTML = data.top_products.map((p) => `
           <div class="admin-row"><span>${escapeHtml(p.product_name)}</span><span style="color:var(--ink-soft);">${p.total_qty} sold</span></div>
@@ -619,11 +572,24 @@ function priceSummary(p) {
   }
 
   // ---- Order History ----
-  const historyFilter = createPeriodFilter($('historyPeriodFilter'), (range) => loadHistory(range));
+  function populateHistoryFilters() {
+    if ($('h_year').options.length > 0) return; // already populated
+    const thisYear = new Date().getFullYear();
+    let yearOptions = '<option value="">All years</option>';
+    for (let y = thisYear; y >= thisYear - 4; y--) yearOptions += `<option value="${y}">${y}</option>`;
+    $('h_year').innerHTML = yearOptions;
+    let dayOptions = '<option value="">All days</option>';
+    for (let d = 1; d <= 31; d++) dayOptions += `<option value="${d}">${d}</option>`;
+    $('h_day').innerHTML = dayOptions;
+  }
 
-  async function loadHistory(range) {
-    range = range || historyFilter.getRange();
-    const params = new URLSearchParams({ start: range.start, end: range.end });
+  $('h_filterBtn').addEventListener('click', loadHistory);
+
+  async function loadHistory() {
+    const params = new URLSearchParams();
+    if ($('h_year').value) params.set('year', $('h_year').value);
+    if ($('h_month').value) params.set('month', $('h_month').value);
+    if ($('h_day').value) params.set('day', $('h_day').value);
     try {
       const data = await api('/api/admin/orders/history?' + params.toString());
       renderHistory(data.orders || []);
@@ -730,78 +696,20 @@ function priceSummary(p) {
     for (const c of customers) {
       const row = document.createElement('div');
       row.className = 'admin-row';
-      row.style.flexWrap = 'wrap';
-
-      const readyAt = c.deletion_requested_at ? new Date(c.deletion_requested_at).getTime() + 48 * 60 * 60 * 1000 : null;
-      const coolOffDone = readyAt !== null && Date.now() >= readyAt;
-
-      let deleteControlsHtml;
-      if (!c.pending_deletion) {
-        deleteControlsHtml = `<button class="btn btn-red delete-btn">Delete customer</button>`;
-      } else if (!coolOffDone) {
-        deleteControlsHtml = `
-          <div class="delete-pending-box">
-            <span class="delete-pending-label">Deletion scheduled &middot; ${timeRemaining(readyAt)} left</span>
-            <button class="btn btn-navy cancel-delete-btn">Cancel deletion</button>
-          </div>`;
-      } else {
-        deleteControlsHtml = `
-          <div class="delete-pending-box">
-            <span class="delete-pending-label delete-ready-label">48 hours passed - delete now?</span>
-            <button class="btn btn-navy cancel-delete-btn">No, keep</button>
-            <button class="btn btn-red confirm-delete-btn">Yes, delete permanently</button>
-          </div>`;
-      }
-
       row.innerHTML = `
-        <div style="flex:1; min-width:180px;">
+        <div style="flex:1;">
           <div style="font-weight:600; font-size:13.5px;">${escapeHtml(c.name)} ${c.blocked ? '<span class="pill-status pill-cancelled">Blocked</span>' : ''}</div>
           <div style="font-size:12px; color:var(--ink-soft);">${escapeHtml(c.shop_name || '')} ${c.shop_name ? '·' : ''} ${escapeHtml(c.whatsapp || '')} &middot; ${c.order_count} orders</div>
         </div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button class="btn ${c.blocked ? 'btn-navy' : 'btn-red'} block-btn">${c.blocked ? 'Unblock' : 'Block'}</button>
-          ${deleteControlsHtml}
-        </div>
+        <button class="btn ${c.blocked ? 'btn-navy' : 'btn-red'} block-btn">${c.blocked ? 'Unblock' : 'Block'}</button>
       `;
       row.querySelector('.block-btn').addEventListener('click', async () => {
         if (!c.blocked && !confirm(`Block ${c.name}? They won't be able to log in or order.`)) return;
         try { await api(`/api/admin/customers/${c.id}/block`, { method: 'PUT', body: JSON.stringify({ blocked: !c.blocked }) }); loadCustomers(); } catch (e) { alert(e.message); }
       });
-      const deleteBtn = row.querySelector('.delete-btn');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', async () => {
-          if (!confirm(`Delete ${c.name}? Their account will be permanently removed after a mandatory 48-hour cool-off. You can cancel any time before then.`)) return;
-          try { await api(`/api/admin/customers/${c.id}/schedule-delete`, { method: 'PUT' }); loadCustomers(); } catch (e) { alert(e.message); }
-        });
-      }
-      const cancelBtn = row.querySelector('.cancel-delete-btn');
-      if (cancelBtn) {
-        cancelBtn.addEventListener('click', async () => {
-          try { await api(`/api/admin/customers/${c.id}/cancel-delete`, { method: 'PUT' }); loadCustomers(); } catch (e) { alert(e.message); }
-        });
-      }
-      const confirmBtn = row.querySelector('.confirm-delete-btn');
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', async () => {
-          if (!confirm(`Permanently delete ${c.name} and their entire order history? This cannot be undone, and removes it from the DMS app too.`)) return;
-          try { await api(`/api/admin/customers/${c.id}`, { method: 'DELETE' }); loadCustomers(); } catch (e) { alert(e.message); }
-        });
-      }
       box.appendChild(row);
     }
   }
-
-  // Ticks every minute so the "Xh Ym left" label on a scheduled deletion
-  // stays roughly current without needing a full reload.
-  function timeRemaining(readyAtMs) {
-    const ms = Math.max(0, readyAtMs - Date.now());
-    const totalMinutes = Math.ceil(ms / 60000);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    if (hours <= 0) return `${minutes}m`;
-    return `${hours}h ${minutes}m`;
-  }
-  setInterval(() => { if (currentTab === 'customers') loadCustomers(); }, 60000);
 
   // ---- Account (admin's own password) ----
   $('saveAccountBtn').addEventListener('click', async () => {
@@ -826,67 +734,6 @@ function priceSummary(p) {
       errEl.style.display = 'block';
     }
   });
-
-  // ---- Stock Alerts ("notify me when back in stock") ----
-  async function loadStockAlerts() {
-    try {
-      const data = await api('/api/admin/stock-notify-requests');
-      renderStockAlerts(data.requests || []);
-      const pendingCount = (data.requests || []).filter((r) => !r.notified).length;
-      const badge = $('stockAlertsTabBadge');
-      badge.textContent = pendingCount > 99 ? '99+' : String(pendingCount);
-      badge.style.display = pendingCount > 0 ? 'flex' : 'none';
-    } catch (e) { console.error(e); }
-  }
-
-  function renderStockAlerts(requests) {
-    const box = $('stockAlertsList');
-    box.innerHTML = '';
-    if (requests.length === 0) {
-      box.innerHTML = '<div class="empty-note">No stock alert requests yet.</div>';
-      return;
-    }
-    for (const r of requests) {
-      const row = document.createElement('div');
-      row.className = 'admin-row';
-      row.style.alignItems = 'flex-start';
-      const backInStock = !!r.product_in_stock;
-      const waNumber = formatWhatsAppNumber(r.whatsapp);
-      const productLabel = r.product_name || 'this product';
-      const waMessage = backInStock
-        ? `Hi! You asked us to notify you about "${productLabel}" - it's back in stock now! You can order it again at iqbaltrader.vercel.app. Enjoy the opportunity!`
-        : `Hi! Sorry for the inconvenience - "${productLabel}" is not available right now. As soon as it's back in stock, we'll message you here on WhatsApp to let you know.`;
-      const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
-      row.innerHTML = `
-        <div style="flex:1; ${r.notified ? 'opacity:0.55;' : ''}">
-          <div style="font-weight:600; font-size:13.5px;">
-            ${escapeHtml(r.product_name || '(deleted product)')}
-            ${r.notified ? '<span class="pill-status pill-new">Notified</span>' : backInStock ? '<span class="pill-status pill-confirmed">Back in stock</span>' : '<span class="pill-status pill-cancelled">Still out of stock</span>'}
-          </div>
-          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(r.customer_name || 'Customer')} &middot; ${escapeHtml(r.whatsapp || '')}</div>
-          <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
-          <a class="btn ${backInStock ? 'btn-gold' : 'btn-navy'} whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">${backInStock ? 'WhatsApp: It\u2019s back!' : 'WhatsApp: Sorry, not yet'}</a>
-          ${!r.notified ? '<button class="btn btn-navy mark-notified-btn">Mark as notified</button>' : '<button class="btn btn-navy unmark-notified-btn">Move back to pending</button>'}
-          <button class="btn btn-red delete-alert-btn">Remove</button>
-        </div>
-      `;
-      const markBtn = row.querySelector('.mark-notified-btn');
-      if (markBtn) markBtn.addEventListener('click', async () => {
-        try { await api(`/api/admin/stock-notify-requests/${r.id}/notified`, { method: 'PUT', body: JSON.stringify({ notified: true }) }); loadStockAlerts(); } catch (e) { alert(e.message); }
-      });
-      const unmarkBtn = row.querySelector('.unmark-notified-btn');
-      if (unmarkBtn) unmarkBtn.addEventListener('click', async () => {
-        try { await api(`/api/admin/stock-notify-requests/${r.id}/notified`, { method: 'PUT', body: JSON.stringify({ notified: false }) }); loadStockAlerts(); } catch (e) { alert(e.message); }
-      });
-      row.querySelector('.delete-alert-btn').addEventListener('click', async () => {
-        if (!confirm('Remove this alert request?')) return;
-        try { await api(`/api/admin/stock-notify-requests/${r.id}`, { method: 'DELETE' }); loadStockAlerts(); } catch (e) { alert(e.message); }
-      });
-      box.appendChild(row);
-    }
-  }
 
   // ---- Password Resets ----
   async function loadPasswordResets() {
@@ -1014,22 +861,16 @@ function priceSummary(p) {
       row.style.alignItems = 'flex-start';
       const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
       row.innerHTML = `
-        <div style="flex:1; ${r.hidden ? 'opacity:0.55;' : ''}">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || 'Customer')} <span style="color:#ffd45e;">${stars}</span> ${r.hidden ? '<span class="pill-status pill-cancelled">Hidden</span>' : ''}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(r.customer_name || 'Customer')} <span style="color:#ffd45e;">${stars}</span></div>
           <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${r.target_type === 'general' ? 'General feedback (service/website)' : 'Product: ' + escapeHtml(r.product_name || '(deleted product)')}</div>
           ${r.comment ? `<div style="font-size:12.5px; margin-top:6px;">${escapeHtml(r.comment)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(r.created_at || '').toString().replace('T', ' ').slice(0, 16)}</div>
         </div>
-        <div style="display:flex; gap:8px; flex-shrink:0;">
-          <button class="btn btn-navy hide-review-btn">${r.hidden ? 'Unhide' : 'Hide'}</button>
-          <button class="btn btn-red delete-review-btn">Delete</button>
-        </div>
+        <button class="btn btn-red delete-review-btn">Delete</button>
       `;
-      row.querySelector('.hide-review-btn').addEventListener('click', async () => {
-        try { await api(`/api/admin/reviews/${r.id}/hide`, { method: 'PUT', body: JSON.stringify({ hidden: !r.hidden }) }); loadReviews(); } catch (e) { alert(e.message); }
-      });
       row.querySelector('.delete-review-btn').addEventListener('click', async () => {
-        if (!confirm('Delete this review? This cannot be undone.')) return;
+        if (!confirm('Delete this review?')) return;
         try { await api(`/api/admin/reviews/${r.id}`, { method: 'DELETE' }); loadReviews(); } catch (e) { alert(e.message); }
       });
       box.appendChild(row);
@@ -1052,16 +893,42 @@ function priceSummary(p) {
     } catch (e) { console.error(e); }
   }
 
-  $('s_logo_file').addEventListener('change', (e) => {
+  $('s_logo_file').addEventListener('change', async (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      currentLogoData = reader.result;
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const { url } = await api('/api/admin/upload-image', {
+        method: 'POST',
+        body: JSON.stringify({ data: dataUrl, filename: 'store-logo' }),
+      });
+      currentLogoData = url;
       $('s_logo_preview').src = currentLogoData;
       $('s_logo_preview').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      alert(`Logo upload failed: ${err.message}`);
+    }
+  });
+
+  $('migrateImagesBtn').addEventListener('click', async () => {
+    const msgEl = $('migrateMsg');
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--ink-soft)';
+    msgEl.textContent = 'Working... this can take a little while if there are many photos.';
+    $('migrateImagesBtn').disabled = true;
+    try {
+      const result = await api('/api/admin/migrate-images', { method: 'POST' });
+      msgEl.style.color = result.errors.length ? '#e4483f' : 'var(--green)';
+      msgEl.textContent = `Done. Moved ${result.products_migrated} product photo(s)${result.logo_migrated ? ' and the store logo' : ''}.`
+        + (result.errors.length ? ` Some failed: ${result.errors.join(' | ')}` : '');
+      if (result.products_migrated > 0) loadProducts();
+    } catch (e) {
+      msgEl.style.color = '#e4483f';
+      msgEl.textContent = e.message;
+    } finally {
+      $('migrateImagesBtn').disabled = false;
+    }
   });
 
   $('saveStoreBtn').addEventListener('click', async () => {
