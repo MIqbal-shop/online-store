@@ -35,6 +35,7 @@
     <button class="admin-tab" data-tab="customers"><span class="ico">👥</span><span class="lbl">Customers</span></button>
     <button class="admin-tab" data-tab="broadcast"><span class="ico">📢</span><span class="lbl">Broadcast</span></button>
     <button class="admin-tab" data-tab="reviews"><span class="ico">⭐</span><span class="lbl">Reviews</span></button>
+    <button class="admin-tab" data-tab="stock-alerts"><span class="ico">🔔</span><span class="lbl">Stock Alerts</span><span class="tab-badge" id="stockAlertsTabBadge" style="display:none;">0</span></button>
     <button class="admin-tab" data-tab="store"><span class="ico">🏬</span><span class="lbl">Store</span></button>
     <button class="admin-tab" data-tab="resets"><span class="ico">🔐</span><span class="lbl">Password Resets</span></button>
     <button class="admin-tab" data-tab="account"><span class="ico">🔑</span><span class="lbl">Account</span></button>
@@ -46,8 +47,9 @@
     <!-- Dashboard tab -->
     <div id="tab-dashboard">
       <h2>Dashboard</h2>
+      <div id="dashboardPeriodFilter" class="period-filter"></div>
       <div class="dash-grid" id="dashGrid"></div>
-      <h3 style="margin-top:22px;">Top products (last 30 days)</h3>
+      <h3 style="margin-top:22px;">Top products</h3>
       <div class="card" id="dashTopProducts"></div>
     </div>
 
@@ -76,20 +78,7 @@
     <!-- History tab -->
     <div id="tab-history" style="display:none;">
       <h2>Order History</h2>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
-        <select id="h_year"></select>
-        <select id="h_month">
-          <option value="">All months</option>
-          <option value="1">January</option><option value="2">February</option><option value="3">March</option>
-          <option value="4">April</option><option value="5">May</option><option value="6">June</option>
-          <option value="7">July</option><option value="8">August</option><option value="9">September</option>
-          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-        </select>
-        <select id="h_day">
-          <option value="">All days</option>
-        </select>
-        <button class="btn btn-navy" id="h_filterBtn">Filter</button>
-      </div>
+      <div id="historyPeriodFilter" class="period-filter"></div>
       <div class="card" id="historyList"></div>
 
       <div class="card" style="margin-top:20px; padding:16px; border:1px solid #d64545;">
@@ -131,6 +120,16 @@
       <h2>Reviews</h2>
       <p style="color:var(--ink-soft); font-size:13.5px;">Ratings and feedback left by customers, for products and for your service/website overall.</p>
       <div class="card" id="reviewsAdminList" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Stock Alerts tab -->
+    <div id="tab-stock-alerts" style="display:none;">
+      <h2>Stock Alerts</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        Customers who asked to be told when an out-of-stock product is back. Mark a product In Stock in the
+        Products tab first, then come back here and message everyone waiting on it.
+      </p>
+      <div class="card" id="stockAlertsList" style="margin-top:12px;"></div>
     </div>
 
     <!-- Store tab -->
@@ -215,11 +214,25 @@
     <div class="field"><label>Name</label><input id="p_name" /></div>
     <div class="field">
       <label>How is this product sold?</label>
-      <select id="p_packing_type">
-        <option value="single">Single unit (custom name)</option>
-        <option value="carton_piece">Carton + Pieces</option>
-        <option value="carton_box_piece">Carton + Box + Pieces</option>
-      </select>
+      <div class="packing-type-grid" id="p_packing_type_grid">
+        <button type="button" class="packing-opt" data-pt="single">
+          <span class="pt-title">Single unit</span>
+          <span class="pt-sub">Custom name &amp; one price</span>
+        </button>
+        <button type="button" class="packing-opt" data-pt="carton_piece">
+          <span class="pt-title">Carton + Pieces</span>
+          <span class="pt-sub">Two price levels</span>
+        </button>
+        <button type="button" class="packing-opt" data-pt="box_piece">
+          <span class="pt-title">Box + Pieces</span>
+          <span class="pt-sub">Two price levels</span>
+        </button>
+        <button type="button" class="packing-opt" data-pt="carton_box_piece">
+          <span class="pt-title">Carton + Box + Pieces</span>
+          <span class="pt-sub">Three price levels</span>
+        </button>
+      </div>
+      <input type="hidden" id="p_packing_type" value="single" />
     </div>
 
     <div id="p_single_fields">
@@ -228,12 +241,13 @@
     </div>
 
     <div id="p_multi_fields" style="display:none;">
-      <div class="field"><label>Carton price (Rs)</label><input id="p_price_carton" type="number" /></div>
+      <div class="field" id="p_carton_field"><label>Carton price (Rs)</label><input id="p_price_carton" type="number" /></div>
       <div class="field" id="p_box_field"><label>Box price (Rs)</label><input id="p_price_box" type="number" /></div>
       <div class="field"><label>Piece price (Rs)</label><input id="p_price_piece" type="number" /></div>
     </div>
 
     <div class="field"><label>Description (optional)</label><textarea id="p_description" rows="2"></textarea></div>
+    <div class="field"><label>Company / Brand (optional)</label><input id="p_company" placeholder="e.g. Bona Papa, Unilever" /></div>
     <div class="field"><label>Category (optional)</label><input id="p_category" placeholder="e.g. Grocery, Cosmetics" /></div>
     <div class="field">
       <label>Photos (optional, up to 6)</label>

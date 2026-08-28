@@ -8,6 +8,7 @@
   let products = [];
   let cart = {}; // product_id -> { product, qty }
   let favoriteIds = new Set(); // product ids the shopper has saved
+  let notifyRequestedIds = new Set(); // product ids with an active "notify me" request
   let reviewSummary = {}; // product_id -> { avg_rating, count }
   let currentReviewProductId = null; // which product the reviews overlay is showing
   let reviewStarValue = 0;
@@ -32,7 +33,10 @@
       resetPasswordNote: "Enter the WhatsApp number on your account. We'll send a new password to it.",
       sendNewPassword: 'Send new password', chooseYour: 'Choose your', products: 'products',
       heroSubtitle: "Add what you need to your cart, then confirm your order - our team will contact you on WhatsApp.",
-      searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.',
+      searchProducts: 'Search products...', noProductsListed: 'No products are listed right now.', categoryLabel: 'Category',
+      inStock: 'In Stock', outOfStock: 'Out of Stock',
+      notifyText: 'Want a WhatsApp message when this is back in stock?', notifyMe: 'Notify me',
+      notifyRequesting: 'Requesting...', notifyRequested: 'Requested ✓',
       footerNote: 'After placing your order, our team will contact you on WhatsApp.', viewCart: 'View cart',
       account: 'Account', myOrders: 'My Orders', myFavorites: 'My Favorites', feedback: 'Feedback',
       settings: 'Settings', cart: 'Cart', yourCart: 'Your cart', cartEmpty: 'Your cart is empty.', total: 'Total',
@@ -71,7 +75,10 @@
       resetPasswordNote: 'اپنے اکاؤنٹ کا واٹس ایپ نمبر لکھیں۔ ہم اس پر نیا پاسورڈ بھیج دیں گے۔',
       sendNewPassword: 'نیا پاسورڈ بھیجیں', chooseYour: 'اپنی', products: 'مصنوعات چنیں',
       heroSubtitle: 'جو چاہیے کارٹ میں شامل کریں، پھر آرڈر کنفرم کریں - ہماری ٹیم واٹس ایپ پر رابطہ کرے گی۔',
-      searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔',
+      searchProducts: 'مصنوعات تلاش کریں...', noProductsListed: 'فی الحال کوئی پروڈکٹ موجود نہیں ہے۔', categoryLabel: 'کیٹگری',
+      inStock: 'دستیاب ہے', outOfStock: 'دستیاب نہیں',
+      notifyText: 'جب یہ دوبارہ دستیاب ہو تو واٹس ایپ پیغام چاہیے؟', notifyMe: 'مطلع کریں',
+      notifyRequesting: 'درخواست جا رہی ہے...', notifyRequested: 'درخواست بھیج دی ✓',
       footerNote: 'آرڈر دینے کے بعد ہماری ٹیم واٹس ایپ پر آپ سے رابطہ کرے گی۔', viewCart: 'کارٹ دیکھیں',
       account: 'اکاؤنٹ', myOrders: 'میرے آرڈرز', myFavorites: 'پسندیدہ', feedback: 'رائے دیں',
       settings: 'سیٹنگز', cart: 'کارٹ', yourCart: 'آپ کا کارٹ', cartEmpty: 'آپ کا کارٹ خالی ہے۔', total: 'کل رقم',
@@ -108,6 +115,7 @@
     lang = next;
     localStorage.setItem('store_lang', lang);
     applyI18n();
+    renderCategoryChips(); // "Category" button label depends on lang
     renderProducts(); // rating lines / reorder button text depend on lang
   }
 
@@ -193,6 +201,7 @@
     $('shopRoot').style.display = 'block';
     loadProducts();
     loadFavoriteIds();
+    loadNotifyRequestedIds();
   }
 
   function showLoginView() {
@@ -307,11 +316,13 @@
   let selectedUnit = {}; // product_id -> 'carton' | 'box' | 'piece' | 'single'
   let searchQuery = '';
   let selectedCategory = '';
+  let selectedCompany = '';
 
   async function loadProducts() {
     try {
       const data = await fetch('/api/products').then((r) => r.json());
       products = data.products || [];
+      renderCompanyChips();
       renderCategoryChips();
       await loadReviewSummary();
       renderProducts();
@@ -332,6 +343,26 @@
       updateFavoritesCount();
       renderProducts();
     } catch (e) { console.error(e); }
+  }
+
+  async function loadNotifyRequestedIds() {
+    try {
+      const data = await api('/api/customers/me/notify-requests');
+      notifyRequestedIds = new Set(data.product_ids || []);
+      renderProducts();
+    } catch (e) { console.error(e); }
+  }
+
+  async function requestStockNotify(productId, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = t('notifyRequesting'); }
+    try {
+      await api(`/api/products/${productId}/notify-me`, { method: 'POST' });
+      notifyRequestedIds.add(productId);
+      renderProducts();
+    } catch (e) {
+      alert(e.message);
+      if (btn) { btn.disabled = false; btn.textContent = t('notifyMe'); }
+    }
   }
 
   function updateFavoritesCount() {
@@ -363,13 +394,58 @@
   }
 
   function renderCategoryChips() {
+    // A single tidy "Category" button with a dropdown panel - always
+    // available, independent of which company is selected.
     const cats = [...new Set(products.map((p) => (p.category || '').trim()).filter(Boolean))];
-    const box = $('categoryChips');
-    if (cats.length === 0) { box.innerHTML = ''; return; }
-    box.innerHTML = `<button class="category-chip ${selectedCategory === '' ? 'active' : ''}" data-cat="">All</button>`
+    const wrap = $('categoryFilterWrap');
+    const panel = $('categoryFilterPanel');
+    const btn = $('categoryFilterBtn');
+    const label = $('categoryFilterLabel');
+    if (cats.length === 0) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'inline-block';
+    panel.innerHTML = `<button class="category-chip ${selectedCategory === '' ? 'active' : ''}" data-cat="">All</button>`
       + cats.map((c) => `<button class="category-chip ${selectedCategory === c ? 'active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
-    box.querySelectorAll('.category-chip').forEach((btn) => {
-      btn.addEventListener('click', () => { selectedCategory = btn.dataset.cat; renderCategoryChips(); renderProducts(); });
+    panel.querySelectorAll('.category-chip').forEach((chipBtn) => {
+      chipBtn.addEventListener('click', () => {
+        selectedCategory = chipBtn.dataset.cat;
+        renderCategoryChips();
+        renderProducts();
+        panel.style.display = 'none';
+        btn.classList.remove('open');
+      });
+    });
+    label.textContent = selectedCategory || t('categoryLabel') || 'Category';
+    btn.classList.toggle('has-filter', !!selectedCategory);
+  }
+
+  $('categoryFilterBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = $('categoryFilterPanel');
+    const opening = panel.style.display !== 'flex';
+    panel.style.display = opening ? 'flex' : 'none';
+    $('categoryFilterBtn').classList.toggle('open', opening);
+  });
+  document.addEventListener('click', (e) => {
+    const wrap = $('categoryFilterWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      $('categoryFilterPanel').style.display = 'none';
+      $('categoryFilterBtn').classList.remove('open');
+    }
+  });
+
+  // Company / brand filter - independent of the category picker above.
+  function renderCompanyChips() {
+    const companies = [...new Set(products.map((p) => (p.company || '').trim()).filter(Boolean))];
+    const box = $('companyChips');
+    if (companies.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `<button class="category-chip company-chip ${selectedCompany === '' ? 'active' : ''}" data-co="">All</button>`
+      + companies.map((c) => `<button class="category-chip company-chip ${selectedCompany === c ? 'active' : ''}" data-co="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    box.querySelectorAll('.company-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedCompany = btn.dataset.co;
+        renderCompanyChips();
+        renderProducts();
+      });
     });
   }
 
@@ -388,6 +464,12 @@
     if (p.packing_type === 'carton_piece') {
       return [
         { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
+        { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+      ];
+    }
+    if (p.packing_type === 'box_piece') {
+      return [
+        { key: 'box', label: 'Box', price: Number(p.price_box) },
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
       ];
     }
@@ -442,7 +524,8 @@
     const visible = products.filter((p) => {
       const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery);
       const matchesCategory = !selectedCategory || (p.category || '').trim() === selectedCategory;
-      return matchesSearch && matchesCategory;
+      const matchesCompany = !selectedCompany || (p.company || '').trim() === selectedCompany;
+      return matchesSearch && matchesCategory && matchesCompany;
     });
     $('emptyMsg').style.display = visible.length ? 'none' : 'block';
     visible.forEach((p, i) => {
@@ -457,30 +540,45 @@
       const tile = document.createElement('div');
       tile.className = 'product-tile ' + TILE_COLORS[i % TILE_COLORS.length];
       const isFav = favoriteIds.has(p.id);
+      const alreadyRequested = notifyRequestedIds.has(p.id);
       const summary = reviewSummary[p.id];
       const ratingBadge = summary
         ? `<div class="rating-badge" data-open-reviews="${p.id}"><span class="star-ic">&#9733;</span><span class="avg-num">${summary.avg_rating}</span><span class="rating-count">(${summary.count})</span></div>`
         : `<div class="rating-badge no-reviews" data-open-reviews="${p.id}"><span class="star-ic">&#9734;</span><span>${t('rateThis')}</span></div>`;
       tile.innerHTML = `
-        ${!inStock ? '<div class="out-of-stock-badge">Out of stock</div>' : ''}
-        <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
+        <div class="product-img-box">
+          <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
+          ${p.images && p.images.length ? renderImageCarousel(p.images) : (p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`)}
+        </div>
+        ${p.company ? `<div class="product-company">${escapeHtml(p.company)}</div>` : ''}
         <div class="product-name">${escapeHtml(p.name)}</div>
-        ${p.description ? `<div class="product-desc">${escapeHtml(p.description)}</div>` : ''}
-        <div class="product-img-box">${renderImageCarousel(p.images && p.images.length ? p.images : (p.image ? [p.image] : []))}</div>
-        ${options.length > 1 ? `
-          <div class="unit-toggle">
-            ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
-          </div>
-        ` : ''}
+        <div class="unit-toggle-slot">
+          ${options.length > 1 ? `
+            <div class="unit-toggle">
+              ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
+            </div>
+          ` : ''}
+        </div>
         <div class="tile-footer">
           <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
           ${ratingBadge}
         </div>
         <div class="qty-row">
-          <button class="qty-btn minus" ${inStock ? '' : 'disabled'}>-</button>
-          <span class="qty-val">${qty}</span>
-          <button class="qty-btn plus" ${inStock ? '' : 'disabled'}>+</button>
+          <div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>
+          ${inStock ? `
+            <div class="qty-controls">
+              <button class="qty-btn minus">-</button>
+              <span class="qty-val">${qty}</span>
+              <button class="qty-btn plus">+</button>
+            </div>
+          ` : ''}
         </div>
+        ${!inStock ? `
+          <div class="notify-row">
+            <span class="notify-text">${t('notifyText')}</span>
+            <button class="notify-btn ${alreadyRequested ? 'requested' : ''}" type="button" ${alreadyRequested ? 'disabled' : ''}>${alreadyRequested ? t('notifyRequested') : t('notifyMe')}</button>
+          </div>
+        ` : ''}
       `;
       if (options.length > 1) {
         tile.querySelectorAll('.unit-opt').forEach((btn) => {
@@ -496,6 +594,8 @@
       }
       tile.querySelector('.fav-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(p.id); });
       tile.querySelector('[data-open-reviews]').addEventListener('click', (e) => { e.stopPropagation(); openReviews(p); });
+      const notifyBtn = tile.querySelector('.notify-btn');
+      if (notifyBtn) notifyBtn.addEventListener('click', (e) => { e.stopPropagation(); requestStockNotify(p.id, notifyBtn); });
       attachTilt(tile);
       wireCarousel(tile);
       wrap.appendChild(tile);
