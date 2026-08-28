@@ -197,7 +197,7 @@ function priceSummary(p) {
   $('closeProductModal').addEventListener('click', () => $('productOverlay').style.display = 'none');
   $('productOverlay').addEventListener('click', (e) => { if (e.target.id === 'productOverlay') $('productOverlay').style.display = 'none'; });
 
-  const MAX_PRODUCT_IMAGES = 3;
+  const MAX_PRODUCT_IMAGES = 6;
   let currentImages = []; // array of uploaded URLs (or leftover base64 for old, un-migrated products)
 
   function renderImagePreviews() {
