@@ -136,10 +136,18 @@ async function init() {
 
   // Homepage banner (shown above the products, fades out as the customer
   // scrolls down) and the shop's public contact details shown alongside it.
+  // Stored as JSON lists now (multiple banner photos that auto-rotate, and
+  // up to a few WhatsApp/phone/email entries) - the older single-value
+  // columns are kept so nothing already saved is lost; the API falls back
+  // to them the first time it reads an empty list.
   await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_image TEXT`);
   await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_whatsapp TEXT`);
   await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_phone TEXT`);
   await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_email TEXT`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_images JSONB DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_whatsapp_list JSONB DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_phone_list JSONB DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_email_list JSONB DEFAULT '[]'::jsonb`);
 
   // Forgot-password requests - a customer can't recover their old password
   // (only a secure hash of it is ever stored), so "forgot password" instead
