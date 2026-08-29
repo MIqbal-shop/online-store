@@ -181,6 +181,10 @@ async function init() {
   // Lets the admin block a problem account from logging in, without
   // deleting their history.
   await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS blocked BOOLEAN DEFAULT FALSE`);
+  // account_type distinguishes a shop/business account (asks for shop
+  // name, used for bulk/wholesale-style ordering) from a personal/home
+  // account (no shop name needed) - chosen once at sign-up.
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS account_type TEXT DEFAULT 'business'`);
 
   // Wishlist - a simple join table, one row per (customer, product) they've
   // saved. No extra columns needed; the primary key doubles as the
