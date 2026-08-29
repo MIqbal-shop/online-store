@@ -52,11 +52,25 @@
         <!-- Signup form -->
         <div id="signupForm" style="display:none;">
           <h2 class="auth-heading" data-i18n="createYourAccount">Create your account</h2>
-          <p class="auth-subtext" data-i18n="signupSubtext">Tell us about your shop - it only takes a minute.</p>
+          <p class="auth-subtext" id="signupSubtext">Tell us about your shop - it only takes a minute.</p>
+
+          <p class="account-type-label" data-i18n="accountTypeQuestion">What's this account for?</p>
+          <div class="account-type-picker" id="accountTypePicker">
+            <button type="button" class="account-type-card active" data-account-type="business">
+              <span class="account-type-icon">&#127978;</span>
+              <span class="account-type-title" data-i18n="forShop">My Shop</span>
+              <span class="account-type-desc" data-i18n="forShopDesc">Business orders &amp; bulk pricing</span>
+            </button>
+            <button type="button" class="account-type-card" data-account-type="personal">
+              <span class="account-type-icon">&#127968;</span>
+              <span class="account-type-title" data-i18n="forHome">My Home</span>
+              <span class="account-type-desc" data-i18n="forHomeDesc">Personal orders for your family</span>
+            </button>
+          </div>
 
           <div class="field-row">
-            <div class="field"><label data-i18n="ownerName">Owner name</label><input id="s_name" placeholder="Enter your name" data-i18n-placeholder="enterYourName" /></div>
-            <div class="field"><label data-i18n="shopName">Shop name</label><input id="s_shop" placeholder="Your shop's name" data-i18n-placeholder="yourShopName" /></div>
+            <div class="field"><label id="s_name_label">Owner name</label><input id="s_name" placeholder="Enter your name" data-i18n-placeholder="enterYourName" /></div>
+            <div class="field" id="s_shop_field"><label data-i18n="shopName">Shop name</label><input id="s_shop" placeholder="Your shop's name" data-i18n-placeholder="yourShopName" /></div>
           </div>
           <div class="field-row">
             <div class="field"><label data-i18n="phoneNumber">Cell number</label><input id="s_phone" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
@@ -224,7 +238,7 @@
       <button class="close-btn" id="closeProfile">&times;</button>
     </div>
     <div class="field"><label data-i18n="yourName">Your name</label><input id="p_name" /></div>
-    <div class="field"><label data-i18n="shopName">Shop name</label><input id="p_shop" /></div>
+    <div class="field" id="p_shop_field"><label data-i18n="shopName">Shop name</label><input id="p_shop" /></div>
     <div class="field"><label data-i18n="phoneNumber">Phone / cell number</label><input id="p_phone" /></div>
     <div class="field"><label data-i18n="address">Address</label><textarea id="p_address" rows="2"></textarea></div>
     <p id="profileError" class="error-text" style="display:none;"></p>

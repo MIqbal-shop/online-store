@@ -57,6 +57,9 @@
       rateThis: 'Rate this', switchLang: 'اردو', contact: 'Contact',
       statusConfirmed: 'Confirmed', statusCancelled: 'Cancelled', statusPending: 'Pending',
       adjusted: 'Adjusted', adjustedNote: 'The quantity on some item(s) was changed by the shop before confirming - check the crossed-out vs bold amount below.',
+      accountTypeQuestion: "What's this account for?", forShop: 'My Shop', forShopDesc: 'Business orders & bulk pricing',
+      forHome: 'My Home', forHomeDesc: 'Personal orders for your family',
+      signupSubtextHome: "Tell us a bit about yourself - it only takes a minute.",
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
@@ -99,6 +102,9 @@
       rateThis: 'ریٹ کریں', switchLang: 'English', contact: 'رابطہ',
       statusConfirmed: 'کنفرم', statusCancelled: 'منسوخ', statusPending: 'زیر التوا',
       adjusted: 'تبدیل شدہ', adjustedNote: 'دکان نے کنفرم کرنے سے پہلے کچھ اشیاء کی مقدار تبدیل کی ہے - نیچے کٹی ہوئی اور موٹی مقدار دیکھیں۔',
+      accountTypeQuestion: 'یہ اکاؤنٹ کس کے لیے ہے؟', forShop: 'میری دکان', forShopDesc: 'کاروباری آرڈر اور تھوک قیمتیں',
+      forHome: 'میرا گھر', forHomeDesc: 'اپنے گھر کے لیے ذاتی آرڈر',
+      signupSubtextHome: 'اپنے بارے میں بتائیں - صرف ایک منٹ لگے گا۔',
     },
   };
   let lang = localStorage.getItem('store_lang') || 'en';
@@ -115,6 +121,7 @@
     lang = next;
     localStorage.setItem('store_lang', lang);
     applyI18n();
+    applyAccountTypeUI();
     renderCategoryChips(); // "Category" button label depends on lang
     renderProducts(); // rating lines / reorder button text depend on lang
   }
@@ -378,9 +385,28 @@
     }
   });
 
+  // ---- Account type (shop vs personal) selector on the signup form ----
+  let signupAccountType = 'business';
+  function applyAccountTypeUI() {
+    const isBusiness = signupAccountType === 'business';
+    $('s_shop_field').style.display = isBusiness ? '' : 'none';
+    $('s_name_label').textContent = t(isBusiness ? 'ownerName' : 'yourName');
+    $('signupSubtext').textContent = t(isBusiness ? 'signupSubtext' : 'signupSubtextHome');
+    document.querySelectorAll('.account-type-card').forEach((card) => {
+      card.classList.toggle('active', card.dataset.accountType === signupAccountType);
+    });
+  }
+  document.querySelectorAll('.account-type-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      signupAccountType = card.dataset.accountType;
+      applyAccountTypeUI();
+    });
+  });
+
   $('signupBtn').addEventListener('click', async () => {
     const errEl = $('signupError');
     errEl.style.display = 'none';
+    const isBusiness = signupAccountType === 'business';
     const name = $('s_name').value.trim();
     const whatsapp = $('s_whatsapp').value.trim();
     const shop_name = $('s_shop').value.trim();
@@ -388,8 +414,8 @@
     const address = $('s_address').value.trim();
     const password = $('s_password').value;
 
-    if (!name) { errEl.textContent = 'Please enter the owner name.'; errEl.style.display = 'block'; return; }
-    if (!shop_name) { errEl.textContent = 'Please enter your shop name.'; errEl.style.display = 'block'; return; }
+    if (!name) { errEl.textContent = isBusiness ? 'Please enter the owner name.' : 'Please enter your name.'; errEl.style.display = 'block'; return; }
+    if (isBusiness && !shop_name) { errEl.textContent = 'Please enter your shop name.'; errEl.style.display = 'block'; return; }
     if (!phone) { errEl.textContent = 'Please enter your cell number.'; errEl.style.display = 'block'; return; }
     if (!whatsapp) { errEl.textContent = 'Please enter your WhatsApp number.'; errEl.style.display = 'block'; return; }
     if (!address) { errEl.textContent = 'Please enter your address.'; errEl.style.display = 'block'; return; }
@@ -397,7 +423,7 @@
     try {
       const data = await api('/api/customers/signup', {
         method: 'POST',
-        body: JSON.stringify({ customer_type: 'new', name, whatsapp, shop_name, phone, address, password }),
+        body: JSON.stringify({ customer_type: 'new', account_type: signupAccountType, name, whatsapp, shop_name: isBusiness ? shop_name : '', phone, address, password }),
       });
       token = data.token;
       customer = data.customer;
@@ -845,6 +871,7 @@
     $('p_shop').value = customer.shop_name || '';
     $('p_phone').value = customer.phone || '';
     $('p_address').value = customer.address || '';
+    $('p_shop_field').style.display = customer.account_type === 'personal' ? 'none' : '';
     $('profileError').style.display = 'none';
     $('profileMsg').style.display = 'none';
     $('profileOverlay').style.display = 'flex';
@@ -1153,6 +1180,7 @@
   // ---- Boot ----
   (async () => {
     applyI18n();
+    applyAccountTypeUI();
     await loadStoreInfo();
     setupBannerScrollFade();
     if (token) {

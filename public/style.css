@@ -368,7 +368,12 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
   position: relative; width: 100%; max-width: 960px; min-height: 580px;
   background: var(--paper); border-radius: 26px; overflow: hidden;
   display: grid; grid-template-columns: 1fr 1fr;
-  box-shadow: 0 30px 70px rgba(0,0,0,0.5);
+  box-shadow: 0 30px 70px rgba(0,0,0,0.5), 0 0 0 1px rgba(240,178,61,0.08);
+  animation: authCardIn .55s cubic-bezier(.22,1,.36,1);
+}
+@keyframes authCardIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* -- Left: brand / visual panel -- */
@@ -381,6 +386,11 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
   position: absolute; width: 320px; height: 320px; border-radius: 50%;
   background: radial-gradient(circle, rgba(240,178,61,0.30), transparent 70%);
   top: -80px; right: -90px; pointer-events: none;
+  animation: authGlowFloat 7s ease-in-out infinite;
+}
+@keyframes authGlowFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-14px, 18px) scale(1.08); }
 }
 .auth-visual::after {
   content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%;
@@ -429,10 +439,32 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
   background: #fff; border: 1.5px solid #e6dcc8; color: #241a10;
 }
 .auth-form-inner input::placeholder, .auth-form-inner textarea::placeholder { color: #b7ac97; }
-.auth-form-inner input:focus, .auth-form-inner textarea:focus { border-color: var(--gold-dark); outline-color: var(--gold-dark); }
+.auth-form-inner input, .auth-form-inner textarea { transition: border-color .16s ease, box-shadow .16s ease; }
+.auth-form-inner input:focus, .auth-form-inner textarea:focus {
+  border-color: var(--gold-dark); outline-color: var(--gold-dark);
+  box-shadow: 0 0 0 4px rgba(240,178,61,0.14);
+}
 .auth-form-inner .error-text { color: #c23b3b; }
 .auth-form-inner .pw-toggle-btn { color: var(--gold-dark); }
+.auth-form-panel .btn-gold { font-size: 14.5px; padding: 13px; letter-spacing: 0.01em; transition: transform .14s ease, box-shadow .14s ease, background .14s ease; }
+.auth-form-panel .btn-gold:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(240,178,61,0.35); }
+.auth-form-panel .btn-gold:active { transform: translateY(0); }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ---- Account type picker (shop vs home) on the signup form ---- */
+.account-type-label { font-size: 12px; font-weight: 700; color: #8a7f6e; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 8px; }
+.account-type-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.account-type-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
+  padding: 14px 14px; border-radius: 14px; border: 1.5px solid #e6dcc8; background: #fff; cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.account-type-card:hover { transform: translateY(-1px); }
+.account-type-card.active { border-color: var(--gold-dark); box-shadow: 0 8px 20px rgba(240,178,61,0.22); background: #fffdf7; }
+.account-type-icon { font-size: 22px; line-height: 1; }
+.account-type-title { font-weight: 800; font-size: 13.5px; color: #241a10; }
+.account-type-desc { font-size: 11px; color: #8a7f6e; line-height: 1.35; }
+
 .auth-forgot { text-align: center; margin: 14px 0 0; }
 .auth-forgot a { color: var(--gold-dark); font-weight: 700; font-size: 12.5px; text-decoration: none; }
 .auth-switch-bottom { text-align: center; margin: 18px 0 0; font-size: 12.5px; color: #857a6b; }
