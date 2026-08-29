@@ -478,7 +478,7 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 .admin-login-wrap::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, rgba(240,178,61,0.10), transparent 55%); pointer-events: none; }
 .admin-login-card { position: relative; width: 100%; max-width: 380px; padding: 32px 26px; }
 
-.admin-row { display: flex; align-items: center; justify-content: space-between; padding: 14px; border-bottom: 1px solid var(--line); gap: 12px; }
+.admin-row { display: flex; align-items: center; justify-content: space-between; padding: 22px; border-bottom: 1px solid var(--line); gap: 20px; }
 .admin-row:last-child { border-bottom: none; }
 .pill-status { font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.02em; }
 .pill-new { background: rgba(240,178,61,0.18); color: var(--gold); }
@@ -491,7 +491,7 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 .review-compare-box .total-row { display:flex; justify-content:space-between; font-weight:700; margin-top:8px; padding-top:8px; border-top:1px solid rgba(56,189,248,0.25); color: #7dd3fc; }
 .pill-out { background: rgba(214,69,69,0.18); color: #ff9a9a; }
 .pill-in { background: rgba(90,200,120,0.18); color: #8fd19e; }
-.thumb { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; background: rgba(255,255,255,0.06); flex-shrink: 0; }
+.thumb { width: 116px; height: 116px; border-radius: 14px; object-fit: cover; background: rgba(255,255,255,0.06); flex-shrink: 0; }
 .key-box { font-family: monospace; background: rgba(0,0,0,0.35); color: #c8f7d4; padding: 12px 14px; border-radius: 10px; font-size: 12.5px; word-break: break-all; }
 .empty-note { padding: 24px; text-align: center; color: var(--ink-soft); font-size: 13.5px; }
 
@@ -553,7 +553,7 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 }
 .admin-side.collapsed .tab-badge { position: absolute; top: 6px; right: 6px; margin-left: 0; }
 .logout-tab { color: #ff9a9a; margin-top: 16px; }
-.admin-main { flex: 1; padding: 30px 34px; max-width: 900px; }
+.admin-main { flex: 1; padding: 30px 40px; }
 .admin-main h2 { font-family: 'Anton', sans-serif; text-transform: uppercase; font-size: 26px; margin: 0 0 16px; }
 
 /* Collapsed desktop sidebar - icons only */

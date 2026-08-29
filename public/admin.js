@@ -137,13 +137,13 @@ function priceSummary(p) {
       row.innerHTML = `
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'} <span class="pill-status ${inStock ? 'pill-in' : 'pill-out'}">${inStock ? 'In stock' : 'Out of stock'}</span></div>
-          <div style="font-size:12px; color:var(--ink-soft);">${priceSummary(p)} ${p.company ? '&middot; ' + escapeHtml(p.company) : ''} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
+          <div style="font-weight:700; font-size:18.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'} <span class="pill-status ${inStock ? 'pill-in' : 'pill-out'}">${inStock ? 'In stock' : 'Out of stock'}</span></div>
+          <div style="font-size:15px; color:var(--ink-soft); margin-top:6px;">${priceSummary(p)} ${p.company ? '&middot; ' + escapeHtml(p.company) : ''} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
         </div>
-        <div style="display:flex; gap:6px;">
-          <button class="btn stock-toggle-btn ${inStock ? 'active-in' : ''} stock-in-btn" style="padding:8px 12px; font-size:12px;">In stock</button>
-          <button class="btn stock-toggle-btn ${!inStock ? 'active-out' : ''} stock-out-btn" style="padding:8px 12px; font-size:12px;">Out of stock</button>
-          <button class="btn btn-ghost edit-btn">Edit</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn stock-toggle-btn ${inStock ? 'active-in' : ''} stock-in-btn" style="padding:12px 18px; font-size:14px;">In stock</button>
+          <button class="btn stock-toggle-btn ${!inStock ? 'active-out' : ''} stock-out-btn" style="padding:12px 18px; font-size:14px;">Out of stock</button>
+          <button class="btn btn-ghost edit-btn" style="padding:12px 20px; font-size:14px;">Edit</button>
         </div>
       `;
       row.querySelector('.edit-btn').addEventListener('click', () => openProductModal(p));
