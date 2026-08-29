@@ -205,7 +205,7 @@
     const total = images.length;
     bannerSliderTimer = setInterval(() => {
       idx++;
-      track.style.transition = 'transform .7s cubic-bezier(.65,0,.35,1)';
+      track.style.transition = 'transform 1.4s cubic-bezier(.22,1,.36,1)';
       track.style.transform = `translateX(-${idx * 100}%)`;
       if (idx === total) {
         const onEnd = () => {
@@ -216,7 +216,7 @@
         };
         track.addEventListener('transitionend', onEnd);
       }
-    }, 4000);
+    }, 7500);
   }
 
   function renderContactDropdown(store) {
