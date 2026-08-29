@@ -103,6 +103,10 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
+      <div class="contact-dropdown-wrap" id="contactDropdownWrap" style="position:relative; display:none;">
+        <button class="lang-btn contact-btn" id="contactBtn" type="button">&#9993; <span data-i18n="contact">Contact</span></button>
+        <div class="contact-dropdown" id="contactDropdown"></div>
+      </div>
       <button class="lang-btn" id="langBtn" type="button">اردو</button>
       <button class="menu-btn" id="menuBtn" aria-label="Open menu">
         <span></span><span></span><span></span>
@@ -110,10 +114,9 @@
     </div>
   </div>
 
-  <!-- Homepage banner - fades out as the customer scrolls down to the products -->
+  <!-- Homepage banner - photos rotate one after another, and the whole thing fades out as the customer scrolls down to the products -->
   <div class="homepage-banner" id="homepageBanner" style="display:none;">
-    <img id="bannerImg" src="" alt="" />
-    <div class="banner-contact" id="bannerContact"></div>
+    <div class="banner-track" id="bannerTrack"></div>
   </div>
 
   <div class="wrap">

@@ -1084,8 +1084,68 @@ function priceSummary(p) {
 
   // ---- Store (name, tagline, logo) ----
   let currentLogoData = null;
-  let currentBannerData = null;
+  let currentBannerImages = [];
+  const MAX_BANNER_IMAGES = 10;
+  let currentWhatsapp = [];
+  let currentPhone = [];
+  let currentEmail = [];
   let storeName = 'Our Store';
+
+  function renderBannerPreviews() {
+    const box = $('s_banner_previews');
+    box.innerHTML = '';
+    currentBannerImages.forEach((url, i) => {
+      const thumb = document.createElement('div');
+      thumb.style.cssText = 'position:relative; width:96px; height:64px;';
+      thumb.innerHTML = `
+        <img src="${url}" style="width:100%; height:100%; object-fit:cover; border-radius:8px; border:1px solid var(--line);" />
+        <button type="button" data-remove-banner="${i}" style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#e4483f; color:#fff; border:none; cursor:pointer; font-size:12px; line-height:1;">✕</button>
+      `;
+      thumb.querySelector('[data-remove-banner]').addEventListener('click', () => {
+        currentBannerImages.splice(i, 1);
+        renderBannerPreviews();
+      });
+      box.appendChild(thumb);
+    });
+    $('s_banner_file').disabled = currentBannerImages.length >= MAX_BANNER_IMAGES;
+  }
+
+  function renderPillList(containerId, arr, onRemove) {
+    const box = $(containerId);
+    box.innerHTML = arr.map((val, i) => `
+      <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.06); border:1px solid var(--line); border-radius:999px; padding:6px 8px 6px 14px; margin:0 6px 6px 0; font-size:13px;">
+        <span>${escapeHtml(val)}</span>
+        <button type="button" data-i="${i}" style="width:18px; height:18px; border-radius:50%; background:#e4483f; color:#fff; border:none; cursor:pointer; font-size:11px; line-height:1;">✕</button>
+      </div>
+    `).join('') || `<div style="color:var(--ink-soft); font-size:12.5px;">None added yet.</div>`;
+    Array.from(box.querySelectorAll('button[data-i]')).forEach((btn) => {
+      btn.addEventListener('click', () => onRemove(Number(btn.dataset.i)));
+    });
+  }
+
+  function renderContactLists() {
+    renderPillList('s_whatsapp_list', currentWhatsapp, (i) => { currentWhatsapp.splice(i, 1); renderContactLists(); });
+    renderPillList('s_phone_list', currentPhone, (i) => { currentPhone.splice(i, 1); renderContactLists(); });
+    renderPillList('s_email_list', currentEmail, (i) => { currentEmail.splice(i, 1); renderContactLists(); });
+  }
+
+  function wireAddButton(inputId, addBtnId, arrGetter, max, label) {
+    const commit = () => {
+      const input = $(inputId);
+      const val = input.value.trim();
+      if (!val) return;
+      const arr = arrGetter();
+      if (arr.length >= max) { alert(`You can add up to ${max} ${label}.`); return; }
+      arr.push(val);
+      input.value = '';
+      renderContactLists();
+    };
+    $(addBtnId).addEventListener('click', commit);
+    $(inputId).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
+  }
+  wireAddButton('s_whatsapp_input', 's_whatsapp_add', () => currentWhatsapp, 3, 'WhatsApp numbers');
+  wireAddButton('s_phone_input', 's_phone_add', () => currentPhone, 3, 'phone numbers');
+  wireAddButton('s_email_input', 's_email_add', () => currentEmail, 2, 'emails');
 
   async function loadStoreSettings() {
     try {
@@ -1096,11 +1156,12 @@ function priceSummary(p) {
       $('s_tagline').value = store.tagline || '';
       currentLogoData = store.logo_image || null;
       if (currentLogoData) { $('s_logo_preview').src = currentLogoData; $('s_logo_preview').style.display = 'block'; }
-      currentBannerData = store.banner_image || null;
-      if (currentBannerData) { $('s_banner_preview').src = currentBannerData; $('s_banner_preview').style.display = 'block'; }
-      $('s_contact_whatsapp').value = store.contact_whatsapp || '';
-      $('s_contact_phone').value = store.contact_phone || '';
-      $('s_contact_email').value = store.contact_email || '';
+      currentBannerImages = Array.isArray(store.banner_images) ? [...store.banner_images] : [];
+      renderBannerPreviews();
+      currentWhatsapp = Array.isArray(store.contact_whatsapp) ? [...store.contact_whatsapp] : [];
+      currentPhone = Array.isArray(store.contact_phone) ? [...store.contact_phone] : [];
+      currentEmail = Array.isArray(store.contact_email) ? [...store.contact_email] : [];
+      renderContactLists();
     } catch (e) { console.error(e); }
   }
 
@@ -1123,21 +1184,30 @@ function priceSummary(p) {
   });
 
   $('s_banner_file').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
-    if (!file) return;
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      const { url } = await api('/api/admin/upload-image', {
-        method: 'POST',
-        body: JSON.stringify({ data: dataUrl, filename: 'store-banner' }),
-      });
-      currentBannerData = url;
-      $('s_banner_preview').src = currentBannerData;
-      $('s_banner_preview').style.display = 'block';
-    } catch (err) {
-      alert(`Banner upload failed: ${err.message}`);
+    if (!files.length) return;
+    const room = MAX_BANNER_IMAGES - currentBannerImages.length;
+    if (room <= 0) { alert(`You can add up to ${MAX_BANNER_IMAGES} banner photos.`); return; }
+    const toUpload = files.slice(0, room);
+    const statusEl = $('s_banner_status');
+    statusEl.style.display = 'block';
+    for (let i = 0; i < toUpload.length; i++) {
+      statusEl.textContent = `Uploading photo ${i + 1} of ${toUpload.length}...`;
+      try {
+        const dataUrl = await readFileAsDataUrl(toUpload[i]);
+        const { url } = await api('/api/admin/upload-image', {
+          method: 'POST',
+          body: JSON.stringify({ data: dataUrl, filename: 'store-banner' }),
+        });
+        currentBannerImages.push(url);
+        renderBannerPreviews();
+      } catch (err) {
+        alert(`Banner photo upload failed: ${err.message}`);
+        break;
+      }
     }
+    statusEl.style.display = 'none';
   });
 
   $('migrateImagesBtn').addEventListener('click', async () => {
@@ -1172,10 +1242,10 @@ function priceSummary(p) {
         method: 'PUT',
         body: JSON.stringify({
           store_name, tagline: $('s_tagline').value.trim(), logo_image: currentLogoData,
-          banner_image: currentBannerData,
-          contact_whatsapp: $('s_contact_whatsapp').value.trim(),
-          contact_phone: $('s_contact_phone').value.trim(),
-          contact_email: $('s_contact_email').value.trim(),
+          banner_images: currentBannerImages,
+          contact_whatsapp: currentWhatsapp,
+          contact_phone: currentPhone,
+          contact_email: currentEmail,
         }),
       });
       msgEl.style.display = 'block';

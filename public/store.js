@@ -54,7 +54,7 @@
       currentPassword: 'Current password', newPassword: 'New password', confirmNewPassword: 'Confirm new password',
       passwordChanged: 'Password changed.', changePassword: 'Change password', reorder: 'Reorder',
       noReviewsYet: 'No reviews yet - be the first!', pickARating: 'Please pick a star rating.',
-      rateThis: 'Rate this', switchLang: 'اردو',
+      rateThis: 'Rate this', switchLang: 'اردو', contact: 'Contact',
       statusConfirmed: 'Confirmed', statusCancelled: 'Cancelled', statusPending: 'Pending',
       adjusted: 'Adjusted', adjustedNote: 'The quantity on some item(s) was changed by the shop before confirming - check the crossed-out vs bold amount below.',
     },
@@ -96,7 +96,7 @@
       currentPassword: 'موجودہ پاسورڈ', newPassword: 'نیا پاسورڈ', confirmNewPassword: 'نیا پاسورڈ دوبارہ لکھیں',
       passwordChanged: 'پاسورڈ تبدیل ہو گیا۔', changePassword: 'پاسورڈ تبدیل کریں', reorder: 'دوبارہ آرڈر کریں',
       noReviewsYet: 'ابھی تک کوئی رائے موجود نہیں - سب سے پہلے آپ لکھیں!', pickARating: 'براہ کرم ستارے منتخب کریں۔',
-      rateThis: 'ریٹ کریں', switchLang: 'English',
+      rateThis: 'ریٹ کریں', switchLang: 'English', contact: 'رابطہ',
       statusConfirmed: 'کنفرم', statusCancelled: 'منسوخ', statusPending: 'زیر التوا',
       adjusted: 'تبدیل شدہ', adjustedNote: 'دکان نے کنفرم کرنے سے پہلے کچھ اشیاء کی مقدار تبدیل کی ہے - نیچے کٹی ہوئی اور موٹی مقدار دیکھیں۔',
     },
@@ -176,26 +176,83 @@
 
       const bannerBox = $('homepageBanner');
       if (bannerBox) {
-        if (store.banner_image) {
-          $('bannerImg').src = store.banner_image;
+        const images = Array.isArray(store.banner_images) ? store.banner_images.filter(Boolean) : [];
+        if (images.length) {
           bannerBox.style.display = 'block';
+          setupBannerSlider(images);
         } else {
           bannerBox.style.display = 'none';
         }
-        const links = [];
-        if (store.contact_whatsapp) {
-          const wa = String(store.contact_whatsapp).replace(/[^0-9]/g, '');
-          links.push(`<a href="https://wa.me/${wa}" target="_blank" rel="noopener">&#128172; WhatsApp</a>`);
-        }
-        if (store.contact_phone) {
-          links.push(`<a href="tel:${String(store.contact_phone).replace(/[^0-9+]/g, '')}">&#128222; ${escapeHtml(store.contact_phone)}</a>`);
-        }
-        if (store.contact_email) {
-          links.push(`<a href="mailto:${store.contact_email}">&#9993; Email</a>`);
-        }
-        $('bannerContact').innerHTML = links.join('');
       }
+      renderContactDropdown(store);
     } catch (e) { console.error(e); }
+  }
+
+  // Banner photos rotate one after another (sliding right to left), and the
+  // whole banner smoothly fades and lifts away as the customer scrolls down
+  // toward the products, rather than just disappearing abruptly.
+  let bannerSliderTimer = null;
+  function setupBannerSlider(images) {
+    const track = $('bannerTrack');
+    if (!track) return;
+    if (bannerSliderTimer) { clearInterval(bannerSliderTimer); bannerSliderTimer = null; }
+    const slides = images.length > 1 ? [...images, images[0]] : images;
+    track.innerHTML = slides.map((url) => `<img src="${url}" alt="" />`).join('');
+    track.style.transition = 'none';
+    track.style.transform = 'translateX(0%)';
+    if (images.length <= 1) return;
+    let idx = 0;
+    const total = images.length;
+    bannerSliderTimer = setInterval(() => {
+      idx++;
+      track.style.transition = 'transform .7s cubic-bezier(.65,0,.35,1)';
+      track.style.transform = `translateX(-${idx * 100}%)`;
+      if (idx === total) {
+        const onEnd = () => {
+          track.removeEventListener('transitionend', onEnd);
+          track.style.transition = 'none';
+          track.style.transform = 'translateX(0%)';
+          idx = 0;
+        };
+        track.addEventListener('transitionend', onEnd);
+      }
+    }, 4000);
+  }
+
+  function renderContactDropdown(store) {
+    const wrap = $('contactDropdownWrap');
+    const btn = $('contactBtn');
+    const panel = $('contactDropdown');
+    if (!wrap || !btn || !panel) return;
+    const wa = Array.isArray(store.contact_whatsapp) ? store.contact_whatsapp.filter(Boolean) : [];
+    const ph = Array.isArray(store.contact_phone) ? store.contact_phone.filter(Boolean) : [];
+    const em = Array.isArray(store.contact_email) ? store.contact_email.filter(Boolean) : [];
+    if (!wa.length && !ph.length && !em.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    let html = '';
+    if (wa.length) {
+      html += `<div class="contact-dropdown-label">WhatsApp</div>`;
+      html += wa.map((n) => `<a href="https://wa.me/${String(n).replace(/[^0-9]/g, '')}" target="_blank" rel="noopener">&#128172; ${escapeHtml(n)}</a>`).join('');
+    }
+    if (ph.length) {
+      html += `<div class="contact-dropdown-label">Call</div>`;
+      html += ph.map((n) => `<a href="tel:${String(n).replace(/[^0-9+]/g, '')}">&#128222; ${escapeHtml(n)}</a>`).join('');
+    }
+    if (em.length) {
+      html += `<div class="contact-dropdown-label">Email</div>`;
+      html += em.map((e) => `<a href="mailto:${e}">&#9993; ${escapeHtml(e)}</a>`).join('');
+    }
+    panel.innerHTML = html;
+    if (!btn.dataset.wired) {
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('open');
+      });
+      document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target)) panel.classList.remove('open');
+      });
+    }
   }
 
   // Banner smoothly fades and lifts away as the customer scrolls down toward

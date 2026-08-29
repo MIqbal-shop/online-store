@@ -147,14 +147,36 @@
           <img id="s_logo_preview" style="max-width:80px; margin-top:8px; border-radius:8px; display:none;" />
         </div>
         <div class="field">
-          <label>Homepage Banner (optional)</label>
-          <p style="color:var(--ink-soft); font-size:12.5px; margin:0 0 6px;">Shows above the products. Fades out as customers scroll down. A wide image (e.g. 1600x600) looks best.</p>
-          <input id="s_banner_file" type="file" accept="image/*" />
-          <img id="s_banner_preview" style="max-width:100%; margin-top:8px; border-radius:8px; display:none;" />
+          <label>Homepage Banner Photos (optional, up to 10)</label>
+          <p style="color:var(--ink-soft); font-size:12.5px; margin:0 0 6px;">Shown above the products and rotate automatically, one sliding in after another. Fades out as customers scroll down. Wide images (e.g. 1600x600) look best.</p>
+          <input id="s_banner_file" type="file" accept="image/*" multiple />
+          <div id="s_banner_status" style="font-size:12px; color:var(--ink-soft); margin-top:4px; display:none;"></div>
+          <div id="s_banner_previews" style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;"></div>
         </div>
-        <div class="field"><label>WhatsApp Number (optional)</label><input id="s_contact_whatsapp" placeholder="e.g. 923001234567" /></div>
-        <div class="field"><label>Phone Number (optional)</label><input id="s_contact_phone" placeholder="e.g. 03001234567" /></div>
-        <div class="field"><label>Email (optional)</label><input id="s_contact_email" placeholder="e.g. shop@example.com" /></div>
+        <div class="field">
+          <label>WhatsApp Numbers (optional, up to 3)</label>
+          <div id="s_whatsapp_list" style="margin-bottom:6px;"></div>
+          <div style="display:flex; gap:8px;">
+            <input id="s_whatsapp_input" placeholder="e.g. 923001234567" style="flex:1;" />
+            <button type="button" class="btn btn-ghost" id="s_whatsapp_add" style="white-space:nowrap; padding:0 16px;">+ Add</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Phone Numbers (optional, up to 3)</label>
+          <div id="s_phone_list" style="margin-bottom:6px;"></div>
+          <div style="display:flex; gap:8px;">
+            <input id="s_phone_input" placeholder="e.g. 03001234567" style="flex:1;" />
+            <button type="button" class="btn btn-ghost" id="s_phone_add" style="white-space:nowrap; padding:0 16px;">+ Add</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Emails (optional, up to 2)</label>
+          <div id="s_email_list" style="margin-bottom:6px;"></div>
+          <div style="display:flex; gap:8px;">
+            <input id="s_email_input" placeholder="e.g. shop@example.com" style="flex:1;" />
+            <button type="button" class="btn btn-ghost" id="s_email_add" style="white-space:nowrap; padding:0 16px;">+ Add</button>
+          </div>
+        </div>
         <p id="storeError" class="error-text" style="display:none;"></p>
         <button class="btn btn-navy" id="saveStoreBtn">Save</button>
         <p id="storeMsg" style="font-size:12.5px; color:var(--green); margin-top:8px; display:none;">Saved.</p>
