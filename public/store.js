@@ -259,11 +259,16 @@
   // Each product tile fades/slides into view as it scrolls onto the screen,
   // and fades back out as it scrolls off the top - the reverse of how the
   // homepage banner behaves (which fades out going down; these fade out
-  // going up, and back in coming from below).
+  // going up, and back in coming from below). Once a tile has been seen at
+  // least once, later re-renders (quantity changes, search, filters) show
+  // it immediately instead of replaying the entrance animation - otherwise
+  // every unrelated click would cause a distracting flash across the page.
+  const revealedProductIds = new Set();
   const productRevealObserver = ('IntersectionObserver' in window)
     ? new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           entry.target.classList.toggle('in-view', entry.isIntersecting);
+          if (entry.isIntersecting && entry.target.dataset.pid) revealedProductIds.add(entry.target.dataset.pid);
         });
       }, { threshold: 0.15 })
     : null;
@@ -675,14 +680,30 @@
       if (options.length > 1) {
         tile.querySelectorAll('.unit-opt').forEach((btn) => {
           btn.addEventListener('click', () => {
+            // Switch units without rebuilding the whole product grid - a full
+            // re-render would replay every card's scroll-reveal animation,
+            // causing a visible flash/blink across the page for one click.
             selectedUnit[p.id] = btn.dataset.unit;
-            renderProducts();
+            const newInfo = options.find((o) => o.key === btn.dataset.unit) || options[0];
+            tile.querySelectorAll('.unit-opt').forEach((b) => b.classList.toggle('active', b === btn));
+            const priceEl = tile.querySelector('.product-price');
+            if (priceEl) priceEl.innerHTML = `${money(newInfo.price)} <span class="unit">${newInfo.label ? '/ ' + escapeHtml(newInfo.label) : ''}</span>`;
+            const qtyValEl = tile.querySelector('.qty-val');
+            if (qtyValEl) qtyValEl.textContent = cart[cartKey(p.id, newInfo.key)]?.qty || 0;
           });
         });
       }
       if (inStock) {
-        tile.querySelector('.minus').addEventListener('click', () => changeQty(p, info, -1));
-        tile.querySelector('.plus').addEventListener('click', () => changeQty(p, info, 1));
+        tile.querySelector('.minus').addEventListener('click', () => {
+          const activeKey = selectedUnit[p.id] || options[0].key;
+          const currentInfo = options.find((o) => o.key === activeKey) || options[0];
+          changeQty(p, currentInfo, -1);
+        });
+        tile.querySelector('.plus').addEventListener('click', () => {
+          const activeKey = selectedUnit[p.id] || options[0].key;
+          const currentInfo = options.find((o) => o.key === activeKey) || options[0];
+          changeQty(p, currentInfo, 1);
+        });
       }
       tile.querySelector('.fav-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(p.id); });
       tile.querySelector('[data-open-reviews]').addEventListener('click', (e) => { e.stopPropagation(); openReviews(p); });
@@ -692,8 +713,13 @@
       wireCarousel(tile);
       wrap.appendChild(tile);
       grid.appendChild(wrap);
-      if (productRevealObserver) productRevealObserver.observe(wrap);
-      else wrap.classList.add('in-view'); // no IntersectionObserver support - just show it
+      wrap.dataset.pid = String(p.id);
+      if (productRevealObserver) {
+        if (revealedProductIds.has(String(p.id))) wrap.classList.add('in-view');
+        else productRevealObserver.observe(wrap);
+      } else {
+        wrap.classList.add('in-view'); // no IntersectionObserver support - just show it
+      }
     });
   }
 

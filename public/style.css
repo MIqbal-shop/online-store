@@ -231,14 +231,21 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 .product-price { font-family: 'Anton', sans-serif; font-size: 18px; }
 .product-price .unit { font-size: 10.5px; font-family: 'Inter'; font-weight: 600; text-transform: none; opacity: 0.75; }
 
-.unit-toggle-slot { min-height: 32px; margin-top: 8px; display: flex; align-items: center; }
-.unit-toggle { display: flex; gap: 4px; background: rgba(0,0,0,0.16); padding: 4px; border-radius: 12px; width: 100%; }
-.unit-opt {
-  flex: 1; padding: 8px 6px; border-radius: 9px; border: none; background: transparent; color: inherit;
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.01em; cursor: pointer;
-  opacity: 0.68; transition: background .18s ease, color .18s ease, box-shadow .18s ease, opacity .18s ease;
+.unit-toggle-slot { min-height: 34px; margin-top: 10px; display: flex; align-items: center; }
+.unit-toggle {
+  display: flex; gap: 3px; width: 100%; background: rgba(0,0,0,0.2); padding: 3px; border-radius: 999px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);
 }
-.unit-opt.active { background: rgba(255,255,255,0.94); color: #241800; opacity: 1; box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
+.unit-opt {
+  flex: 1; padding: 8px 8px; border-radius: 999px; border: none; background: transparent; color: inherit;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  opacity: 0.6; transition: background .2s ease, color .2s ease, box-shadow .2s ease, opacity .2s ease, transform .12s ease;
+}
+.unit-opt:active { transform: scale(0.94); }
+.unit-opt.active {
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.88));
+  color: #241800; opacity: 1; box-shadow: 0 3px 8px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.5);
+}
 .tile-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; transform: translateZ(35px); flex-wrap: wrap; }
 
 .qty-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; transform: translateZ(40px); flex-wrap: wrap; }
