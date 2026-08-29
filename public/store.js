@@ -548,21 +548,21 @@
   function unitOptions(p) {
     if (p.packing_type === 'carton_box_piece') {
       return [
-        { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
-        { key: 'box', label: 'Box', price: Number(p.price_box) },
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+        { key: 'box', label: 'Box', price: Number(p.price_box) },
+        { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
       ];
     }
     if (p.packing_type === 'carton_piece') {
       return [
-        { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+        { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
       ];
     }
     if (p.packing_type === 'box_piece') {
       return [
-        { key: 'box', label: 'Box', price: Number(p.price_box) },
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
+        { key: 'box', label: 'Box', price: Number(p.price_box) },
       ];
     }
     return [{ key: 'single', label: p.unit, price: Number(p.price) }];
