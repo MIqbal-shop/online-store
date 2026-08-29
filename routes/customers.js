@@ -5,7 +5,7 @@ const { pool } = require('../db');
 const { hashPassword, makeSalt, verifyPassword, createSession, destroySession, requireCustomer } = require('../auth');
 
 function publicFields(row) {
-  return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type };
+  return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type, account_type: row.account_type || 'business' };
 }
 
 // Short, easy-to-type temporary password: e.g. "K7QX9PLM"
@@ -14,20 +14,26 @@ function generateTempPassword() {
 }
 
 // POST /api/customers/signup
-// body: { customer_type: 'new'|'old', name, shop_name, phone, whatsapp, address, password }
+// body: { customer_type: 'new'|'old', account_type: 'business'|'personal', name, shop_name, phone, whatsapp, address, password }
 // shop_name/phone/address only required when customer_type is 'new' - same
-// rule the old per-order form used to apply, just asked once now.
+// rule the old per-order form used to apply, just asked once now. shop_name
+// specifically is only required (and only meaningful) for a 'business'
+// account - a 'personal' (home) account skips it entirely.
 router.post('/signup', async (req, res, next) => {
   try {
-    const { customer_type, name, shop_name, phone, whatsapp, address, password } = req.body;
+    const { customer_type, account_type, name, shop_name, phone, whatsapp, address, password } = req.body;
     if (customer_type !== 'new' && customer_type !== 'old') {
       return res.status(400).json({ error: 'Please select whether you are a new or existing customer.' });
     }
+    const accountType = account_type === 'personal' ? 'personal' : 'business';
     if (!name || !name.trim()) return res.status(400).json({ error: 'Please enter your name.' });
     if (!whatsapp || !whatsapp.trim()) return res.status(400).json({ error: 'Please enter your WhatsApp number.' });
     if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-    if (customer_type === 'new' && (!shop_name || !phone || !address)) {
-      return res.status(400).json({ error: 'Shop name, phone number, and address are required.' });
+    if (customer_type === 'new' && (!phone || !address)) {
+      return res.status(400).json({ error: 'Phone number and address are required.' });
+    }
+    if (customer_type === 'new' && accountType === 'business' && !shop_name) {
+      return res.status(400).json({ error: 'Shop name is required.' });
     }
 
     const existing = await pool.query('SELECT id FROM customers WHERE whatsapp=$1', [whatsapp.trim()]);
@@ -38,9 +44,9 @@ router.post('/signup', async (req, res, next) => {
     const salt = makeSalt();
     const hash = hashPassword(password, salt);
     const { rows } = await pool.query(
-      `INSERT INTO customers (customer_type, name, shop_name, phone, whatsapp, address, password_hash, password_salt)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [customer_type, name.trim(), (shop_name || '').trim(), (phone || '').trim(), whatsapp.trim(), (address || '').trim(), hash, salt]
+      `INSERT INTO customers (customer_type, account_type, name, shop_name, phone, whatsapp, address, password_hash, password_salt)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [customer_type, accountType, name.trim(), accountType === 'business' ? (shop_name || '').trim() : '', (phone || '').trim(), whatsapp.trim(), (address || '').trim(), hash, salt]
     );
     const token = await createSession('customer', rows[0].id);
     res.json({ token, customer: publicFields(rows[0]) });
