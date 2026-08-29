@@ -188,47 +188,34 @@
     } catch (e) { console.error(e); }
   }
 
-  // Banner photos rotate one after another (sliding right to left), and the
-  // whole banner smoothly fades and lifts away as the customer scrolls down
-  // toward the products, rather than just disappearing abruptly.
+  // Banner photos slowly crossfade one into the next (one gently fades away
+  // as the next fades in), and the whole banner smoothly fades and lifts
+  // away as the customer scrolls down toward the products.
   let bannerSliderTimer = null;
   function setupBannerSlider(images) {
     const track = $('bannerTrack');
     if (!track) return;
     if (bannerSliderTimer) { clearInterval(bannerSliderTimer); bannerSliderTimer = null; }
-    const slides = images.length > 1 ? [...images, images[0]] : images;
-    track.innerHTML = slides.map((url) => `<img src="${url}" alt="" />`).join('');
-    track.style.transition = 'none';
-    track.style.transform = 'translateX(0%)';
+    track.innerHTML = images.map((url, i) => `<img src="${url}" class="${i === 0 ? 'active' : ''}" alt="" />`).join('');
     if (images.length <= 1) return;
+    const imgs = Array.from(track.querySelectorAll('img'));
     let idx = 0;
-    const total = images.length;
     bannerSliderTimer = setInterval(() => {
-      idx++;
-      track.style.transition = 'transform 1.4s cubic-bezier(.22,1,.36,1)';
-      track.style.transform = `translateX(-${idx * 100}%)`;
-      if (idx === total) {
-        const onEnd = () => {
-          track.removeEventListener('transitionend', onEnd);
-          track.style.transition = 'none';
-          track.style.transform = 'translateX(0%)';
-          idx = 0;
-        };
-        track.addEventListener('transitionend', onEnd);
-      }
+      imgs[idx].classList.remove('active');
+      idx = (idx + 1) % imgs.length;
+      imgs[idx].classList.add('active');
     }, 7500);
   }
 
   function renderContactDropdown(store) {
-    const wrap = $('contactDropdownWrap');
     const btn = $('contactBtn');
     const panel = $('contactDropdown');
-    if (!wrap || !btn || !panel) return;
+    if (!btn || !panel) return;
     const wa = Array.isArray(store.contact_whatsapp) ? store.contact_whatsapp.filter(Boolean) : [];
     const ph = Array.isArray(store.contact_phone) ? store.contact_phone.filter(Boolean) : [];
     const em = Array.isArray(store.contact_email) ? store.contact_email.filter(Boolean) : [];
-    if (!wa.length && !ph.length && !em.length) { wrap.style.display = 'none'; return; }
-    wrap.style.display = 'block';
+    if (!wa.length && !ph.length && !em.length) { btn.style.display = 'none'; panel.style.display = 'none'; return; }
+    btn.style.display = 'flex';
     let html = '';
     if (wa.length) {
       html += `<div class="contact-dropdown-label">WhatsApp</div>`;
@@ -245,12 +232,9 @@
     panel.innerHTML = html;
     if (!btn.dataset.wired) {
       btn.dataset.wired = '1';
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
+      btn.addEventListener('click', () => {
         panel.classList.toggle('open');
-      });
-      document.addEventListener('click', (e) => {
-        if (!wrap.contains(e.target)) panel.classList.remove('open');
+        $('contactCaret').classList.toggle('open');
       });
     }
   }
@@ -271,6 +255,18 @@
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
   }
+
+  // Each product tile fades/slides into view as it scrolls onto the screen,
+  // and fades back out as it scrolls off the top - the reverse of how the
+  // homepage banner behaves (which fades out going down; these fade out
+  // going up, and back in coming from below).
+  const productRevealObserver = ('IntersectionObserver' in window)
+    ? new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          entry.target.classList.toggle('in-view', entry.isIntersecting);
+        });
+      }, { threshold: 0.15 })
+    : null;
 
   // ---- 3D tilt effect for product tiles ----
   function attachTilt(el) {
@@ -696,6 +692,8 @@
       wireCarousel(tile);
       wrap.appendChild(tile);
       grid.appendChild(wrap);
+      if (productRevealObserver) productRevealObserver.observe(wrap);
+      else wrap.classList.add('in-view'); // no IntersectionObserver support - just show it
     });
   }
 
