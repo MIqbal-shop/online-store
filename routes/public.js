@@ -4,12 +4,31 @@ const { pool } = require('../db');
 const { requireCustomer } = require('../auth');
 
 // GET /api/store-info - branding shown on the storefront (name, tagline,
-// logo, homepage banner, contact details). Public because the storefront
-// itself needs it before any login.
+// logo, homepage banner photos, contact details). Public because the
+// storefront itself needs it before any login. Always returns arrays for
+// banner_images / contact_whatsapp / contact_phone / contact_email, falling
+// back to the older single-value columns if the newer list is still empty.
 router.get('/store-info', async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT store_name, tagline, logo_image, banner_image, contact_whatsapp, contact_phone, contact_email FROM store_settings WHERE id=1');
-    res.json({ store: rows[0] || { store_name: 'IQBAL TRADER', tagline: '', logo_image: null, banner_image: null, contact_whatsapp: '', contact_phone: '', contact_email: '' } });
+    const { rows } = await pool.query(
+      `SELECT store_name, tagline, logo_image, banner_image, banner_images,
+              contact_whatsapp, contact_phone, contact_email,
+              contact_whatsapp_list, contact_phone_list, contact_email_list
+       FROM store_settings WHERE id=1`
+    );
+    const row = rows[0] || {};
+    const orFallback = (list, single) => (Array.isArray(list) && list.length ? list : (single ? [single] : []));
+    res.json({
+      store: {
+        store_name: row.store_name || 'IQBAL TRADER',
+        tagline: row.tagline || '',
+        logo_image: row.logo_image || null,
+        banner_images: orFallback(row.banner_images, row.banner_image),
+        contact_whatsapp: orFallback(row.contact_whatsapp_list, row.contact_whatsapp),
+        contact_phone: orFallback(row.contact_phone_list, row.contact_phone),
+        contact_email: orFallback(row.contact_email_list, row.contact_email),
+      },
+    });
   } catch (err) { next(err); }
 });
 
