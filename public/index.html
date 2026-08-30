@@ -4,6 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
 <title>Online Order</title>
+<script>
+  // Applied before the stylesheet paints anything, so there's no flash of
+  // the wrong theme on load.
+  (function () {
+    try {
+      var saved = localStorage.getItem('store_theme');
+      if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,6 +21,9 @@
 <!-- Auth gate - shown until a valid customer session exists -->
 <div class="auth-gate" id="authGate">
   <div class="auth-card">
+    <button class="theme-toggle-btn" id="themeToggleAuth" type="button" aria-label="Toggle light/dark mode">
+      <span class="theme-icon-dark">&#9789;</span><span class="theme-icon-light">&#9728;</span>
+    </button>
 
     <!-- Left brand / visual panel (hidden on very small screens) -->
     <div class="auth-visual">
@@ -125,6 +138,9 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:10px;">
+      <button class="theme-toggle-btn theme-toggle-btn-inline" id="themeToggle" type="button" aria-label="Toggle light/dark mode">
+        <span class="theme-icon-dark">&#9789;</span><span class="theme-icon-light">&#9728;</span>
+      </button>
       <button class="lang-btn" id="langBtn" type="button">اردو</button>
       <button class="menu-btn" id="menuBtn" aria-label="Open menu">
         <span></span><span></span><span></span>

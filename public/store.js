@@ -150,6 +150,20 @@
     return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
+  // ---- Dark / light theme toggle (persisted, applies everywhere - the
+  // login/signup page and the shop after logging in) ----
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('store_theme', theme);
+  }
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    applyTheme(current === 'light' ? 'dark' : 'light');
+  }
+  [$('themeToggle'), $('themeToggleAuth')].forEach((btn) => {
+    if (btn) btn.addEventListener('click', toggleTheme);
+  });
+
   // ---- Show/Hide toggle for every password field on the page ----
   function wirePasswordToggles() {
     document.querySelectorAll('input[type="password"]').forEach((input) => {
@@ -529,50 +543,69 @@
         </div>
       `;
     };
-    // Duplicated once so the strip can auto-scroll endlessly: once the
-    // real content has fully passed by, we snap scrollLeft back by exactly
-    // one set-width (content is pixel-identical there, so it's invisible)
-    // instead of jumping to some arbitrary card - it just keeps flowing.
-    const loopList = chosen.length > 1 ? [...chosen, ...chosen] : chosen;
+    // Duplicated three times so there's buffer content on both sides -
+    // this lets the strip loop endlessly in either direction, whether it's
+    // autoplaying or the customer is scrolling/dragging it manually.
+    const loopList = chosen.length > 1 ? [...chosen, ...chosen, ...chosen] : chosen;
     scroll.innerHTML = loopList.map(cardHtml).join('');
     scroll.querySelectorAll('.na-card').forEach((card) => {
       card.addEventListener('click', () => jumpToProduct(Number(card.dataset.naPid)));
     });
-    setupAutoScroll(scroll, chosen.length);
+    setupInfiniteScroll(scroll, chosen.length);
   }
 
-  // Auto-plays the "new arrivals" strip: it drifts steadily to the left on
-  // its own, and once the first full set of cards has scrolled by, we snap
-  // scrollLeft back one set-width - the duplicated content lines up exactly
-  // there, so nothing visibly jumps, it just keeps gliding forward forever.
-  // The moment the customer touches/drags/scrolls it themselves, autoplay
-  // stops for good and it behaves like a normal scrollable strip.
+  // Makes the "new arrivals" strip loop forever in both directions, during
+  // both autoplay and manual scrolling/dragging:
+  // - The list is rendered 3x back to back; we start in the middle copy so
+  //   there's always a full set of buffer content on either side.
+  // - A permanent scroll listener watches the position and, whenever it
+  //   gets close to either edge of that buffer, instantly (no animation,
+  //   scroll-behavior is "auto" on this element) snaps back by exactly one
+  //   set-width - landing on pixel-identical duplicate content, so nothing
+  //   visibly jumps. This keeps working no matter how the scroll happened.
+  // - Separately, autoplay nudges scrollLeft forward every frame until the
+  //   customer touches/drags/scrolls the strip themselves, at which point
+  //   autoplay stops for good - the infinite-loop behavior above keeps
+  //   running either way.
   let naAutoScrollHandle = null;
-  function setupAutoScroll(container, originalCount) {
+  function setupInfiniteScroll(container, originalCount) {
     if (naAutoScrollHandle) { cancelAnimationFrame(naAutoScrollHandle); naAutoScrollHandle = null; }
     if (originalCount <= 1) return;
     requestAnimationFrame(() => {
       const cards = container.querySelectorAll('.na-card');
-      if (cards.length < originalCount * 2) return;
+      if (cards.length < originalCount * 3) return;
       const gap = parseFloat(getComputedStyle(container).columnGap || getComputedStyle(container).gap) || 14;
       const setWidth = (cards[0].getBoundingClientRect().width + gap) * originalCount;
-      let paused = false;
-      const stop = () => {
-        if (paused) return;
-        paused = true;
+      container.scrollLeft = setWidth;
+
+      let ticking = false;
+      container.addEventListener('scroll', () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          if (container.scrollLeft < setWidth * 0.5) container.scrollLeft += setWidth;
+          else if (container.scrollLeft > setWidth * 1.5) container.scrollLeft -= setWidth;
+          ticking = false;
+        });
+      }, { passive: true });
+
+      let autoplayPaused = false;
+      const stopAutoplay = () => {
+        if (autoplayPaused) return;
+        autoplayPaused = true;
         if (naAutoScrollHandle) { cancelAnimationFrame(naAutoScrollHandle); naAutoScrollHandle = null; }
-        container.removeEventListener('pointerdown', stop);
-        container.removeEventListener('wheel', stop);
-        container.removeEventListener('touchstart', stop);
+        container.removeEventListener('pointerdown', stopAutoplay);
+        container.removeEventListener('wheel', stopAutoplay);
+        container.removeEventListener('touchstart', stopAutoplay);
       };
-      container.addEventListener('pointerdown', stop, { passive: true });
-      container.addEventListener('wheel', stop, { passive: true });
-      container.addEventListener('touchstart', stop, { passive: true });
+      container.addEventListener('pointerdown', stopAutoplay, { passive: true });
+      container.addEventListener('wheel', stopAutoplay, { passive: true });
+      container.addEventListener('touchstart', stopAutoplay, { passive: true });
+
       const SPEED = 0.5; // pixels per frame
       function step() {
-        if (paused) return;
+        if (autoplayPaused) return;
         container.scrollLeft += SPEED;
-        if (container.scrollLeft >= setWidth) container.scrollLeft -= setWidth;
         naAutoScrollHandle = requestAnimationFrame(step);
       }
       naAutoScrollHandle = requestAnimationFrame(step);
