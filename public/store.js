@@ -529,42 +529,53 @@
         </div>
       `;
     };
-    // Tripled so the strip can scroll endlessly in either direction - see
-    // setupInfiniteScroll(), which silently snaps back into the middle copy
-    // once the edges of the buffer are reached.
-    const loopList = chosen.length > 1 ? [...chosen, ...chosen, ...chosen] : chosen;
+    // Duplicated once so the strip can auto-scroll endlessly: once the
+    // real content has fully passed by, we snap scrollLeft back by exactly
+    // one set-width (content is pixel-identical there, so it's invisible)
+    // instead of jumping to some arbitrary card - it just keeps flowing.
+    const loopList = chosen.length > 1 ? [...chosen, ...chosen] : chosen;
     scroll.innerHTML = loopList.map(cardHtml).join('');
     scroll.querySelectorAll('.na-card').forEach((card) => {
       card.addEventListener('click', () => jumpToProduct(Number(card.dataset.naPid)));
     });
-    setupInfiniteScroll(scroll, chosen.length);
+    setupAutoScroll(scroll, chosen.length);
   }
 
-  // Makes a horizontally-scrolling strip feel endless: the caller renders
-  // the item list three times back to back, we start the scroll position
-  // in the middle copy, and whenever the user scrolls near either edge of
-  // that buffer we instantly (no animation) jump exactly one set-width
-  // forward/back - landing on the same visual content, so the loop is
-  // invisible to the customer.
-  function setupInfiniteScroll(container, originalCount) {
+  // Auto-plays the "new arrivals" strip: it drifts steadily to the left on
+  // its own, and once the first full set of cards has scrolled by, we snap
+  // scrollLeft back one set-width - the duplicated content lines up exactly
+  // there, so nothing visibly jumps, it just keeps gliding forward forever.
+  // The moment the customer touches/drags/scrolls it themselves, autoplay
+  // stops for good and it behaves like a normal scrollable strip.
+  let naAutoScrollHandle = null;
+  function setupAutoScroll(container, originalCount) {
+    if (naAutoScrollHandle) { cancelAnimationFrame(naAutoScrollHandle); naAutoScrollHandle = null; }
     if (originalCount <= 1) return;
     requestAnimationFrame(() => {
       const cards = container.querySelectorAll('.na-card');
-      if (cards.length < originalCount * 3) return;
+      if (cards.length < originalCount * 2) return;
       const gap = parseFloat(getComputedStyle(container).columnGap || getComputedStyle(container).gap) || 14;
-      const cardWidth = cards[0].getBoundingClientRect().width + gap;
-      const setWidth = cardWidth * originalCount;
-      container.scrollLeft = setWidth;
-      let ticking = false;
-      container.addEventListener('scroll', () => {
-        if (ticking) return;
-        ticking = true;
-        requestAnimationFrame(() => {
-          if (container.scrollLeft < setWidth * 0.5) container.scrollLeft += setWidth;
-          else if (container.scrollLeft > setWidth * 1.5) container.scrollLeft -= setWidth;
-          ticking = false;
-        });
-      }, { passive: true });
+      const setWidth = (cards[0].getBoundingClientRect().width + gap) * originalCount;
+      let paused = false;
+      const stop = () => {
+        if (paused) return;
+        paused = true;
+        if (naAutoScrollHandle) { cancelAnimationFrame(naAutoScrollHandle); naAutoScrollHandle = null; }
+        container.removeEventListener('pointerdown', stop);
+        container.removeEventListener('wheel', stop);
+        container.removeEventListener('touchstart', stop);
+      };
+      container.addEventListener('pointerdown', stop, { passive: true });
+      container.addEventListener('wheel', stop, { passive: true });
+      container.addEventListener('touchstart', stop, { passive: true });
+      const SPEED = 0.5; // pixels per frame
+      function step() {
+        if (paused) return;
+        container.scrollLeft += SPEED;
+        if (container.scrollLeft >= setWidth) container.scrollLeft -= setWidth;
+        naAutoScrollHandle = requestAnimationFrame(step);
+      }
+      naAutoScrollHandle = requestAnimationFrame(step);
     });
   }
 
