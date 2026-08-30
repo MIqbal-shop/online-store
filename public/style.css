@@ -467,6 +467,13 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 
 .auth-forgot { text-align: center; margin: 14px 0 0; }
 .auth-forgot a { color: var(--gold-dark); font-weight: 700; font-size: 12.5px; text-decoration: none; }
+.remember-me-row {
+  display: flex; align-items: center; gap: 9px; margin: 4px 0 14px; cursor: pointer;
+  font-size: 12.5px; color: #6f6455; user-select: none;
+}
+.remember-me-row input[type="checkbox"] {
+  width: 17px; height: 17px; accent-color: var(--gold-dark); cursor: pointer; flex-shrink: 0;
+}
 .auth-switch-bottom { text-align: center; margin: 18px 0 0; font-size: 12.5px; color: #857a6b; }
 .auth-switch-bottom a { color: var(--gold-dark); font-weight: 800; text-decoration: none; margin-left: 4px; }
 

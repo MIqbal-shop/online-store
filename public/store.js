@@ -3,7 +3,23 @@
   const money = (n) => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-US');
   const TILE_COLORS = ['tile-amber', 'tile-coral', 'tile-crimson'];
 
-  let token = localStorage.getItem('customer_token') || '';
+  // "Save login info" controls where the session token lives: localStorage
+  // persists across browser restarts (checked, the default), sessionStorage
+  // clears the moment the tab/browser closes (unchecked) - a small helper
+  // keeps both call sites (login + signup) in sync with the checkbox state.
+  let token = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token') || '';
+  function persistToken(newToken, remember) {
+    token = newToken;
+    localStorage.removeItem('customer_token');
+    sessionStorage.removeItem('customer_token');
+    if (remember) localStorage.setItem('customer_token', newToken);
+    else sessionStorage.setItem('customer_token', newToken);
+  }
+  function clearPersistedToken() {
+    token = '';
+    localStorage.removeItem('customer_token');
+    sessionStorage.removeItem('customer_token');
+  }
   let customer = null;
   let products = [];
   let cart = {}; // product_id -> { product, qty }
@@ -60,6 +76,7 @@
       accountTypeQuestion: "What's this account for?", forShop: 'My Shop', forShopDesc: 'Business orders & bulk pricing',
       forHome: 'My Home', forHomeDesc: 'Personal orders for your family',
       signupSubtextHome: "Tell us a bit about yourself - it only takes a minute.",
+      rememberMe: 'Save login info on this device',
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
@@ -105,6 +122,7 @@
       accountTypeQuestion: 'یہ اکاؤنٹ کس کے لیے ہے؟', forShop: 'میری دکان', forShopDesc: 'کاروباری آرڈر اور تھوک قیمتیں',
       forHome: 'میرا گھر', forHomeDesc: 'اپنے گھر کے لیے ذاتی آرڈر',
       signupSubtextHome: 'اپنے بارے میں بتائیں - صرف ایک منٹ لگے گا۔',
+      rememberMe: 'اس ڈیوائس پر لاگ ان معلومات محفوظ کریں',
     },
   };
   let lang = localStorage.getItem('store_lang') || 'en';
@@ -375,9 +393,8 @@
     if (!whatsapp || !password) { errEl.textContent = 'Please enter your WhatsApp number and password.'; errEl.style.display = 'block'; return; }
     try {
       const data = await api('/api/customers/login', { method: 'POST', body: JSON.stringify({ whatsapp, password }) });
-      token = data.token;
       customer = data.customer;
-      localStorage.setItem('customer_token', token);
+      persistToken(data.token, $('l_remember').checked);
       showShop();
     } catch (e) {
       errEl.textContent = e.message;
@@ -425,9 +442,8 @@
         method: 'POST',
         body: JSON.stringify({ customer_type: 'new', account_type: signupAccountType, name, whatsapp, shop_name: isBusiness ? shop_name : '', phone, address, password }),
       });
-      token = data.token;
       customer = data.customer;
-      localStorage.setItem('customer_token', token);
+      persistToken(data.token, $('s_remember').checked);
       showShop();
     } catch (e) {
       errEl.textContent = e.message;
@@ -899,9 +915,8 @@
 
   $('logoutBtn').addEventListener('click', async () => {
     try { await api('/api/customers/logout', { method: 'POST' }); } catch {}
-    token = '';
     customer = null;
-    localStorage.removeItem('customer_token');
+    clearPersistedToken();
     $('profileOverlay').style.display = 'none';
     showAuthGate();
   });
@@ -1190,8 +1205,7 @@
         showShop();
         return;
       } catch (e) {
-        token = '';
-        localStorage.removeItem('customer_token');
+        clearPersistedToken();
       }
     }
     showAuthGate();

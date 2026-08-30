@@ -40,6 +40,10 @@
           <p class="auth-subtext" data-i18n="loginSubtext">Log in to your account to continue ordering.</p>
           <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="l_whatsapp" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
           <div class="field"><label data-i18n="password">Password</label><input id="l_password" type="password" /></div>
+          <label class="remember-me-row">
+            <input id="l_remember" type="checkbox" checked />
+            <span data-i18n="rememberMe">Save login info on this device</span>
+          </label>
           <p id="loginError" class="error-text" style="display:none;"></p>
           <button class="btn btn-gold" id="loginBtn" style="width:100%;" data-i18n="login">Log in</button>
           <p class="auth-forgot"><a href="#" id="forgotPasswordLink" data-i18n="forgotPassword">Forgot password?</a></p>
@@ -78,6 +82,10 @@
           </div>
           <div class="field"><label data-i18n="address">Address</label><textarea id="s_address" rows="2" placeholder="Enter your full address" data-i18n-placeholder="enterFullAddress"></textarea></div>
           <div class="field"><label data-i18n="password">Password</label><input id="s_password" type="password" placeholder="At least 6 characters" data-i18n-placeholder="atLeast6Chars" /></div>
+          <label class="remember-me-row">
+            <input id="s_remember" type="checkbox" checked />
+            <span data-i18n="rememberMe">Save login info on this device</span>
+          </label>
           <p id="signupError" class="error-text" style="display:none;"></p>
           <button class="btn btn-gold" id="signupBtn" style="width:100%;" data-i18n="createAccount">Create account</button>
           <p class="auth-switch-bottom">
