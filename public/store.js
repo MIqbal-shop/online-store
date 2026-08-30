@@ -473,10 +473,13 @@
 
   // ---- "New arrivals" promo row - a horizontally scrollable strip above
   // the main grid. Products stay featured here for 7 days after being
-  // added; if there aren't enough recent ones yet, older products fill the
-  // remaining slots so the row never looks empty. Tapping a card jumps down
-  // to that exact product in the main grid and gives it a little bounce so
-  // it's easy to spot.
+  // added, then automatically become part of the regular catalogue again.
+  // If there aren't enough recent ones yet, older products fill the
+  // remaining slots - that filler batch rotates once per day and loops
+  // back to the start of the catalogue once it reaches the end, so it
+  // never keeps showing the exact same fallback products forever. Tapping
+  // a card jumps down to that exact product in the main grid and gives it
+  // a little bounce so it's easy to spot.
   const NEW_ARRIVAL_ROW_TARGET = 18;
   const NEW_ARRIVAL_WINDOW_DAYS = 7;
   function naDisplayPrice(p) {
@@ -494,17 +497,28 @@
     const isRecent = (p) => p.created_at && new Date(p.created_at).getTime() >= cutoff;
     const recent = products.filter(isRecent).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const chosen = [...recent];
-    if (chosen.length < NEW_ARRIVAL_ROW_TARGET) {
-      const chosenIds = new Set(chosen.map((p) => p.id));
-      for (const p of products) {
-        if (chosen.length >= NEW_ARRIVAL_ROW_TARGET) break;
-        if (!chosenIds.has(p.id)) { chosen.push(p); chosenIds.add(p.id); }
+
+    // Fill remaining slots from the older catalogue, rotating to a fresh
+    // batch once per day and looping back to the start once it reaches the
+    // end - so the "old" fillers keep changing daily instead of always
+    // being the same handful of products, forever.
+    const needed = NEW_ARRIVAL_ROW_TARGET - chosen.length;
+    if (needed > 0) {
+      const recentIds = new Set(recent.map((p) => p.id));
+      const oldProducts = products.filter((p) => !recentIds.has(p.id));
+      const n = oldProducts.length;
+      if (n > 0) {
+        const dayIndex = Math.floor(now / (24 * 60 * 60 * 1000));
+        const startOffset = (dayIndex * needed) % n;
+        for (let i = 0; i < Math.min(needed, n); i++) {
+          chosen.push(oldProducts[(startOffset + i) % n]);
+        }
       }
     }
     if (!chosen.length) { row.style.display = 'none'; return; }
 
     row.style.display = 'block';
-    scroll.innerHTML = chosen.map((p) => {
+    const cardHtml = (p) => {
       const info = naDisplayPrice(p);
       const img = (p.images && p.images[0]) || p.image;
       return `
@@ -514,9 +528,43 @@
           <div class="na-card-price">${money(info.price)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
         </div>
       `;
-    }).join('');
+    };
+    // Tripled so the strip can scroll endlessly in either direction - see
+    // setupInfiniteScroll(), which silently snaps back into the middle copy
+    // once the edges of the buffer are reached.
+    const loopList = chosen.length > 1 ? [...chosen, ...chosen, ...chosen] : chosen;
+    scroll.innerHTML = loopList.map(cardHtml).join('');
     scroll.querySelectorAll('.na-card').forEach((card) => {
       card.addEventListener('click', () => jumpToProduct(Number(card.dataset.naPid)));
+    });
+    setupInfiniteScroll(scroll, chosen.length);
+  }
+
+  // Makes a horizontally-scrolling strip feel endless: the caller renders
+  // the item list three times back to back, we start the scroll position
+  // in the middle copy, and whenever the user scrolls near either edge of
+  // that buffer we instantly (no animation) jump exactly one set-width
+  // forward/back - landing on the same visual content, so the loop is
+  // invisible to the customer.
+  function setupInfiniteScroll(container, originalCount) {
+    if (originalCount <= 1) return;
+    requestAnimationFrame(() => {
+      const cards = container.querySelectorAll('.na-card');
+      if (cards.length < originalCount * 3) return;
+      const gap = parseFloat(getComputedStyle(container).columnGap || getComputedStyle(container).gap) || 14;
+      const cardWidth = cards[0].getBoundingClientRect().width + gap;
+      const setWidth = cardWidth * originalCount;
+      container.scrollLeft = setWidth;
+      let ticking = false;
+      container.addEventListener('scroll', () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          if (container.scrollLeft < setWidth * 0.5) container.scrollLeft += setWidth;
+          else if (container.scrollLeft > setWidth * 1.5) container.scrollLeft -= setWidth;
+          ticking = false;
+        });
+      }, { passive: true });
     });
   }
 
