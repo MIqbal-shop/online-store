@@ -78,6 +78,7 @@
       signupSubtextHome: "Tell us a bit about yourself - it only takes a minute.",
       rememberMe: 'Save login info on this device',
       newArrivals: 'New arrivals',
+      back: 'Back', youMayAlsoLike: 'You may also like', addToCart: 'Add to cart',
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
@@ -125,6 +126,7 @@
       signupSubtextHome: 'اپنے بارے میں بتائیں - صرف ایک منٹ لگے گا۔',
       rememberMe: 'اس ڈیوائس پر لاگ ان معلومات محفوظ کریں',
       newArrivals: 'نئی مصنوعات',
+      back: 'واپس', youMayAlsoLike: 'آپ کو یہ بھی پسند آ سکتا ہے', addToCart: 'کارٹ میں شامل کریں',
     },
   };
   let lang = localStorage.getItem('store_lang') || 'en';
@@ -482,6 +484,9 @@
       await loadReviewSummary();
       renderProducts();
       renderNewArrivalsRow();
+      const params = new URLSearchParams(location.search);
+      const pid = Number(params.get('product'));
+      if (pid) openProductDetail(pid, true);
     } catch (e) { console.error(e); }
   }
 
@@ -821,6 +826,162 @@
     }, { passive: true });
   }
 
+  // ---- Full product detail page (opens in-place when a product card is
+  // tapped, feels like a separate page - proper URL + back button support -
+  // without losing the cart, since it's really just a full-screen overlay
+  // within the same app rather than an actual page navigation). ----
+  function pdPriceInfo(p) {
+    const options = unitOptions(p);
+    const which = selectedUnit[p.id] || options[0].key;
+    return { options, which, info: options.find((o) => o.key === which) || options[0] };
+  }
+
+  function renderProductDetailUnitToggle(p, options, which) {
+    if (options.length <= 1) { $('pdUnitToggleSlot').innerHTML = ''; return; }
+    $('pdUnitToggleSlot').innerHTML = `
+      <div class="unit-toggle">
+        ${options.map((o) => `<button class="unit-opt ${o.key === which ? 'active' : ''}" data-unit="${o.key}">${escapeHtml(o.label)}</button>`).join('')}
+      </div>
+    `;
+    $('pdUnitToggleSlot').querySelectorAll('.unit-opt').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedUnit[p.id] = btn.dataset.unit;
+        renderProductDetailDynamicBits(p);
+      });
+    });
+  }
+
+  function renderProductDetailDynamicBits(p) {
+    const { options, which, info } = pdPriceInfo(p);
+    $('pdPriceRow').innerHTML = `${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span>`;
+    renderProductDetailUnitToggle(p, options, which);
+    const inStock = p.in_stock !== false;
+    const qty = cart[cartKey(p.id, info.key)]?.qty || 0;
+    $('pdQtyRow').innerHTML = inStock ? `
+      <div class="qty-controls">
+        <button class="qty-btn minus">-</button>
+        <span class="qty-val">${qty}</span>
+        <button class="qty-btn plus">+</button>
+      </div>
+    ` : '';
+    if (inStock) {
+      $('pdQtyRow').querySelector('.minus').addEventListener('click', () => { changeQty(p, info, -1); renderProductDetailDynamicBits(p); });
+      $('pdQtyRow').querySelector('.plus').addEventListener('click', () => { changeQty(p, info, 1); renderProductDetailDynamicBits(p); });
+    }
+    $('pdStockRow').innerHTML = `<div class="stock-badge ${inStock ? 'in-stock' : 'out-stock'}"><span class="stock-dot"></span>${inStock ? t('inStock') : t('outOfStock')}</div>`
+      + (!inStock ? `
+        <div class="notify-row">
+          <span class="notify-text">${t('notifyText')}</span>
+          <button class="notify-btn ${notifyRequestedIds.has(p.id) ? 'requested' : ''}" type="button" ${notifyRequestedIds.has(p.id) ? 'disabled' : ''}>${notifyRequestedIds.has(p.id) ? t('notifyRequested') : t('notifyMe')}</button>
+        </div>
+      ` : '');
+    const notifyBtn = $('pdStockRow').querySelector('.notify-btn');
+    if (notifyBtn) notifyBtn.addEventListener('click', () => requestStockNotify(p.id, notifyBtn));
+
+    const actions = $('pdActions');
+    if (!inStock) {
+      actions.innerHTML = '';
+    } else if (qty === 0) {
+      actions.innerHTML = `<button class="btn btn-gold pd-add-btn" id="pdAddBtn">${t('addToCart')}</button>`;
+      $('pdAddBtn').addEventListener('click', () => { changeQty(p, info, 1); renderProductDetailDynamicBits(p); });
+    } else {
+      actions.innerHTML = `<button class="btn btn-navy pd-cart-btn" id="pdGoToCartBtn">${t('viewCart')}</button>`;
+      $('pdGoToCartBtn').addEventListener('click', () => { closeProductDetail(); openCart(); });
+    }
+  }
+
+  function renderRelatedProducts(current) {
+    const section = $('pdRelatedSection');
+    const scroll = $('pdRelatedScroll');
+    const sameCategory = products.filter((p) => p.id !== current.id && current.category && (p.category || '').trim() === current.category.trim());
+    let related = sameCategory;
+    if (related.length < 10) {
+      const ids = new Set(related.map((p) => p.id));
+      for (const p of products) {
+        if (related.length >= 10) break;
+        if (p.id !== current.id && !ids.has(p.id)) { related.push(p); ids.add(p.id); }
+      }
+    }
+    if (!related.length) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    scroll.innerHTML = related.map((p) => {
+      const info = naDisplayPrice(p);
+      const img = (p.images && p.images[0]) || p.image;
+      return `
+        <div class="na-card" data-related-pid="${p.id}">
+          <div class="na-card-img-box">${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}</div>
+          <div class="na-card-name">${escapeHtml(p.name)}</div>
+          <div class="na-card-price">${money(info.price)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
+        </div>
+      `;
+    }).join('');
+    scroll.querySelectorAll('.na-card').forEach((card) => {
+      card.addEventListener('click', () => openProductDetail(Number(card.dataset.relatedPid), true));
+    });
+  }
+
+  function openProductDetail(productId, replaceHistory) {
+    const p = products.find((x) => x.id === productId);
+    if (!p) return;
+
+    const images = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+    $('pdMainImageBox').innerHTML = images.length
+      ? `<img src="${images[0]}" alt="${escapeHtml(p.name)}" id="pdMainImage" />`
+      : `<div class="product-img-placeholder">No image</div>`;
+    $('pdThumbs').innerHTML = images.length > 1
+      ? images.map((url, i) => `<button type="button" class="pd-thumb ${i === 0 ? 'active' : ''}" data-idx="${i}"><img src="${url}" alt="" /></button>`).join('')
+      : '';
+    $('pdThumbs').querySelectorAll('.pd-thumb').forEach((thumb) => {
+      thumb.addEventListener('click', () => {
+        $('pdThumbs').querySelectorAll('.pd-thumb').forEach((t) => t.classList.toggle('active', t === thumb));
+        $('pdMainImage').src = images[Number(thumb.dataset.idx)];
+      });
+    });
+
+    $('pdBreadcrumb').innerHTML = `<span data-pd-crumb-home>${escapeHtml($('brandName').textContent || 'Home')}</span>`
+      + (p.category ? ` &rsaquo; ${escapeHtml(p.category)}` : '') + ` &rsaquo; ${escapeHtml(p.name)}`;
+    $('pdCategory').textContent = p.category || '';
+    $('pdCategory').style.display = p.category ? 'block' : 'none';
+    $('pdTitle').textContent = p.name;
+    const summary = reviewSummary[p.id];
+    $('pdRating').innerHTML = summary
+      ? `<span class="star-ic">&#9733;</span> ${summary.avg_rating} <span class="rating-count">(${summary.count})</span>`
+      : `<button class="rate-this-link" id="pdRateBtn">${t('rateThis')}</button>`;
+    const rateBtn = $('pdRating').querySelector('#pdRateBtn');
+    if (rateBtn) rateBtn.addEventListener('click', () => openReviews(p));
+    $('pdDesc').textContent = p.description || '';
+    $('pdDesc').style.display = p.description ? 'block' : 'none';
+
+    const isFav = favoriteIds.has(p.id);
+    const favBtn = $('pdFavBtn');
+    favBtn.classList.toggle('active', isFav);
+    favBtn.innerHTML = isFav ? '&#9829;' : '&#9825;';
+    favBtn.onclick = () => { toggleFavorite(p.id); favBtn.classList.toggle('active'); favBtn.innerHTML = favoriteIds.has(p.id) ? '&#9829;' : '&#9825;'; };
+
+    renderProductDetailDynamicBits(p);
+    renderRelatedProducts(p);
+
+    $('productDetailOverlay').style.display = 'block';
+    $('productDetailOverlay').scrollTop = 0;
+    document.body.style.overflow = 'hidden';
+    const url = `?product=${p.id}`;
+    if (replaceHistory) history.replaceState({ pdProduct: p.id }, '', url);
+    else history.pushState({ pdProduct: p.id }, '', url);
+  }
+
+  function closeProductDetail(skipHistory) {
+    $('productDetailOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+    if (!skipHistory) history.pushState({}, '', location.pathname);
+  }
+
+  $('pdBackBtn').addEventListener('click', () => history.back());
+  window.addEventListener('popstate', (e) => {
+    const pid = e.state && e.state.pdProduct;
+    if (pid) openProductDetail(pid, true);
+    else closeProductDetail(true);
+  });
+
   function renderProducts() {
     const grid = $('productGrid');
     grid.innerHTML = '';
@@ -885,7 +1046,8 @@
       `;
       if (options.length > 1) {
         tile.querySelectorAll('.unit-opt').forEach((btn) => {
-          btn.addEventListener('click', () => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             // Switch units without rebuilding the whole product grid - a full
             // re-render would replay every card's scroll-reveal animation,
             // causing a visible flash/blink across the page for one click.
@@ -900,12 +1062,14 @@
         });
       }
       if (inStock) {
-        tile.querySelector('.minus').addEventListener('click', () => {
+        tile.querySelector('.minus').addEventListener('click', (e) => {
+          e.stopPropagation();
           const activeKey = selectedUnit[p.id] || options[0].key;
           const currentInfo = options.find((o) => o.key === activeKey) || options[0];
           changeQty(p, currentInfo, -1);
         });
-        tile.querySelector('.plus').addEventListener('click', () => {
+        tile.querySelector('.plus').addEventListener('click', (e) => {
+          e.stopPropagation();
           const activeKey = selectedUnit[p.id] || options[0].key;
           const currentInfo = options.find((o) => o.key === activeKey) || options[0];
           changeQty(p, currentInfo, 1);
@@ -915,6 +1079,7 @@
       tile.querySelector('[data-open-reviews]').addEventListener('click', (e) => { e.stopPropagation(); openReviews(p); });
       const notifyBtn = tile.querySelector('.notify-btn');
       if (notifyBtn) notifyBtn.addEventListener('click', (e) => { e.stopPropagation(); requestStockNotify(p.id, notifyBtn); });
+      tile.addEventListener('click', () => openProductDetail(p.id));
       attachTilt(tile);
       wireCarousel(tile);
       wrap.appendChild(tile);

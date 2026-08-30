@@ -228,6 +228,40 @@
 </div>
 
 <!-- Cart drawer -->
+<!-- Full product detail page (opens when a customer taps a product card) -->
+<div class="product-detail-overlay" id="productDetailOverlay" style="display:none;">
+  <div class="pd-page">
+    <div class="pd-topbar">
+      <button class="pd-back-btn" id="pdBackBtn">&#8592; <span data-i18n="back">Back</span></button>
+    </div>
+    <div class="pd-breadcrumb" id="pdBreadcrumb"></div>
+    <div class="pd-body">
+      <div class="pd-gallery">
+        <div class="pd-main-image-box" id="pdMainImageBox"></div>
+        <div class="pd-thumbs" id="pdThumbs"></div>
+      </div>
+      <div class="pd-info">
+        <div class="pd-top-row">
+          <div class="pd-category" id="pdCategory"></div>
+          <button class="fav-btn pd-fav-btn" id="pdFavBtn" type="button" aria-label="Favorite">&#9825;</button>
+        </div>
+        <h1 class="pd-title" id="pdTitle"></h1>
+        <div class="pd-rating" id="pdRating"></div>
+        <div class="pd-price-row" id="pdPriceRow"></div>
+        <div class="pd-unit-toggle-slot" id="pdUnitToggleSlot"></div>
+        <div class="pd-desc" id="pdDesc"></div>
+        <div class="pd-stock-row" id="pdStockRow"></div>
+        <div class="pd-qty-row" id="pdQtyRow"></div>
+        <div class="pd-actions" id="pdActions"></div>
+      </div>
+    </div>
+    <div class="pd-related-section" id="pdRelatedSection" style="display:none;">
+      <div class="pd-related-label" data-i18n="youMayAlsoLike">You may also like</div>
+      <div class="pd-related-scroll" id="pdRelatedScroll"></div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="cartOverlay" style="display:none;">
   <div class="sheet">
     <div class="sheet-header">
