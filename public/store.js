@@ -77,6 +77,7 @@
       forHome: 'My Home', forHomeDesc: 'Personal orders for your family',
       signupSubtextHome: "Tell us a bit about yourself - it only takes a minute.",
       rememberMe: 'Save login info on this device',
+      newArrivals: 'New arrivals',
     },
     ur: {
       login: 'لاگ ان', createAccount: 'اکاؤنٹ بنائیں', whatsappNumber: 'واٹس ایپ نمبر', password: 'پاسورڈ',
@@ -123,6 +124,7 @@
       forHome: 'میرا گھر', forHomeDesc: 'اپنے گھر کے لیے ذاتی آرڈر',
       signupSubtextHome: 'اپنے بارے میں بتائیں - صرف ایک منٹ لگے گا۔',
       rememberMe: 'اس ڈیوائس پر لاگ ان معلومات محفوظ کریں',
+      newArrivals: 'نئی مصنوعات',
     },
   };
   let lang = localStorage.getItem('store_lang') || 'en';
@@ -465,7 +467,77 @@
       renderCategoryChips();
       await loadReviewSummary();
       renderProducts();
+      renderNewArrivalsRow();
     } catch (e) { console.error(e); }
+  }
+
+  // ---- "New arrivals" promo row - a horizontally scrollable strip above
+  // the main grid. Products stay featured here for 7 days after being
+  // added; if there aren't enough recent ones yet, older products fill the
+  // remaining slots so the row never looks empty. Tapping a card jumps down
+  // to that exact product in the main grid and gives it a little bounce so
+  // it's easy to spot.
+  const NEW_ARRIVAL_ROW_TARGET = 18;
+  const NEW_ARRIVAL_WINDOW_DAYS = 7;
+  function naDisplayPrice(p) {
+    if (p.packing_type === 'single') return { price: Number(p.price), unit: p.unit || '' };
+    return { price: Number(p.price_piece), unit: 'Piece' };
+  }
+  function renderNewArrivalsRow() {
+    const row = $('newArrivalsRow');
+    const scroll = $('newArrivalsScroll');
+    if (!row || !scroll) return;
+    if (!products.length) { row.style.display = 'none'; return; }
+
+    const now = Date.now();
+    const cutoff = now - NEW_ARRIVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const isRecent = (p) => p.created_at && new Date(p.created_at).getTime() >= cutoff;
+    const recent = products.filter(isRecent).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const chosen = [...recent];
+    if (chosen.length < NEW_ARRIVAL_ROW_TARGET) {
+      const chosenIds = new Set(chosen.map((p) => p.id));
+      for (const p of products) {
+        if (chosen.length >= NEW_ARRIVAL_ROW_TARGET) break;
+        if (!chosenIds.has(p.id)) { chosen.push(p); chosenIds.add(p.id); }
+      }
+    }
+    if (!chosen.length) { row.style.display = 'none'; return; }
+
+    row.style.display = 'block';
+    scroll.innerHTML = chosen.map((p) => {
+      const info = naDisplayPrice(p);
+      const img = (p.images && p.images[0]) || p.image;
+      return `
+        <div class="na-card" data-na-pid="${p.id}">
+          <div class="na-card-img-box">${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}</div>
+          <div class="na-card-name">${escapeHtml(p.name)}</div>
+          <div class="na-card-price">${money(info.price)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
+        </div>
+      `;
+    }).join('');
+    scroll.querySelectorAll('.na-card').forEach((card) => {
+      card.addEventListener('click', () => jumpToProduct(Number(card.dataset.naPid)));
+    });
+  }
+
+  function jumpToProduct(productId) {
+    // Clear any active search/filter first so the product is guaranteed to
+    // actually be present in the grid to scroll to.
+    searchQuery = '';
+    selectedCategory = '';
+    selectedCompany = '';
+    $('searchInput').value = '';
+    renderCategoryChips();
+    renderCompanyChips();
+    renderProducts();
+    requestAnimationFrame(() => {
+      const target = document.querySelector(`.tile-wrap[data-pid="${productId}"]`);
+      if (!target) return;
+      target.classList.add('in-view'); // show immediately rather than waiting on scroll-reveal
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('na-highlight');
+      setTimeout(() => target.classList.remove('na-highlight'), 1200);
+    });
   }
 
   async function loadReviewSummary() {
