@@ -149,6 +149,13 @@ async function init() {
   await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_phone_list JSONB DEFAULT '[]'::jsonb`);
   await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS contact_email_list JSONB DEFAULT '[]'::jsonb`);
 
+  // The number the floating "chat with us" button (bottom-right, on every
+  // screen) opens - deliberately its own separate setting from the
+  // Contact-dropdown numbers above, since the owner wants control over
+  // which specific number that particular always-visible button goes to,
+  // independent of whatever's listed under "Contact".
+  await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS floating_whatsapp TEXT`);
+
   // Forgot-password requests - a customer can't recover their old password
   // (only a secure hash of it is ever stored), so "forgot password" instead
   // generates a new temporary one here. Since there's no WhatsApp API wired
