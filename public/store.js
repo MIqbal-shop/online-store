@@ -228,7 +228,39 @@
         }
       }
       renderContactDropdown(store);
+      renderFloatingWhatsApp(store);
     } catch (e) { console.error(e); }
+  }
+
+  // A single always-visible round button, bottom-right on every screen -
+  // separate from the sidebar's "Contact" dropdown (which can list several
+  // numbers/phone/email). Deliberately uses its OWN number
+  // (store.floating_whatsapp, set in Admin -> Store Settings) rather than
+  // reusing the Contact list, since the owner wants this specific always-
+  // visible button pointed at a number of their choosing. Hides itself
+  // entirely if that number isn't set, so it never links out to nowhere.
+  function renderFloatingWhatsApp(store) {
+    let btn = $('floatingWhatsApp');
+    const raw = (store.floating_whatsapp || '').trim();
+    if (!raw) { if (btn) btn.style.display = 'none'; return; }
+    const number = raw.replace(/[^0-9]/g, '');
+    const href = `https://wa.me/${number}`;
+    if (!btn) {
+      btn = document.createElement('a');
+      btn.id = 'floatingWhatsApp';
+      btn.className = 'floating-whatsapp';
+      btn.target = '_blank';
+      btn.rel = 'noopener';
+      btn.setAttribute('aria-label', 'WhatsApp par message karein');
+      btn.innerHTML = `
+        <span class="floating-whatsapp-pulse"></span>
+        <svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">
+          <path d="M16.001 3C9.373 3 4 8.373 4 15c0 2.36.687 4.56 1.872 6.41L4 29l7.77-1.84A11.94 11.94 0 0 0 16 27c6.627 0 12-5.373 12-12S22.627 3 16.001 3zm0 21.818c-1.98 0-3.876-.52-5.53-1.5l-.397-.235-4.61 1.09 1.12-4.49-.26-.412A9.77 9.77 0 0 1 5.18 15c0-5.964 4.856-10.818 10.82-10.818S26.82 9.036 26.82 15 21.966 24.818 16 24.818zm5.61-8.14c-.307-.154-1.816-.897-2.098-1-.28-.103-.485-.154-.69.154-.204.307-.79 1-.968 1.205-.178.205-.357.23-.663.077-.307-.154-1.296-.478-2.47-1.524-.913-.814-1.53-1.82-1.71-2.127-.178-.307-.02-.473.135-.626.138-.138.307-.358.46-.537.154-.18.205-.307.307-.512.103-.205.052-.384-.026-.538-.077-.154-.69-1.663-.945-2.278-.249-.598-.502-.517-.69-.526l-.588-.01c-.204 0-.537.077-.818.384-.28.307-1.07 1.046-1.07 2.552 0 1.505 1.096 2.96 1.25 3.164.153.205 2.157 3.292 5.226 4.617.73.315 1.3.503 1.744.644.733.233 1.4.2 1.927.121.588-.088 1.816-.742 2.072-1.46.256-.717.256-1.33.18-1.46-.077-.128-.282-.205-.588-.358z"/>
+        </svg>`;
+      document.body.appendChild(btn);
+    }
+    btn.href = href;
+    btn.style.display = 'flex';
   }
 
   // Banner photos slowly crossfade one into the next (one gently fades away

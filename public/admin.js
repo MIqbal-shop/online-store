@@ -1161,6 +1161,7 @@ function priceSummary(p) {
       currentWhatsapp = Array.isArray(store.contact_whatsapp) ? [...store.contact_whatsapp] : [];
       currentPhone = Array.isArray(store.contact_phone) ? [...store.contact_phone] : [];
       currentEmail = Array.isArray(store.contact_email) ? [...store.contact_email] : [];
+      $('s_floating_whatsapp').value = store.floating_whatsapp || '';
       renderContactLists();
     } catch (e) { console.error(e); }
   }
@@ -1246,6 +1247,7 @@ function priceSummary(p) {
           contact_whatsapp: currentWhatsapp,
           contact_phone: currentPhone,
           contact_email: currentEmail,
+          floating_whatsapp: $('s_floating_whatsapp').value.trim(),
         }),
       });
       msgEl.style.display = 'block';

@@ -377,6 +377,49 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 #stickyCartTotal { font-family: 'Anton', sans-serif; font-size: 19px; color: var(--gold); }
 .sticky-cart-bar .btn { padding: 12px 26px; }
 
+/* ---- Floating WhatsApp button - always visible, bottom-right, on every
+   screen. Sits above the sticky cart bar (which is z-index 55) so it's
+   never covered, and lifts on hover for a bit of life. The soft pulsing
+   ring behind it is what makes it read as "tap me" rather than just a
+   static icon. ---- */
+.floating-whatsapp {
+  position: fixed;
+  right: 18px;
+  bottom: calc(90px + env(safe-area-inset-bottom));
+  z-index: 70;
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  display: none;
+  align-items: center; justify-content: center;
+  background: linear-gradient(145deg, #25D366, #128C7E);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(18, 140, 126, 0.45), 0 2px 6px rgba(0,0,0,0.25);
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.floating-whatsapp:hover {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 10px 26px rgba(18, 140, 126, 0.55), 0 3px 8px rgba(0,0,0,0.3);
+}
+.floating-whatsapp:active { transform: translateY(-1px) scale(0.98); }
+.floating-whatsapp-pulse {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: #25D366;
+  opacity: 0.55;
+  animation: floatingWhatsAppPulse 2.2s ease-out infinite;
+}
+@keyframes floatingWhatsAppPulse {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+/* Larger screens have more breathing room and no cart bar overlap worry on
+   pages without one, but keeping the same offset everywhere is simplest
+   and still looks intentional rather than randomly placed. */
+@media (min-width: 900px) {
+  .floating-whatsapp { right: 28px; bottom: 28px; width: 62px; height: 62px; }
+}
+
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
 @media (min-width: 640px) { .overlay { align-items: center; } }
 .sheet { background: var(--ink-2); border: 1px solid var(--line); width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; border-radius: 22px 22px 0 0; padding: 24px; }
