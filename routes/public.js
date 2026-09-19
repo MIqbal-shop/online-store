@@ -13,7 +13,8 @@ router.get('/store-info', async (req, res, next) => {
     const { rows } = await pool.query(
       `SELECT store_name, tagline, logo_image, banner_image, banner_images,
               contact_whatsapp, contact_phone, contact_email,
-              contact_whatsapp_list, contact_phone_list, contact_email_list
+              contact_whatsapp_list, contact_phone_list, contact_email_list,
+              floating_whatsapp
        FROM store_settings WHERE id=1`
     );
     const row = rows[0] || {};
@@ -27,6 +28,7 @@ router.get('/store-info', async (req, res, next) => {
         contact_whatsapp: orFallback(row.contact_whatsapp_list, row.contact_whatsapp),
         contact_phone: orFallback(row.contact_phone_list, row.contact_phone),
         contact_email: orFallback(row.contact_email_list, row.contact_email),
+        floating_whatsapp: row.floating_whatsapp || '',
       },
     });
   } catch (err) { next(err); }

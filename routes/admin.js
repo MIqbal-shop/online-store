@@ -113,7 +113,7 @@ router.post('/orders/delete-history', async (req, res, next) => {
 
 router.put('/store-info', async (req, res, next) => {
   try {
-    const { store_name, tagline, logo_image, banner_images, contact_whatsapp, contact_phone, contact_email } = req.body;
+    const { store_name, tagline, logo_image, banner_images, contact_whatsapp, contact_phone, contact_email, floating_whatsapp } = req.body;
     if (!store_name || !store_name.trim()) return res.status(400).json({ error: 'Store name is required.' });
     const clean = (arr, max) => (Array.isArray(arr) ? arr.filter((v) => typeof v === 'string' && v.trim()).slice(0, max) : []);
     const bannerList = clean(banner_images, 10);
@@ -122,10 +122,12 @@ router.put('/store-info', async (req, res, next) => {
     const emailList = clean(contact_email, 2);
     await pool.query(
       `UPDATE store_settings SET store_name=$1, tagline=$2, logo_image=$3,
-         banner_images=$4, contact_whatsapp_list=$5, contact_phone_list=$6, contact_email_list=$7
+         banner_images=$4, contact_whatsapp_list=$5, contact_phone_list=$6, contact_email_list=$7,
+         floating_whatsapp=$8
        WHERE id=1`,
       [store_name.trim(), tagline || '', logo_image || null,
-        JSON.stringify(bannerList), JSON.stringify(waList), JSON.stringify(phoneList), JSON.stringify(emailList)]
+        JSON.stringify(bannerList), JSON.stringify(waList), JSON.stringify(phoneList), JSON.stringify(emailList),
+        (floating_whatsapp || '').trim() || null]
     );
     res.json({ ok: true });
   } catch (err) { next(err); }
