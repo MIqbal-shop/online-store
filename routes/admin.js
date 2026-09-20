@@ -194,7 +194,7 @@ router.post('/migrate-images', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock, discount_percent } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Product ka naam likhna zaroori hai.' });
     const pt = ['single', 'carton_piece', 'carton_box_piece', 'box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
@@ -207,12 +207,13 @@ router.post('/products', async (req, res, next) => {
     if (pt === 'box_piece' && (price_box === '' || price_piece === '' || price_box == null || price_piece == null)) {
       return res.status(400).json({ error: 'Please enter both Box price and Piece price.' });
     }
+    const discountPct = Math.min(90, Math.max(0, Math.round(Number(discount_percent) || 0)));
     const usesCarton = pt === 'carton_piece' || pt === 'carton_box_piece';
     const usesBox = pt === 'carton_box_piece' || pt === 'box_piece';
     const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u.trim()) : [];
     const { rows } = await pool.query(
-      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      `INSERT INTO products (name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock, discount_percent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
       [
         name.trim(), pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
@@ -220,7 +221,7 @@ router.post('/products', async (req, res, next) => {
         usesBox ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         (imgList[0] || image || null), JSON.stringify(imgList), description || '', active !== false,
-        (category || '').trim(), (company || '').trim(), in_stock !== false,
+        (category || '').trim(), (company || '').trim(), in_stock !== false, discountPct,
       ]
     );
     res.json({ product: rows[0] });
@@ -229,7 +230,7 @@ router.post('/products', async (req, res, next) => {
 
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock } = req.body;
+    const { name, packing_type, price, unit, price_carton, price_box, price_piece, image, images, description, active, category, company, in_stock, discount_percent } = req.body;
     const pt = ['single', 'carton_piece', 'carton_box_piece', 'box_piece'].includes(packing_type) ? packing_type : 'single';
     if (pt === 'single' && (!unit || !String(unit).trim())) return res.status(400).json({ error: 'Please enter a unit name (e.g. piece, kg, dozen).' });
     if (pt === 'carton_piece' && (price_carton === '' || price_piece === '' || price_carton == null || price_piece == null)) {
@@ -243,9 +244,10 @@ router.put('/products/:id', async (req, res, next) => {
     }
     const usesCarton = pt === 'carton_piece' || pt === 'carton_box_piece';
     const usesBox = pt === 'carton_box_piece' || pt === 'box_piece';
+    const discountPct = Math.min(90, Math.max(0, Math.round(Number(discount_percent) || 0)));
     const imgList = Array.isArray(images) ? images.filter((u) => typeof u === 'string' && u.trim()) : [];
     const { rows } = await pool.query(
-      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, images=$9, description=$10, active=$11, category=$12, company=$13, in_stock=$14 WHERE id=$15 RETURNING *`,
+      `UPDATE products SET name=$1, packing_type=$2, price=$3, unit=$4, price_carton=$5, price_box=$6, price_piece=$7, image=$8, images=$9, description=$10, active=$11, category=$12, company=$13, in_stock=$14, discount_percent=$15 WHERE id=$16 RETURNING *`,
       [
         name || '', pt,
         pt === 'single' ? Number(price) || 0 : 0, pt === 'single' ? String(unit).trim() : '',
@@ -253,7 +255,7 @@ router.put('/products/:id', async (req, res, next) => {
         usesBox ? Number(price_box) || 0 : null,
         pt !== 'single' ? Number(price_piece) || 0 : null,
         (imgList[0] || image || null), JSON.stringify(imgList), description || '', active !== false,
-        (category || '').trim(), (company || '').trim(), in_stock !== false, req.params.id,
+        (category || '').trim(), (company || '').trim(), in_stock !== false, discountPct, req.params.id,
       ]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Product nahi mila.' });

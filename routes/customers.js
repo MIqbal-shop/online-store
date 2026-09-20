@@ -3,6 +3,9 @@ const crypto = require('crypto');
 const router = express.Router();
 const { pool } = require('../db');
 const { hashPassword, makeSalt, verifyPassword, createSession, destroySession, requireCustomer } = require('../auth');
+const { tryTemplateOrDrop } = require('../whatsapp');
+
+const TPL_PASSWORD_RESET = process.env.WHATSAPP_TEMPLATE_PASSWORD_RESET || 'password_reset';
 
 function publicFields(row) {
   return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type, account_type: row.account_type || 'business' };
@@ -171,6 +174,18 @@ router.post('/forgot-password', async (req, res, next) => {
           `INSERT INTO password_resets (customer_id, whatsapp, customer_name, temp_password) VALUES ($1,$2,$3,$4)`,
           [account.id, account.whatsapp, account.name, tempPassword]
         );
+        // Try to deliver it automatically first (see whatsapp.js for the
+        // exact template to create in Meta's WhatsApp Manager) - the row
+        // just inserted above stays either way, as a record AND as a
+        // fallback the Admin Portal's "Password Resets" list can still show
+        // (marked "sent" or not) in case the automatic send fails for this
+        // number for any reason.
+        const { rows: storeRows } = await pool.query('SELECT store_name FROM store_settings WHERE id=1');
+        const storeName = storeRows[0]?.store_name || 'Our Store';
+        const sent = await tryTemplateOrDrop(account.whatsapp, TPL_PASSWORD_RESET, [tempPassword, storeName]);
+        if (sent) {
+          await pool.query(`UPDATE password_resets SET sent=true WHERE customer_id=$1 AND temp_password=$2`, [account.id, tempPassword]);
+        }
       }
     }
     res.json({ ok: true, message: 'If this WhatsApp number has an account, a new password is ready - our team will send it to you on WhatsApp shortly.' });
