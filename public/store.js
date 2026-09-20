@@ -1603,5 +1603,11 @@
       }
     }
     showAuthGate();
-  })();
+  })().finally(() => {
+    // Whichever screen was decided above is already visible by now (both
+    // showShop() and showAuthGate() set their own display styles
+    // synchronously) - safe to remove the splash.
+    const loading = $('bootLoading');
+    if (loading) loading.style.display = 'none';
+  });
 })();
