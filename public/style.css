@@ -379,45 +379,49 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
 
 /* ---- Floating WhatsApp button - always visible, bottom-right, on every
    screen. Sits above the sticky cart bar (which is z-index 55) so it's
-   never covered, and lifts on hover for a bit of life. The soft pulsing
-   ring behind it is what makes it read as "tap me" rather than just a
-   static icon. ---- */
+   never covered. Deliberately compact and calm: a small solid circle with
+   a soft shadow and a gentle lift on hover - no big expanding pulse ring,
+   which read as oversized and attention-grabbing rather than a tidy corner
+   affordance. ---- */
 .floating-whatsapp {
   position: fixed;
-  right: 18px;
-  bottom: calc(90px + env(safe-area-inset-bottom));
+  right: 16px;
+  bottom: calc(78px + env(safe-area-inset-bottom));
   z-index: 70;
-  width: 58px; height: 58px;
+  width: 46px; height: 46px;
   border-radius: 50%;
   display: none;
   align-items: center; justify-content: center;
-  background: linear-gradient(145deg, #25D366, #128C7E);
+  background: linear-gradient(145deg, #25D366, #1DA851);
   color: #fff;
-  box-shadow: 0 6px 20px rgba(18, 140, 126, 0.45), 0 2px 6px rgba(0,0,0,0.25);
+  box-shadow: 0 3px 10px rgba(18, 140, 126, 0.35), 0 1px 3px rgba(0,0,0,0.2);
   text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+.floating-whatsapp svg { width: 22px; height: 22px; }
 .floating-whatsapp:hover {
-  transform: translateY(-3px) scale(1.06);
-  box-shadow: 0 10px 26px rgba(18, 140, 126, 0.55), 0 3px 8px rgba(0,0,0,0.3);
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 6px 16px rgba(18, 140, 126, 0.45), 0 2px 5px rgba(0,0,0,0.25);
 }
-.floating-whatsapp:active { transform: translateY(-1px) scale(0.98); }
+.floating-whatsapp:active { transform: translateY(0) scale(0.95); }
+/* A thin ring that briefly breathes outward every few seconds, instead of
+   a big filled circle constantly pulsing - noticeable without feeling like
+   it's taking over the corner of the screen. */
 .floating-whatsapp-pulse {
-  position: absolute; inset: 0; border-radius: 50%;
-  background: #25D366;
-  opacity: 0.55;
-  animation: floatingWhatsAppPulse 2.2s ease-out infinite;
+  position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px solid #25D366;
+  opacity: 0;
+  animation: floatingWhatsAppPulse 3.5s ease-out infinite;
 }
 @keyframes floatingWhatsAppPulse {
-  0%   { transform: scale(1);   opacity: 0.55; }
-  70%  { transform: scale(1.7); opacity: 0; }
-  100% { transform: scale(1.7); opacity: 0; }
+  0%   { transform: scale(0.85); opacity: 0; }
+  15%  { opacity: 0.6; }
+  40%  { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
-/* Larger screens have more breathing room and no cart bar overlap worry on
-   pages without one, but keeping the same offset everywhere is simplest
-   and still looks intentional rather than randomly placed. */
 @media (min-width: 900px) {
-  .floating-whatsapp { right: 28px; bottom: 28px; width: 62px; height: 62px; }
+  .floating-whatsapp { right: 22px; bottom: 22px; width: 50px; height: 50px; }
+  .floating-whatsapp svg { width: 24px; height: 24px; }
 }
 
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(3px); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
