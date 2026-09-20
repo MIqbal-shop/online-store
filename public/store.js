@@ -534,8 +534,8 @@
   const NEW_ARRIVAL_ROW_TARGET = 18;
   const NEW_ARRIVAL_WINDOW_DAYS = 7;
   function naDisplayPrice(p) {
-    if (p.packing_type === 'single') return { price: Number(p.price), unit: p.unit || '' };
-    return { price: Number(p.price_piece), unit: 'Piece' };
+    if (p.packing_type === 'single') return { price: applyDiscount(Number(p.price), p), originalPrice: Number(p.price), unit: p.unit || '' };
+    return { price: applyDiscount(Number(p.price_piece), p), originalPrice: Number(p.price_piece), unit: 'Piece' };
   }
   function renderNewArrivalsRow() {
     const row = $('newArrivalsRow');
@@ -576,7 +576,7 @@
         <div class="na-card" data-na-pid="${p.id}">
           <div class="na-card-img-box">${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}</div>
           <div class="na-card-name">${escapeHtml(p.name)}</div>
-          <div class="na-card-price">${money(info.price)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
+          <div class="na-card-price">${priceHtml(info, p)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
         </div>
       `;
     };
@@ -791,32 +791,58 @@
 
   $('searchInput').addEventListener('input', (e) => { searchQuery = e.target.value.trim().toLowerCase(); renderProducts(); });
 
+  // Every price a product can be sold at (per unit type) run through the
+  // same discount - one place, so cart/checkout/order totals automatically
+  // reflect it everywhere `unitOptions()` is used, with zero special-casing
+  // needed anywhere else in this file. originalPrice (pre-discount) rides
+  // along so the product card/detail page can show a struck-through price
+  // next to the new one.
+  function applyDiscount(price, p) {
+    const pct = Number(p.discount_percent) || 0;
+    if (pct <= 0) return price;
+    return Math.max(0, Math.round(price * (1 - pct / 100)));
+  }
+
   // Returns the list of buyable options for a product - one for 'single'
   // products, two or three for carton/box/piece ones.
   function unitOptions(p) {
+    let base;
     if (p.packing_type === 'carton_box_piece') {
-      return [
+      base = [
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
         { key: 'box', label: 'Box', price: Number(p.price_box) },
         { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
       ];
-    }
-    if (p.packing_type === 'carton_piece') {
-      return [
+    } else if (p.packing_type === 'carton_piece') {
+      base = [
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
         { key: 'carton', label: 'Carton', price: Number(p.price_carton) },
       ];
-    }
-    if (p.packing_type === 'box_piece') {
-      return [
+    } else if (p.packing_type === 'box_piece') {
+      base = [
         { key: 'piece', label: 'Piece', price: Number(p.price_piece) },
         { key: 'box', label: 'Box', price: Number(p.price_box) },
       ];
+    } else {
+      base = [{ key: 'single', label: p.unit, price: Number(p.price) }];
     }
-    return [{ key: 'single', label: p.unit, price: Number(p.price) }];
+    return base.map((opt) => ({ ...opt, originalPrice: opt.price, price: applyDiscount(opt.price, p) }));
   }
 
   function cartKey(productId, unitKey) { return productId + '::' + unitKey; }
+
+  // The badge + struck-through original price, used everywhere a price is
+  // shown on a product (cards, detail page) - NOT used in the cart/receipt,
+  // where only the actual charged price matters. Returns plain money(...)
+  // untouched when there's no discount, so nothing changes for products
+  // that don't have one.
+  function priceHtml(info, p) {
+    const pct = Number(p.discount_percent) || 0;
+    if (pct > 0 && info.originalPrice > info.price) {
+      return `<span class="discount-badge">-${pct}%</span><span class="price-now">${money(info.price)}</span><span class="price-was">${money(info.originalPrice)}</span>`;
+    }
+    return money(info.price);
+  }
 
   // ---- Product photo carousel (swipe/tap through multiple photos) ----
   function renderImageCarousel(images) {
@@ -885,7 +911,7 @@
 
   function renderProductDetailDynamicBits(p) {
     const { options, which, info } = pdPriceInfo(p);
-    $('pdPriceRow').innerHTML = `${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span>`;
+    $('pdPriceRow').innerHTML = `${priceHtml(info, p)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span>`;
     renderProductDetailUnitToggle(p, options, which);
     const inStock = p.in_stock !== false;
     const qty = cart[cartKey(p.id, info.key)]?.qty || 0;
@@ -943,7 +969,7 @@
         <div class="na-card" data-related-pid="${p.id}">
           <div class="na-card-img-box">${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}</div>
           <div class="na-card-name">${escapeHtml(p.name)}</div>
-          <div class="na-card-price">${money(info.price)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
+          <div class="na-card-price">${priceHtml(info, p)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
         </div>
       `;
     }).join('');
@@ -1056,7 +1082,7 @@
           ` : ''}
         </div>
         <div class="tile-footer">
-          <div class="product-price">${money(info.price)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
+          <div class="product-price">${priceHtml(info, p)} <span class="unit">${info.label ? '/ ' + escapeHtml(info.label) : ''}</span></div>
           ${ratingBadge}
         </div>
         <div class="qty-row">
@@ -1087,7 +1113,7 @@
             const newInfo = options.find((o) => o.key === btn.dataset.unit) || options[0];
             tile.querySelectorAll('.unit-opt').forEach((b) => b.classList.toggle('active', b === btn));
             const priceEl = tile.querySelector('.product-price');
-            if (priceEl) priceEl.innerHTML = `${money(newInfo.price)} <span class="unit">${newInfo.label ? '/ ' + escapeHtml(newInfo.label) : ''}</span>`;
+            if (priceEl) priceEl.innerHTML = `${priceHtml(newInfo, p)} <span class="unit">${newInfo.label ? '/ ' + escapeHtml(newInfo.label) : ''}</span>`;
             const qtyValEl = tile.querySelector('.qty-val');
             if (qtyValEl) qtyValEl.textContent = cart[cartKey(p.id, newInfo.key)]?.qty || 0;
           });

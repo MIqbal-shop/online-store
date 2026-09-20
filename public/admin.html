@@ -286,6 +286,11 @@
     <div class="field"><label>Company / Brand (optional)</label><input id="p_company" placeholder="e.g. Bona Papa, Unilever" /></div>
     <div class="field"><label>Category (optional)</label><input id="p_category" placeholder="e.g. Grocery, Cosmetics" /></div>
     <div class="field">
+      <label>🏷️ Discount % (optional)</label>
+      <p style="color:var(--ink-soft); font-size:12.5px; margin:0 0 6px;">If set above 0, the storefront shows a "-X% OFF" badge on this product and the discounted price - applied to every unit (piece/box/carton) automatically.</p>
+      <input id="p_discount_percent" type="number" min="0" max="90" step="1" placeholder="e.g. 15" />
+    </div>
+    <div class="field">
       <label>Photos (optional, up to 6)</label>
       <input id="p_image_file" type="file" accept="image/*" multiple />
       <div id="p_image_status" style="font-size:12px; color:var(--ink-soft); margin-top:4px; display:none;"></div>

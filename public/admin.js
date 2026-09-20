@@ -138,7 +138,7 @@ function priceSummary(p) {
         ${p.image ? `<img class="thumb" src="${p.image}" />` : `<div class="thumb"></div>`}
         <div style="flex:1;">
           <div style="font-weight:700; font-size:18.5px;">${escapeHtml(p.name)} ${p.active ? '' : '<span class="pill-status pill-cancelled">Hidden</span>'} <span class="pill-status ${inStock ? 'pill-in' : 'pill-out'}">${inStock ? 'In stock' : 'Out of stock'}</span></div>
-          <div style="font-size:15px; color:var(--ink-soft); margin-top:6px;">${priceSummary(p)} ${p.company ? '&middot; ' + escapeHtml(p.company) : ''} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''}</div>
+          <div style="font-size:15px; color:var(--ink-soft); margin-top:6px;">${priceSummary(p)} ${p.company ? '&middot; ' + escapeHtml(p.company) : ''} ${p.category ? '&middot; ' + escapeHtml(p.category) : ''} ${p.discount_percent > 0 ? `&middot; <span style="color:#e2632c; font-weight:700;">-${p.discount_percent}% OFF</span>` : ''}</div>
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn stock-toggle-btn ${inStock ? 'active-in' : ''} stock-in-btn" style="padding:12px 18px; font-size:14px;">In stock</button>
@@ -237,6 +237,7 @@ function priceSummary(p) {
     $('p_description').value = product?.description || '';
     $('p_company').value = product?.company || '';
     $('p_category').value = product?.category || '';
+    $('p_discount_percent').value = product?.discount_percent || '';
     $('p_active').checked = product ? !!product.active : true;
     setStockToggle(product ? product.in_stock !== false : true);
     applyPackingTypeUI(pt);
@@ -322,6 +323,7 @@ function priceSummary(p) {
       description: $('p_description').value.trim(),
       company: $('p_company').value.trim(),
       category: $('p_category').value.trim(),
+      discount_percent: $('p_discount_percent').value.trim(),
       images: currentImages,
       active: $('p_active').checked,
       in_stock: $('p_in_stock').value === 'true',
