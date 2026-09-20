@@ -1,4 +1,9 @@
 const { pool } = require('./db');
+const { tryTemplateOrDrop } = require('./whatsapp');
+
+const TPL_CONFIRMED = process.env.WHATSAPP_TEMPLATE_ORDER_CONFIRMED || 'order_confirmed';
+const TPL_CANCELLED = process.env.WHATSAPP_TEMPLATE_ORDER_CANCELLED || 'order_cancelled';
+const TPL_UPDATED = process.env.WHATSAPP_TEMPLATE_ORDER_UPDATED || 'order_updated';
 
 // ============================================================================
 // Confirming / cancelling an order, shared by:
@@ -79,16 +84,30 @@ async function confirmOrder(orderId, itemUpdates, confirmedVia) {
     await client.query('COMMIT');
 
     let whatsapp = null;
+    const { rows: storeRows } = await pool.query('SELECT store_name FROM store_settings WHERE id=1');
+    const storeName = storeRows[0]?.store_name || 'Our Store';
     if (altered) {
-      const { rows: storeRows } = await pool.query('SELECT store_name FROM store_settings WHERE id=1');
-      const storeName = storeRows[0]?.store_name || 'Our Store';
       const orderedLines = finalItems.map((it) => `- ${it.product_name}: ${it.quantity} ${it.unit || ''}`.trim()).join('\n');
       const confirmedLines = finalItems.map((it) => `- ${it.product_name}: ${it.confirmed_quantity} ${it.unit || ''}`.trim()).join('\n');
       const total = finalItems.reduce((s, it) => s + Number(it.confirmed_quantity) * Number(it.price), 0);
-      whatsapp = {
-        phone: order.whatsapp,
-        message: buildChangeNoticeMessage({ storeName, customerName: order.customer_name, orderedLines, confirmedLines, total }),
-      };
+      const message = buildChangeNoticeMessage({ storeName, customerName: order.customer_name, orderedLines, confirmedLines, total });
+      whatsapp = { phone: order.whatsapp, message };
+      // Auto-send via the approved "order_updated" template (see whatsapp.js
+      // for the exact template body to create in Meta's WhatsApp Manager) -
+      // best-effort, never throws, never blocks this function's own result.
+      if (order.whatsapp) tryTemplateOrDrop(order.whatsapp, TPL_UPDATED, [message]);
+    } else {
+      // Given exactly as ordered - the simpler "your order is confirmed"
+      // template, no item-by-item breakdown needed.
+      const total = finalItems.reduce((s, it) => s + Number(it.confirmed_quantity) * Number(it.price), 0);
+      if (order.whatsapp) {
+        tryTemplateOrDrop(order.whatsapp, TPL_CONFIRMED, [
+          order.customer_name || 'Customer',
+          order.id,
+          `Rs ${Math.round(total).toLocaleString('en-US')}`,
+          storeName,
+        ]);
+      }
     }
 
     return { order: updatedOrderRows[0], items: finalItems, altered, whatsapp };
@@ -108,6 +127,11 @@ async function cancelOrder(orderId, confirmedVia) {
     [confirmedVia, orderId]
   );
   if (rows[0]) await pool.query('UPDATE order_items SET review_quantity=NULL WHERE order_id=$1', [orderId]);
+  if (rows[0] && rows[0].whatsapp) {
+    const { rows: storeRows } = await pool.query('SELECT store_name FROM store_settings WHERE id=1');
+    const storeName = storeRows[0]?.store_name || 'Our Store';
+    tryTemplateOrDrop(rows[0].whatsapp, TPL_CANCELLED, [rows[0].customer_name || 'Customer', rows[0].id, storeName]);
+  }
   return rows[0] || null;
 }
 

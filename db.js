@@ -182,6 +182,13 @@ async function init() {
   // (e.g. "Diapers") so the storefront can filter by either one.
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS company TEXT DEFAULT ''`);
 
+  // A whole-number percent (e.g. 15 for "15% off"), applied to every price
+  // (piece/box/carton alike) - see unitOptions()/applyDiscount() in
+  // public/store.js. 0 or NULL means "no discount", the normal case for
+  // most products - a badge and struck-through price only appear on the
+  // storefront when this is actually set above 0.
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percent INTEGER DEFAULT 0`);
+
   // Optional note a customer can attach at checkout (e.g. "deliver after 5pm").
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''`);
 
