@@ -574,7 +574,10 @@
       const img = (p.images && p.images[0]) || p.image;
       return `
         <div class="na-card" data-na-pid="${p.id}">
-          <div class="na-card-img-box">${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}</div>
+          <div class="na-card-img-box">
+            ${Number(p.discount_percent) > 0 ? `<div class="discount-corner discount-corner-sm"><span>-${p.discount_percent}%</span></div>` : ''}
+            ${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}
+          </div>
           <div class="na-card-name">${escapeHtml(p.name)}</div>
           <div class="na-card-price">${priceHtml(info, p)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
         </div>
@@ -831,15 +834,14 @@
 
   function cartKey(productId, unitKey) { return productId + '::' + unitKey; }
 
-  // The badge + struck-through original price, used everywhere a price is
-  // shown on a product (cards, detail page) - NOT used in the cart/receipt,
-  // where only the actual charged price matters. Returns plain money(...)
-  // untouched when there's no discount, so nothing changes for products
-  // that don't have one.
+  // Price text only - the "-X% OFF" badge itself now lives in the product
+  // image's top corner (see discount-corner in the card template), not
+  // inline with the price, so this just needs the struck-through original
+  // next to the new price.
   function priceHtml(info, p) {
     const pct = Number(p.discount_percent) || 0;
     if (pct > 0 && info.originalPrice > info.price) {
-      return `<span class="discount-badge">-${pct}%</span><span class="price-now">${money(info.price)}</span><span class="price-was">${money(info.originalPrice)}</span>`;
+      return `<span class="price-now">${money(info.price)}</span><span class="price-was">${money(info.originalPrice)}</span>`;
     }
     return money(info.price);
   }
@@ -967,7 +969,10 @@
       const img = (p.images && p.images[0]) || p.image;
       return `
         <div class="na-card" data-related-pid="${p.id}">
-          <div class="na-card-img-box">${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}</div>
+          <div class="na-card-img-box">
+            ${Number(p.discount_percent) > 0 ? `<div class="discount-corner discount-corner-sm"><span>-${p.discount_percent}%</span></div>` : ''}
+            ${img ? `<img src="${img}" alt="${escapeHtml(p.name)}" />` : ''}
+          </div>
           <div class="na-card-name">${escapeHtml(p.name)}</div>
           <div class="na-card-price">${priceHtml(info, p)}${info.unit ? ' / ' + escapeHtml(info.unit) : ''}</div>
         </div>
@@ -983,9 +988,10 @@
     if (!p) return;
 
     const images = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
-    $('pdMainImageBox').innerHTML = images.length
+    const cornerBadge = Number(p.discount_percent) > 0 ? `<div class="discount-corner"><span>-${p.discount_percent}%</span><small>OFF</small></div>` : '';
+    $('pdMainImageBox').innerHTML = cornerBadge + (images.length
       ? `<img src="${images[0]}" alt="${escapeHtml(p.name)}" id="pdMainImage" />`
-      : `<div class="product-img-placeholder">No image</div>`;
+      : `<div class="product-img-placeholder">No image</div>`);
     $('pdThumbs').innerHTML = images.length > 1
       ? images.map((url, i) => `<button type="button" class="pd-thumb ${i === 0 ? 'active' : ''}" data-idx="${i}"><img src="${url}" alt="" /></button>`).join('')
       : '';
@@ -1070,6 +1076,7 @@
       tile.innerHTML = `
         <div class="product-img-box">
           <button class="fav-btn ${isFav ? 'active' : ''}" data-fav="${p.id}" aria-label="Favorite" type="button">${isFav ? '&#9829;' : '&#9825;'}</button>
+          ${Number(p.discount_percent) > 0 ? `<div class="discount-corner"><span>-${p.discount_percent}%</span><small>OFF</small></div>` : ''}
           ${p.images && p.images.length ? renderImageCarousel(p.images) : (p.image ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" />` : `<div class="product-img-placeholder">No image</div>`)}
         </div>
         ${p.company ? `<div class="product-company">${escapeHtml(p.company)}</div>` : ''}

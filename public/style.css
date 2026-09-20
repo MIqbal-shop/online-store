@@ -133,7 +133,7 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
 .new-arrivals-scroll::-webkit-scrollbar { display: none; }
 .na-card { flex: 0 0 auto; width: 152px; cursor: pointer; }
 .na-card-img-box {
-  width: 152px; height: 190px; border-radius: 16px; background: var(--ink-2);
+  position: relative; width: 152px; height: 190px; border-radius: 16px; background: var(--ink-2);
   border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
   overflow: hidden; transition: transform .16s ease, border-color .16s ease;
 }
@@ -144,7 +144,6 @@ label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transf
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .na-card-price { font-size: 12px; font-weight: 700; color: var(--gold); margin-top: 2px; }
-.na-card-price .discount-badge { font-size: 9px; padding: 2px 6px; margin-right: 4px; }
 .na-card-price .price-was { font-size: 10px; margin-left: 4px; }
 
 @keyframes naBounce {
@@ -299,43 +298,48 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
    discount_percent set from the Admin panel. The badge gets a little
    shine sweep and a gentle bob so it reads as "special", not just another
    static price label. ---- */
-.discount-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  color: #fff;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--coral), var(--crimson));
-  box-shadow: 0 2px 6px rgba(214, 69, 69, 0.35);
-  position: relative;
-  overflow: hidden;
-  margin-right: 6px;
-  vertical-align: middle;
-  animation: discountBob 2.4s ease-in-out infinite;
-}
-.discount-badge::before { content: '🔥'; font-size: 10px; }
-.discount-badge::after {
-  content: '';
+/* ---- Discount corner badge - a round "starburst" sticker sitting in the
+   top corner of the product image, the way a physical sale sticker would
+   sit on a box. A little tilt + gentle bob + shine sweep so it reads as
+   "special", not just another static label. ---- */
+.discount-corner {
   position: absolute;
-  top: 0; left: -60%;
-  width: 40%; height: 100%;
-  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.65), transparent);
-  transform: skewX(-20deg);
-  animation: discountShine 2.8s ease-in-out infinite;
+  top: 10px; left: 10px;
+  z-index: 5;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  line-height: 1;
+  background: radial-gradient(circle at 35% 30%, var(--coral) 0%, var(--crimson) 70%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(214, 69, 69, 0.45), 0 0 0 3px rgba(255,255,255,0.12) inset;
+  transform: rotate(-12deg);
+  overflow: hidden;
+  animation: discountCornerBob 2.6s ease-in-out infinite;
 }
-@keyframes discountShine {
-  0%   { left: -60%; }
-  35%  { left: 130%; }
-  100% { left: 130%; }
+.discount-corner span { font-family: 'Anton', sans-serif; font-size: 15px; letter-spacing: -0.02em; }
+.discount-corner small { font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 800; letter-spacing: 0.08em; opacity: 0.9; margin-top: -1px; }
+.discount-corner::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,0.55) 50%, transparent 60%);
+  background-size: 220% 220%;
+  animation: discountCornerShine 3s ease-in-out infinite;
 }
-@keyframes discountBob {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50%      { transform: translateY(-1.5px) scale(1.03); }
+.discount-corner-sm {
+  width: 38px; height: 38px; top: 6px; left: 6px;
+}
+.discount-corner-sm span { font-size: 10.5px; }
+.discount-corner-sm small { display: none; }
+@keyframes discountCornerBob {
+  0%, 100% { transform: rotate(-12deg) translateY(0) scale(1); }
+  50%      { transform: rotate(-12deg) translateY(-2px) scale(1.04); }
+}
+@keyframes discountCornerShine {
+  0%   { background-position: -120% -120%; }
+  50%  { background-position: 120% 120%; }
+  100% { background-position: 120% 120%; }
 }
 .price-now {
   font-family: 'Anton', sans-serif;
@@ -916,7 +920,7 @@ html[dir="rtl"] .fav-btn { right: auto; left: 8px; }
 
 .pd-gallery { display: flex; flex-direction: column; gap: 14px; }
 .pd-main-image-box {
-  width: 100%; aspect-ratio: 1 / 1; border-radius: 20px; background: var(--ink-2);
+  position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 20px; background: var(--ink-2);
   border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .pd-main-image-box img { width: 100%; height: 100%; object-fit: contain; padding: 18px; box-sizing: border-box; }
