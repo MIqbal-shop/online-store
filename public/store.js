@@ -494,6 +494,16 @@
     });
   });
 
+  // Same shape-check as the server's normalizePakMobile() (routes/customers.js) -
+  // duplicated here only so a mistyped number gets caught instantly instead
+  // of waiting on a round trip; the server is still the real authority.
+  function isValidPakMobile(raw) {
+    let digits = String(raw || '').replace(/[^0-9]/g, '');
+    if (digits.startsWith('0092')) digits = digits.slice(2);
+    if (digits.startsWith('92') && digits.length === 12) digits = '0' + digits.slice(2);
+    return digits.length === 11 && digits.startsWith('03');
+  }
+
   $('signupBtn').addEventListener('click', async () => {
     const errEl = $('signupError');
     errEl.style.display = 'none';
@@ -508,7 +518,9 @@
     if (!name) { errEl.textContent = isBusiness ? 'Please enter the owner name.' : 'Please enter your name.'; errEl.style.display = 'block'; return; }
     if (isBusiness && !shop_name) { errEl.textContent = 'Please enter your shop name.'; errEl.style.display = 'block'; return; }
     if (!phone) { errEl.textContent = 'Please enter your cell number.'; errEl.style.display = 'block'; return; }
+    if (!isValidPakMobile(phone)) { errEl.textContent = 'Please enter a valid Pakistani mobile number (e.g. 03001234567).'; errEl.style.display = 'block'; return; }
     if (!whatsapp) { errEl.textContent = 'Please enter your WhatsApp number.'; errEl.style.display = 'block'; return; }
+    if (!isValidPakMobile(whatsapp)) { errEl.textContent = 'Please enter a valid WhatsApp number (e.g. 03001234567).'; errEl.style.display = 'block'; return; }
     if (!address) { errEl.textContent = 'Please enter your address.'; errEl.style.display = 'block'; return; }
     if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
     try {
