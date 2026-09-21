@@ -7,6 +7,27 @@ const { tryTemplateOrDrop } = require('../whatsapp');
 
 const TPL_PASSWORD_RESET = process.env.WHATSAPP_TEMPLATE_PASSWORD_RESET || 'password_reset';
 
+// Accepts a Pakistani mobile number in ANY of the common ways someone might
+// type it - "03001234567", "3001234567", "923001234567", "+923001234567",
+// with spaces/dashes in between - and returns it in ONE canonical form
+// (03XXXXXXXXX) if and only if it's actually a valid-shaped mobile number.
+// Returns null for anything else (too short, too long, landline-shaped,
+// random junk). This is what closes off "just add an extra digit to dodge
+// the duplicate-account check" - a 12-digit number is rejected outright as
+// an invalid number, not silently accepted as if it were a different real
+// person's number. It's a FORMAT check, not proof the number is reachable
+// or that this person owns it - actually verifying that would need SMS/
+// WhatsApp OTP delivery, a bigger feature than requested here.
+function normalizePakMobile(raw) {
+  if (!raw) return null;
+  let digits = String(raw).replace(/[^0-9]/g, '');
+  if (digits.startsWith('0092')) digits = digits.slice(2);
+  if (digits.startsWith('92') && digits.length === 12) digits = '0' + digits.slice(2);
+  if (digits.length !== 11) return null;
+  if (!digits.startsWith('03')) return null;
+  return digits;
+}
+
 function publicFields(row) {
   return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type, account_type: row.account_type || 'business' };
 }
@@ -31,6 +52,17 @@ router.post('/signup', async (req, res, next) => {
     const accountType = account_type === 'personal' ? 'personal' : 'business';
     if (!name || !name.trim()) return res.status(400).json({ error: 'Please enter your name.' });
     if (!whatsapp || !whatsapp.trim()) return res.status(400).json({ error: 'Please enter your WhatsApp number.' });
+    const normalizedWhatsapp = normalizePakMobile(whatsapp);
+    if (!normalizedWhatsapp) {
+      return res.status(400).json({ error: 'Please enter a valid Pakistani mobile number (e.g. 03001234567).' });
+    }
+    let normalizedPhone = '';
+    if (customer_type === 'new' && phone) {
+      normalizedPhone = normalizePakMobile(phone);
+      if (!normalizedPhone) {
+        return res.status(400).json({ error: 'Please enter a valid Pakistani mobile number for Phone (e.g. 03001234567).' });
+      }
+    }
     if (!password || password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     if (customer_type === 'new' && (!phone || !address)) {
       return res.status(400).json({ error: 'Phone number and address are required.' });
@@ -39,7 +71,7 @@ router.post('/signup', async (req, res, next) => {
       return res.status(400).json({ error: 'Shop name is required.' });
     }
 
-    const existing = await pool.query('SELECT id FROM customers WHERE whatsapp=$1', [whatsapp.trim()]);
+    const existing = await pool.query('SELECT id FROM customers WHERE whatsapp=$1', [normalizedWhatsapp]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'An account with this WhatsApp number already exists. Please log in instead.' });
     }
@@ -49,7 +81,7 @@ router.post('/signup', async (req, res, next) => {
     const { rows } = await pool.query(
       `INSERT INTO customers (customer_type, account_type, name, shop_name, phone, whatsapp, address, password_hash, password_salt)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [customer_type, accountType, name.trim(), accountType === 'business' ? (shop_name || '').trim() : '', (phone || '').trim(), whatsapp.trim(), (address || '').trim(), hash, salt]
+      [customer_type, accountType, name.trim(), accountType === 'business' ? (shop_name || '').trim() : '', normalizedPhone, normalizedWhatsapp, (address || '').trim(), hash, salt]
     );
     const token = await createSession('customer', rows[0].id);
     res.json({ token, customer: publicFields(rows[0]) });
@@ -60,7 +92,8 @@ router.post('/signup', async (req, res, next) => {
 router.post('/login', async (req, res, next) => {
   try {
     const { whatsapp, password } = req.body;
-    const { rows } = await pool.query('SELECT * FROM customers WHERE whatsapp=$1', [(whatsapp || '').trim()]);
+    const normalized = normalizePakMobile(whatsapp) || (whatsapp || '').trim();
+    const { rows } = await pool.query('SELECT * FROM customers WHERE whatsapp=$1', [normalized]);
     const account = rows[0];
     if (!account || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
       return res.status(401).json({ error: 'WhatsApp number or password is incorrect.' });
@@ -109,9 +142,14 @@ router.put('/me', requireCustomer, async (req, res, next) => {
   try {
     const { name, shop_name, phone, address } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Please enter your name.' });
+    let normalizedPhone = '';
+    if (phone) {
+      normalizedPhone = normalizePakMobile(phone);
+      if (!normalizedPhone) return res.status(400).json({ error: 'Please enter a valid Pakistani mobile number for Phone (e.g. 03001234567).' });
+    }
     const { rows } = await pool.query(
       `UPDATE customers SET name=$1, shop_name=$2, phone=$3, address=$4 WHERE id=$5 RETURNING *`,
-      [name.trim(), (shop_name || '').trim(), (phone || '').trim(), (address || '').trim(), req.customerId]
+      [name.trim(), (shop_name || '').trim(), normalizedPhone, (address || '').trim(), req.customerId]
     );
     res.json({ customer: publicFields(rows[0]) });
   } catch (err) { next(err); }
@@ -149,7 +187,7 @@ router.put('/me/password', requireCustomer, async (req, res, next) => {
 // registered, so this can't be used to check which numbers have accounts.
 router.post('/forgot-password', async (req, res, next) => {
   try {
-    const whatsapp = (req.body.whatsapp || '').trim();
+    const whatsapp = normalizePakMobile(req.body.whatsapp) || (req.body.whatsapp || '').trim();
     if (!whatsapp) return res.status(400).json({ error: 'Please enter your WhatsApp number.' });
 
     const { rows } = await pool.query('SELECT * FROM customers WHERE whatsapp=$1', [whatsapp]);
