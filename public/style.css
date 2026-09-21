@@ -300,41 +300,57 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
    static price label. ---- */
 /* ---- Discount corner badge - a round "starburst" sticker sitting in the
    top corner of the product image, the way a physical sale sticker would
-   sit on a box. A little tilt + gentle bob + shine sweep so it reads as
-   "special", not just another static label. ---- */
+   sit on a box. Deliberately a cool electric-purple/blue - the product
+   cards themselves are warm oranges/reds/golds, so a warm badge color
+   used to blend right into the card instead of standing out; this palette
+   is the opposite end of the color wheel from those, so it pops on every
+   card regardless of that card's own color. A little tilt + gentle bob +
+   shine sweep so it reads as "special", not just another static label. ---- */
 .discount-corner {
   position: absolute;
-  top: 10px; left: 10px;
+  top: 12px; left: 12px;
   z-index: 5;
-  width: 56px; height: 56px;
+  width: 72px; height: 72px;
   border-radius: 50%;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   line-height: 1;
-  background: radial-gradient(circle at 35% 30%, var(--coral) 0%, var(--crimson) 70%);
+  background: radial-gradient(circle at 35% 30%, #8b5cf6 0%, #4c1d95 75%);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(214, 69, 69, 0.45), 0 0 0 3px rgba(255,255,255,0.12) inset;
-  transform: rotate(-12deg);
+  box-shadow: 0 5px 16px rgba(76, 29, 149, 0.55), 0 0 0 3px rgba(255,255,255,0.85) inset, 0 0 0 4px rgba(76,29,149,0.9);
+  transform: rotate(-10deg);
   overflow: hidden;
   animation: discountCornerBob 2.6s ease-in-out infinite;
 }
-.discount-corner span { font-family: 'Anton', sans-serif; font-size: 15px; letter-spacing: -0.02em; }
-.discount-corner small { font-family: 'Inter', sans-serif; font-size: 8px; font-weight: 800; letter-spacing: 0.08em; opacity: 0.9; margin-top: -1px; }
+.discount-corner span {
+  font-family: 'Anton', sans-serif;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.35);
+}
+.discount-corner small {
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-top: 0px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
 .discount-corner::after {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,0.55) 50%, transparent 60%);
+  background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,0.6) 50%, transparent 60%);
   background-size: 220% 220%;
   animation: discountCornerShine 3s ease-in-out infinite;
 }
 .discount-corner-sm {
-  width: 38px; height: 38px; top: 6px; left: 6px;
+  width: 46px; height: 46px; top: 8px; left: 8px;
 }
-.discount-corner-sm span { font-size: 10.5px; }
+.discount-corner-sm span { font-size: 13px; }
 .discount-corner-sm small { display: none; }
 @keyframes discountCornerBob {
-  0%, 100% { transform: rotate(-12deg) translateY(0) scale(1); }
-  50%      { transform: rotate(-12deg) translateY(-2px) scale(1.04); }
+  0%, 100% { transform: rotate(-10deg) translateY(0) scale(1); }
+  50%      { transform: rotate(-10deg) translateY(-2px) scale(1.05); }
 }
 @keyframes discountCornerShine {
   0%   { background-position: -120% -120%; }

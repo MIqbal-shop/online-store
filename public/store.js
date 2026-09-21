@@ -4,9 +4,31 @@
   const TILE_COLORS = ['tile-amber', 'tile-coral', 'tile-crimson'];
 
   // "Save login info" controls where the session token lives: localStorage
-  // persists across browser restarts (checked, the default), sessionStorage
-  // clears the moment the tab/browser closes (unchecked) - a small helper
-  // keeps both call sites (login + signup) in sync with the checkbox state.
+  // persists across browser restarts (checked), sessionStorage clears the
+  // moment the tab/browser is actually closed (unchecked, the default) - a
+  // small helper keeps both call sites (login + signup) in sync with the
+  // checkbox state.
+  //
+  // sessionStorage is the technically-correct tool for "log out when you
+  // close the browser", but mobile Chrome doesn't always destroy a tab's
+  // storage the instant you hit the phone's Home button - the OS often
+  // keeps the tab's process alive in the background for a while, so
+  // sessionStorage can survive longer than a customer expects if they
+  // never fully swipe the app away. IDLE_LIMIT_MS below is the backup for
+  // that: for a NON-remembered login, if the tab was hidden (backgrounded/
+  // locked) for longer than this, treat the session as expired the next
+  // time the page becomes visible again - same end result (re-login
+  // required) without depending on the OS ever truly killing the tab.
+  const IDLE_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
+  function markActive() {
+    if (!localStorage.getItem('customer_token')) sessionStorage.setItem('last_active', String(Date.now()));
+  }
+  function idleTimedOut() {
+    if (localStorage.getItem('customer_token')) return false; // "remembered" logins are never idle-timed-out
+    const lastActive = Number(sessionStorage.getItem('last_active') || 0);
+    return lastActive > 0 && (Date.now() - lastActive) > IDLE_LIMIT_MS;
+  }
+
   let token = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token') || '';
   function persistToken(newToken, remember) {
     token = newToken;
@@ -14,11 +36,13 @@
     sessionStorage.removeItem('customer_token');
     if (remember) localStorage.setItem('customer_token', newToken);
     else sessionStorage.setItem('customer_token', newToken);
+    markActive();
   }
   function clearPersistedToken() {
     token = '';
     localStorage.removeItem('customer_token');
     sessionStorage.removeItem('customer_token');
+    sessionStorage.removeItem('last_active');
   }
   let customer = null;
   let products = [];
@@ -1586,16 +1610,27 @@
     }
   });
 
+  // Keeps last_active fresh while the tab is actually open/foreground -
+  // cheap enough to run every minute, and on every visibility-return (the
+  // moment most relevant to "did they just come back after a long time?").
+  setInterval(markActive, 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') markActive(); });
+
   // ---- Boot ----
   (async () => {
     applyI18n();
     applyAccountTypeUI();
     await loadStoreInfo();
     setupBannerScrollFade();
+    if (token && idleTimedOut()) {
+      clearPersistedToken();
+      token = '';
+    }
     if (token) {
       try {
         const data = await api('/api/customers/me');
         customer = data.customer;
+        markActive();
         showShop();
         return;
       } catch (e) {
