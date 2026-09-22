@@ -58,6 +58,9 @@
 //        Name: password_reset            Language: English (or Urdu)
 //        Body: Aapka naya password hai: {{1}}. Login kar ke isay foran change kar lein. - {{2}}
 //
+//        Name: phone_otp                 Language: English (or Urdu)
+//        Body: Aapka verification code hai: {{1}}. Ye code kisi se share na karein. - {{2}}
+//
 //      Submit each for review - Meta usually approves Utility templates
 //      within a few minutes to a few hours. If one gets rejected, it's
 //      almost always the wording (Meta dislikes anything that reads like
@@ -69,6 +72,7 @@
 //        WHATSAPP_TEMPLATE_ORDER_CANCELLED=order_cancelled
 //        WHATSAPP_TEMPLATE_ORDER_UPDATED=order_updated
 //        WHATSAPP_TEMPLATE_PASSWORD_RESET=password_reset
+//        WHATSAPP_TEMPLATE_PHONE_OTP=phone_otp
 //        WHATSAPP_TEMPLATE_LANGUAGE=en_US   (or whatever Meta shows for
 //        the language you picked when creating the templates - "en_US" for
 //        English (US), "en" for English, etc.)

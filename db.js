@@ -173,6 +173,22 @@ async function init() {
     )
   `);
 
+  // Proves a customer actually has access to the WhatsApp number they typed
+  // in during signup (see routes/customers.js /send-otp and /signup) -
+  // without this, anyone could type in a random valid-shaped number (even
+  // one that isn't theirs) and successfully create an account with it. A
+  // code is only good for a short window and only good once - both
+  // enforced by expires_at and deleting the row the moment it's used.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS phone_otps (
+      id SERIAL PRIMARY KEY,
+      whatsapp TEXT NOT NULL,
+      otp TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
   // In-stock toggle (admin flips this per product - no numeric quantity
   // tracking, just "can customers order this right now or not") and an
   // optional category, used for the storefront's search/filter bar.
