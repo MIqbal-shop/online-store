@@ -504,6 +504,58 @@
     return digits.length === 11 && digits.startsWith('03');
   }
 
+  // Which WhatsApp number the currently-visible code was actually sent to -
+  // if the customer edits the number afterward, the old code no longer
+  // applies to whatever they've now typed, so signup below re-checks this
+  // instead of trusting "a code field is filled in" alone.
+  let otpSentFor = '';
+  let otpResendTimer = null;
+
+  function startOtpResendCooldown(seconds) {
+    const btn = $('resendOtpBtn');
+    let remaining = seconds;
+    btn.disabled = true;
+    const tick = () => {
+      btn.textContent = remaining > 0 ? `Resend (${remaining}s)` : 'Resend';
+      if (remaining <= 0) { clearInterval(otpResendTimer); btn.disabled = false; return; }
+      remaining -= 1;
+    };
+    if (otpResendTimer) clearInterval(otpResendTimer);
+    tick();
+    otpResendTimer = setInterval(tick, 1000);
+  }
+
+  async function requestOtp(triggerBtn) {
+    const errEl = $('signupError');
+    const statusEl = $('otpStatus');
+    errEl.style.display = 'none';
+    const whatsapp = $('s_whatsapp').value.trim();
+    if (!whatsapp) { errEl.textContent = 'Please enter your WhatsApp number first.'; errEl.style.display = 'block'; return; }
+    if (!isValidPakMobile(whatsapp)) { errEl.textContent = 'Please enter a valid WhatsApp number (e.g. 03001234567).'; errEl.style.display = 'block'; return; }
+
+    triggerBtn.disabled = true;
+    const originalText = triggerBtn.textContent;
+    triggerBtn.textContent = 'Sending...';
+    try {
+      await api('/api/customers/send-otp', { method: 'POST', body: JSON.stringify({ whatsapp }) });
+      otpSentFor = whatsapp;
+      $('otpField').style.display = 'block';
+      $('s_otp').value = '';
+      statusEl.style.color = '#22c55e';
+      statusEl.textContent = 'Code sent! Check your WhatsApp.';
+      $('s_otp').focus();
+      startOtpResendCooldown(45);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      triggerBtn.disabled = false;
+      triggerBtn.textContent = originalText;
+    }
+  }
+  $('sendOtpBtn').addEventListener('click', () => requestOtp($('sendOtpBtn')));
+  $('resendOtpBtn').addEventListener('click', () => requestOtp($('resendOtpBtn')));
+
   $('signupBtn').addEventListener('click', async () => {
     const errEl = $('signupError');
     errEl.style.display = 'none';
@@ -514,6 +566,7 @@
     const phone = $('s_phone').value.trim();
     const address = $('s_address').value.trim();
     const password = $('s_password').value;
+    const otp_code = $('s_otp').value.trim();
 
     if (!name) { errEl.textContent = isBusiness ? 'Please enter the owner name.' : 'Please enter your name.'; errEl.style.display = 'block'; return; }
     if (isBusiness && !shop_name) { errEl.textContent = 'Please enter your shop name.'; errEl.style.display = 'block'; return; }
@@ -523,10 +576,12 @@
     if (!isValidPakMobile(whatsapp)) { errEl.textContent = 'Please enter a valid WhatsApp number (e.g. 03001234567).'; errEl.style.display = 'block'; return; }
     if (!address) { errEl.textContent = 'Please enter your address.'; errEl.style.display = 'block'; return; }
     if (!password || password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+    if (whatsapp !== otpSentFor) { errEl.textContent = 'Please tap "Send Code" for this WhatsApp number first.'; errEl.style.display = 'block'; return; }
+    if (!otp_code) { errEl.textContent = 'Please enter the verification code sent to your WhatsApp.'; errEl.style.display = 'block'; return; }
     try {
       const data = await api('/api/customers/signup', {
         method: 'POST',
-        body: JSON.stringify({ customer_type: 'new', account_type: signupAccountType, name, whatsapp, shop_name: isBusiness ? shop_name : '', phone, address, password }),
+        body: JSON.stringify({ customer_type: 'new', account_type: signupAccountType, name, whatsapp, shop_name: isBusiness ? shop_name : '', phone, address, password, otp_code }),
       });
       customer = data.customer;
       persistToken(data.token, $('s_remember').checked);

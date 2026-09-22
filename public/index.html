@@ -104,7 +104,22 @@
           </div>
           <div class="field-row">
             <div class="field"><label data-i18n="phoneNumber">Cell number</label><input id="s_phone" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
-            <div class="field"><label data-i18n="whatsappNumber">WhatsApp number</label><input id="s_whatsapp" placeholder="03xx xxxxxxx" inputmode="tel" /></div>
+            <div class="field">
+              <label data-i18n="whatsappNumber">WhatsApp number</label>
+              <div style="display:flex; gap:8px;">
+                <input id="s_whatsapp" placeholder="03xx xxxxxxx" inputmode="tel" style="flex:1;" />
+                <button type="button" class="btn btn-ghost" id="sendOtpBtn" style="white-space:nowrap; padding:0 14px;">Send Code</button>
+              </div>
+            </div>
+          </div>
+          <div class="field" id="otpField" style="display:none;">
+            <label>Verification Code</label>
+            <p style="color:var(--ink-soft); font-size:12.5px; margin:0 0 6px;">A 5-digit code was sent to your WhatsApp - enter it below to confirm this number is yours.</p>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input id="s_otp" placeholder="e.g. 48213" inputmode="numeric" maxlength="5" style="flex:1; letter-spacing:4px; font-size:18px; text-align:center;" />
+              <button type="button" class="btn btn-ghost" id="resendOtpBtn" style="white-space:nowrap; padding:0 14px;">Resend</button>
+            </div>
+            <p id="otpStatus" style="font-size:12.5px; margin:6px 0 0;"></p>
           </div>
           <div class="field"><label data-i18n="address">Address</label><textarea id="s_address" rows="2" placeholder="Enter your full address" data-i18n-placeholder="enterFullAddress"></textarea></div>
           <div class="field"><label data-i18n="password">Password</label><input id="s_password" type="password" placeholder="At least 6 characters" data-i18n-placeholder="atLeast6Chars" /></div>
