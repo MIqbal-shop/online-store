@@ -29,8 +29,19 @@ function normalizePakMobile(raw) {
 }
 
 function publicFields(row) {
-  return { id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp, address: row.address, customer_type: row.customer_type, account_type: row.account_type || 'business' };
+  return {
+    id: row.id, name: row.name, shop_name: row.shop_name, phone: row.phone, whatsapp: row.whatsapp,
+    address: row.address, customer_type: row.customer_type, account_type: row.account_type || 'business',
+    verified: row.verified !== false, // NULL (pre-migration rows) counts as verified too
+    verification_expires_at: row.verification_expires_at || null,
+  };
 }
+
+// 6 digits, never starts with 0.
+function generateVerificationCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+const VERIFICATION_TTL_MS = 30 * 60 * 60 * 1000; // 30 hours
 
 // Short, easy-to-type temporary password: e.g. "K7QX9PLM"
 function generateTempPassword() {
@@ -78,10 +89,17 @@ router.post('/signup', async (req, res, next) => {
 
     const salt = makeSalt();
     const hash = hashPassword(password, salt);
+    // Account is created and logged in RIGHT NOW - signup never blocks on
+    // verification. verified=false + a code + a 30-hour deadline just ride
+    // along; the shop frontend shows the "enter your code" banner, and the
+    // Admin Portal / DMS are where the Owner/Manager SEE the code to go
+    // WhatsApp it to the customer themselves.
+    const code = generateVerificationCode();
+    const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS);
     const { rows } = await pool.query(
-      `INSERT INTO customers (customer_type, account_type, name, shop_name, phone, whatsapp, address, password_hash, password_salt)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [customer_type, accountType, name.trim(), accountType === 'business' ? (shop_name || '').trim() : '', normalizedPhone, normalizedWhatsapp, (address || '').trim(), hash, salt]
+      `INSERT INTO customers (customer_type, account_type, name, shop_name, phone, whatsapp, address, password_hash, password_salt, verified, verification_code, verification_expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,$10,$11) RETURNING *`,
+      [customer_type, accountType, name.trim(), accountType === 'business' ? (shop_name || '').trim() : '', normalizedPhone, normalizedWhatsapp, (address || '').trim(), hash, salt, code, expiresAt]
     );
     const token = await createSession('customer', rows[0].id);
     res.json({ token, customer: publicFields(rows[0]) });
@@ -98,6 +116,13 @@ router.post('/login', async (req, res, next) => {
     if (!account || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
       return res.status(401).json({ error: 'WhatsApp number or password is incorrect.' });
     }
+    // Password's right, but the 30-hour window to enter the verification
+    // code ran out first - no normal session; send them to the code-entry
+    // screen (POST /verify-login), which needs password AND code together.
+    const isExpiredUnverified = account.verified === false && account.verification_expires_at && new Date(account.verification_expires_at) < new Date();
+    if (isExpiredUnverified) {
+      return res.status(403).json({ error: 'Your verification code expired. Please enter the code sent to your WhatsApp to continue.', needs_verification: true });
+    }
     if (account.blocked) {
       return res.status(403).json({ error: 'Your account has been disabled. Please contact us.' });
     }
@@ -109,6 +134,48 @@ router.post('/login', async (req, res, next) => {
 router.post('/logout', async (req, res) => {
   await destroySession((req.headers.authorization || '').replace('Bearer ', '').trim());
   res.json({ ok: true });
+});
+
+// POST /api/customers/verify-login - body: { whatsapp, password, code }
+// For an account PAST its 30-hour window (login refused it with
+// needs_verification): needs the password AND the code the Owner/Manager
+// WhatsApp'd them. Success marks the account verified for good.
+router.post('/verify-login', async (req, res, next) => {
+  try {
+    const { whatsapp, password, code } = req.body;
+    const normalized = normalizePakMobile(whatsapp) || (whatsapp || '').trim();
+    const { rows } = await pool.query('SELECT * FROM customers WHERE whatsapp=$1', [normalized]);
+    const account = rows[0];
+    if (!account || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
+      return res.status(401).json({ error: 'WhatsApp number or password is incorrect.' });
+    }
+    if (account.verified) {
+      const token = await createSession('customer', account.id);
+      return res.json({ token, customer: publicFields(account) });
+    }
+    if (!code || !String(code).trim()) return res.status(400).json({ error: 'Please enter your verification code.' });
+    if (String(code).trim() !== account.verification_code) return res.status(400).json({ error: 'That code is incorrect.' });
+    const { rows: updated } = await pool.query('UPDATE customers SET verified=TRUE, verification_code=NULL WHERE id=$1 RETURNING *', [account.id]);
+    const token = await createSession('customer', account.id);
+    res.json({ token, customer: publicFields(updated[0]) });
+  } catch (err) { next(err); }
+});
+
+// POST /api/customers/me/verify - body: { code }
+// Account still WITHIN its 30-hour window and logged in: the "enter your
+// code" banner posts here. Wrong code just errors and lets them retry.
+router.post('/me/verify', requireCustomer, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM customers WHERE id=$1', [req.customerId]);
+    const account = rows[0];
+    if (!account) return res.status(404).json({ error: 'Account not found.' });
+    if (account.verified) return res.json({ customer: publicFields(account) });
+    const { code } = req.body;
+    if (!code || !String(code).trim()) return res.status(400).json({ error: 'Please enter your verification code.' });
+    if (String(code).trim() !== account.verification_code) return res.status(400).json({ error: 'That code is incorrect.' });
+    const { rows: updated } = await pool.query('UPDATE customers SET verified=TRUE, verification_code=NULL WHERE id=$1 RETURNING *', [account.id]);
+    res.json({ customer: publicFields(updated[0]) });
+  } catch (err) { next(err); }
 });
 
 router.get('/me', requireCustomer, async (req, res, next) => {

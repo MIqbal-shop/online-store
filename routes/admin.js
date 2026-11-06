@@ -440,6 +440,39 @@ router.put('/customers/:id/block', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ---- Phone verification (see routes/customers.js signup + verify) ----
+// Every customer who signed up and hasn't entered their code yet, with the
+// code itself - what the Owner/Manager reads off, then WhatsApps to the
+// customer from their own phone. Includes ones PAST their 30-hour window
+// (locked out, waiting on a code to get back in via /verify-login).
+router.get('/pending-verifications', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, name, shop_name, whatsapp, phone, verification_code, verification_expires_at,
+             (verification_expires_at < NOW()) AS expired
+      FROM customers
+      WHERE verified = FALSE AND verification_code IS NOT NULL
+      ORDER BY id DESC
+    `);
+    res.json({ customers: rows });
+  } catch (err) { next(err); }
+});
+
+// Fresh code + fresh 30-hour window - for a customer who lost the original
+// or whose window already closed.
+router.post('/customers/:id/regenerate-code', async (req, res, next) => {
+  try {
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const { rows } = await pool.query(
+      `UPDATE customers SET verification_code=$1, verification_expires_at=NOW() + INTERVAL '30 hours'
+       WHERE id=$2 AND verified=FALSE RETURNING id, verification_code, verification_expires_at`,
+      [code, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Customer nahi mila ya pehle se verified hai.' });
+    res.json({ ok: true, ...rows[0] });
+  } catch (err) { next(err); }
+});
+
 // ---- Delete a customer (mandatory 48-hour cool-off, see db.js) ----
 
 // Step 1: start the 48-hour countdown. Can be called again to just refresh

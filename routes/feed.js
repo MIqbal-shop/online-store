@@ -13,6 +13,25 @@ async function checkApiKey(req) {
   return !!apiKey && token === apiKey;
 }
 
+// GET /api/orders/feed/verifications - customers who signed up on this site
+// and haven't entered their phone-verification code yet (routes/customers.js).
+// The DMS pulls this so its Owner/Manager can see each pending customer's
+// code and WhatsApp it to them - same list as the Admin Portal's "Pending
+// Verifications". A customer drops off the instant they verify.
+router.get('/verifications', async (req, res, next) => {
+  try {
+    if (!(await checkApiKey(req))) return res.status(401).json({ error: 'Invalid API key' });
+    const { rows } = await pool.query(`
+      SELECT id, name, shop_name, whatsapp, phone, verification_code, verification_expires_at,
+             (verification_expires_at < NOW()) AS expired
+      FROM customers
+      WHERE verified = FALSE AND verification_code IS NOT NULL
+      ORDER BY id DESC
+    `);
+    res.json({ customers: rows });
+  } catch (err) { next(err); }
+});
+
 // GET /api/orders/feed - called periodically by the DMS (see its
 // backend/routes/onlineOrders.js /sync).
 //
