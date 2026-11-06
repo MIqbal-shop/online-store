@@ -65,6 +65,20 @@ async function requireCustomer(req, res, next) {
   try {
     const session = await getSession(tokenFromReq(req), 'customer');
     if (!session) return res.status(401).json({ error: 'Please log in first.' });
+
+    // "Automatically logged out" if their 30-hour phone-verification window
+    // (see routes/customers.js signup / verify) closed without them
+    // entering the code - enforced HERE, centrally, so an unverified-and-
+    // expired customer can't keep using ANY logged-in feature: their very
+    // next request dies with needs_verification, the frontend treats that
+    // as "not logged in" and they must use verify-login to get back in.
+    const { rows } = await pool.query('SELECT verified, verification_expires_at FROM customers WHERE id=$1', [session.subject_id]);
+    const account = rows[0];
+    if (account && account.verified === false && account.verification_expires_at && new Date(account.verification_expires_at) < new Date()) {
+      await destroySession(tokenFromReq(req));
+      return res.status(401).json({ error: 'Your verification code expired.', needs_verification: true });
+    }
+
     req.customerId = session.subject_id;
     next();
   } catch (err) { next(err); }

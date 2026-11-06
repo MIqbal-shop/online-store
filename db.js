@@ -90,6 +90,38 @@ async function init() {
   // later profile edit never rewrites order history).
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id)`);
 
+  // Phone verification - NOT sent automatically via any WhatsApp API. A
+  // 6-digit code is generated at signup and shown to the Owner/Manager in
+  // the Admin Portal AND in DMS (synced via /api/orders/feed/verifications,
+  // see routes/feed.js) - a real person reads it and WhatsApps it to the
+  // customer themselves, from their own phone. This is what proves the
+  // number is really theirs, without needing the Meta Business API at all.
+  // DEFAULT TRUE on `verified` is deliberate: every customer who already
+  // existed before this column was added is grandfathered in as verified;
+  // only customers who sign up AFTER this ships get verified=false
+  // explicitly at signup time.
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT TRUE`);
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS verification_code TEXT`);
+  // TIMESTAMPTZ (not plain TIMESTAMP): this is compared against NOW() and
+  // against JS Dates, so it has to mean one exact instant regardless of the
+  // server's / session's timezone (a plain TIMESTAMP would silently be off by
+  // the UTC offset anywhere the app ran in a non-UTC timezone, e.g. locally
+  // in Pakistan).
+  await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ`);
+  // If an earlier deploy already created it as plain TIMESTAMP, convert it in
+  // place (its values were written as UTC wall-clock time by the Vercel/
+  // Supabase runtime, hence AT TIME ZONE 'UTC'). A no-op once it's TIMESTAMPTZ.
+  try {
+    const { rows: colRows } = await pool.query(
+      `SELECT data_type FROM information_schema.columns WHERE table_name='customers' AND column_name='verification_expires_at'`
+    );
+    if (colRows[0] && colRows[0].data_type === 'timestamp without time zone') {
+      await pool.query(`ALTER TABLE customers ALTER COLUMN verification_expires_at TYPE TIMESTAMPTZ USING verification_expires_at AT TIME ZONE 'UTC'`);
+    }
+  } catch (e) {
+    console.error('[db] verification_expires_at timezone migration skipped:', e.message);
+  }
+
   // Login sessions live here, NOT in server memory - this app runs on
   // serverless (Vercel), where each request can land on a different,
   // independent instance with its own blank memory. A token created by one
@@ -169,22 +201,6 @@ async function init() {
       customer_name TEXT,
       temp_password TEXT NOT NULL,
       sent BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
-
-  // Proves a customer actually has access to the WhatsApp number they typed
-  // in during signup (see routes/customers.js /send-otp and /signup) -
-  // without this, anyone could type in a random valid-shaped number (even
-  // one that isn't theirs) and successfully create an account with it. A
-  // code is only good for a short window and only good once - both
-  // enforced by expires_at and deleting the row the moment it's used.
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS phone_otps (
-      id SERIAL PRIMARY KEY,
-      whatsapp TEXT NOT NULL,
-      otp TEXT NOT NULL,
-      expires_at TIMESTAMP NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
