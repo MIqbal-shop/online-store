@@ -217,7 +217,24 @@
     if (token) headers.Authorization = 'Bearer ' + token;
     const res = await fetch(path, { headers, ...opts });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+    if (!res.ok) {
+      const err = new Error(data.error || 'Something went wrong.');
+      if (data.needs_verification) {
+        err.needsVerification = true;
+        // A request made WHILE logged in just got refused because the 30-hour
+        // verification window closed (the server already killed the session):
+        // forget the stale token and go to the login screen - the "automatic
+        // logout". (A refused LOGIN attempt has no token yet, so skip.)
+        if (token) {
+          clearPersistedToken();
+          stopVerifyCountdown();
+          showAuthGate();
+          $('loginError').textContent = 'Your verification time ended. Please log in and enter your code.';
+          $('loginError').style.display = 'block';
+        }
+      }
+      throw err;
+    }
     return data;
   }
 
@@ -402,6 +419,7 @@
   function showAuthGate() {
     $('authGate').style.display = 'flex';
     $('shopRoot').style.display = 'none';
+    stopVerifyCountdown();
     showLoginView();
     // Hidden while someone's still on the login/signup screen - a visitor
     // who hasn't committed to being a customer yet shouldn't have a
@@ -416,17 +434,34 @@
     loadProducts();
     loadFavoriteIds();
     loadNotifyRequestedIds();
+    updateVerifyBanner();
     const waBtn = $('floatingWhatsApp');
     if (waBtn && floatingWhatsAppConfigured) waBtn.style.display = 'flex';
   }
 
   function showLoginView() {
     $('loginForm').style.display = 'block'; $('signupForm').style.display = 'none';
+    $('verifyLoginForm').style.display = 'none';
     $('loginError').style.display = 'none'; $('signupError').style.display = 'none';
   }
   function showSignupView() {
     $('signupForm').style.display = 'block'; $('loginForm').style.display = 'none';
+    $('verifyLoginForm').style.display = 'none';
     $('loginError').style.display = 'none'; $('signupError').style.display = 'none';
+  }
+  // Shown instead of a normal login when the server says this account's
+  // 30-hour verification window ended (needs_verification) - the number and
+  // password from the login form are kept in memory and sent along with the
+  // code to /verify-login.
+  let pendingVerifyLogin = null;
+  function showVerifyLoginView(whatsapp, password) {
+    pendingVerifyLogin = { whatsapp, password };
+    $('loginForm').style.display = 'none'; $('signupForm').style.display = 'none';
+    $('verifyLoginForm').style.display = 'block';
+    $('vl_number').textContent = whatsapp;
+    $('vl_code').value = '';
+    $('vl_error').style.display = 'none';
+    $('vl_code').focus();
   }
   ['goToSignup2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showSignupView(); }));
   ['goToLogin2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showLoginView(); }));
@@ -490,6 +525,84 @@
       customer = data.customer;
       persistToken(data.token, $('l_remember').checked);
       showShop();
+    } catch (e) {
+      if (e.needsVerification) { showVerifyLoginView(whatsapp, password); return; }
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  });
+
+  // ---- Verify-to-continue (30-hour window ended) ----
+  $('vl_btn').addEventListener('click', async () => {
+    const errEl = $('vl_error');
+    errEl.style.display = 'none';
+    const code = $('vl_code').value.trim();
+    if (!pendingVerifyLogin) { showLoginView(); return; }
+    if (!code) { errEl.textContent = 'Please enter the 6-digit code.'; errEl.style.display = 'block'; return; }
+    try {
+      const data = await api('/api/customers/verify-login', {
+        method: 'POST',
+        body: JSON.stringify({ ...pendingVerifyLogin, code }),
+      });
+      pendingVerifyLogin = null;
+      customer = data.customer;
+      persistToken(data.token, $('l_remember').checked);
+      showShop();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  });
+  $('vl_back').addEventListener('click', (e) => { e.preventDefault(); pendingVerifyLogin = null; showLoginView(); });
+
+  // ---- Phone-verification banner (shown at the top of the shop) ----
+  // Visible only while the logged-in customer hasn't entered their code. A
+  // live HH:MM:SS countdown runs to verification_expires_at; hitting zero logs
+  // them out right here (the server independently refuses their next request
+  // too - see requireCustomer in auth.js - this just makes it immediate).
+  let verifyTimer = null;
+  function stopVerifyCountdown() {
+    if (verifyTimer) { clearInterval(verifyTimer); verifyTimer = null; }
+    const b = $('verifyBanner');
+    if (b) b.style.display = 'none';
+  }
+  function formatCountdown(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
+  }
+  function updateVerifyBanner() {
+    stopVerifyCountdown();
+    if (!customer || customer.verified !== false || !customer.verification_expires_at) return;
+    const deadline = new Date(customer.verification_expires_at).getTime();
+    $('verifyBanner').style.display = 'flex';
+    $('verifyCodeInput').value = '';
+    $('verifyError').style.display = 'none';
+    const tick = () => {
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        // Time's up - same result the server enforces: logged out.
+        clearPersistedToken();
+        stopVerifyCountdown();
+        showAuthGate();
+        $('loginError').textContent = 'Your verification time ended. Please log in and enter your code.';
+        $('loginError').style.display = 'block';
+        return;
+      }
+      $('verifyCountdown').textContent = formatCountdown(left);
+    };
+    tick();
+    verifyTimer = setInterval(tick, 1000);
+  }
+  $('verifyCodeBtn').addEventListener('click', async () => {
+    const errEl = $('verifyError');
+    errEl.style.display = 'none';
+    const code = $('verifyCodeInput').value.trim();
+    if (!code) { errEl.textContent = 'Please enter your 6-digit code.'; errEl.style.display = 'block'; return; }
+    try {
+      const data = await api('/api/customers/me/verify', { method: 'POST', body: JSON.stringify({ code }) });
+      customer = data.customer;
+      stopVerifyCountdown(); // verified - banner and timer gone for good
     } catch (e) {
       errEl.textContent = e.message;
       errEl.style.display = 'block';

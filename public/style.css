@@ -545,6 +545,27 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
    side. Collapses to a single column (visual on top, compact) on
    phones; sits as a two-column card on tablets/laptops.
    ============================================================ */
+/* ---- Phone-verification banner (shop top) ---- */
+.verify-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px;
+  padding: 12px 20px;
+  background: linear-gradient(90deg, var(--gold), #f6c85f);
+  color: #1a1206;
+  font-size: 13.5px; line-height: 1.35;
+}
+.verify-banner-text { display: flex; flex-direction: column; gap: 2px; min-width: 220px; flex: 1; }
+.verify-banner-text strong { font-size: 14.5px; font-weight: 800; }
+.verify-banner-text b { font-variant-numeric: tabular-nums; font-weight: 800; }
+.verify-banner-form { display: flex; gap: 8px; align-items: center; }
+.verify-banner-form input {
+  width: 150px; padding: 9px 12px; border-radius: 10px; border: 1.5px solid rgba(26,18,6,0.35);
+  background: rgba(255,255,255,0.85); color: #1a1206; font-size: 16px; font-weight: 700;
+  letter-spacing: 4px; text-align: center; outline: none;
+}
+.verify-banner-form input:focus { border-color: #1a1206; background: #fff; }
+.verify-banner-form .btn { background: #1a1206; color: var(--gold); padding: 9px 18px; border-radius: 10px; }
+.verify-banner-error { flex-basis: 100%; margin: 0; font-weight: 700; color: #7a1010; }
+
 .boot-loading {
   position: fixed; inset: 0; z-index: 200;
   display: flex; align-items: center; justify-content: center;

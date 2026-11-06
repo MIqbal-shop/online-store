@@ -37,6 +37,7 @@
     <button class="admin-tab" data-tab="reviews"><span class="ico">⭐</span><span class="lbl">Reviews</span></button>
     <button class="admin-tab" data-tab="stock-alerts"><span class="ico">🔔</span><span class="lbl">Stock Alerts</span><span class="tab-badge" id="stockAlertsTabBadge" style="display:none;">0</span></button>
     <button class="admin-tab" data-tab="store"><span class="ico">🏬</span><span class="lbl">Store</span></button>
+    <button class="admin-tab" data-tab="verifications"><span class="ico">✅</span><span class="lbl">Verifications</span><span class="tab-badge" id="verifTabBadge" style="display:none;">0</span></button>
     <button class="admin-tab" data-tab="resets"><span class="ico">🔐</span><span class="lbl">Password Resets</span></button>
     <button class="admin-tab" data-tab="account"><span class="ico">🔑</span><span class="lbl">Account</span></button>
     <button class="admin-tab" data-tab="settings"><span class="ico">🔗</span><span class="lbl">DMS Connection</span></button>
@@ -198,6 +199,16 @@
     </div>
 
     <!-- Password Resets tab -->
+    <div id="tab-verifications" style="display:none;">
+      <h2>Phone Verifications</h2>
+      <p style="color:var(--ink-soft); font-size:13.5px;">
+        Every new customer gets a 6-digit code and 30 hours to enter it on the website. Tap <b>WhatsApp</b> to send
+        them their code from your own WhatsApp - when they type it in, they disappear from this list. If a customer's
+        30 hours ran out they're locked out until they enter the code (or tap <b>New code</b> to give them a fresh 30 hours).
+      </p>
+      <div class="card" id="verificationsList" style="margin-top:12px;"></div>
+    </div>
+
     <div id="tab-resets" style="display:none;">
       <h2>Password Resets</h2>
       <p style="color:var(--ink-soft); font-size:13.5px;">

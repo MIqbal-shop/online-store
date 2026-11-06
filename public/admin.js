@@ -70,6 +70,7 @@
     loadApiKey();
     loadStoreSettings();
     loadStockAlerts();
+    refreshVerifBadge();
   }
 
   // ---- Tabs ----
@@ -77,7 +78,8 @@
     btn.addEventListener('click', () => {
       document.querySelectorAll('.admin-tab[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'stock-alerts', 'store', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      ['dashboard', 'products', 'orders', 'history', 'customers', 'broadcast', 'reviews', 'stock-alerts', 'store', 'verifications', 'resets', 'account', 'settings'].forEach((t) => $('tab-' + t).style.display = t === btn.dataset.tab ? 'block' : 'none');
+      if (btn.dataset.tab === 'verifications') loadVerifications();
       if (btn.dataset.tab === 'resets') loadPasswordResets();
       if (btn.dataset.tab === 'dashboard') loadDashboard();
       if (btn.dataset.tab === 'customers') loadCustomers();
@@ -102,6 +104,7 @@
   setInterval(() => {
     if (currentTab === 'orders') loadOrders();
     else api('/api/admin/orders').then((data) => updateOrdersTabBadge((data.orders || []).length)).catch(() => {});
+    if (currentTab === 'verifications') loadVerifications(); else refreshVerifBadge();
   }, 20000);
   $('refreshOrdersBtn').addEventListener('click', loadOrders);
 
@@ -931,6 +934,67 @@ function priceSummary(p) {
       row.querySelector('.delete-alert-btn').addEventListener('click', async () => {
         if (!confirm('Remove this alert request?')) return;
         try { await api(`/api/admin/stock-notify-requests/${r.id}`, { method: 'DELETE' }); loadStockAlerts(); } catch (e) { alert(e.message); }
+      });
+      box.appendChild(row);
+    }
+  }
+
+  // ---- Phone Verifications ----
+  // Customers who signed up and haven't entered their 6-digit code yet (see
+  // routes/customers.js). The admin WhatsApps each one their code by hand -
+  // the WhatsApp button pre-fills the message, so it's one tap per customer.
+  function setVerifBadge(count) {
+    const badge = $('verifTabBadge');
+    if (!badge) return;
+    badge.textContent = count > 99 ? '99+' : String(count);
+    badge.style.display = count > 0 ? 'flex' : 'none';
+  }
+  function refreshVerifBadge() {
+    api('/api/admin/pending-verifications').then((d) => setVerifBadge((d.customers || []).length)).catch(() => {});
+  }
+  function formatTimeLeft(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60);
+    return `${h}h ${String(m).padStart(2, '0')}m left`;
+  }
+  async function loadVerifications() {
+    try {
+      const data = await api('/api/admin/pending-verifications');
+      renderVerifications(data.customers || []);
+    } catch (e) { console.error(e); }
+  }
+  function renderVerifications(customers) {
+    const box = $('verificationsList');
+    box.innerHTML = '';
+    setVerifBadge(customers.length);
+    if (customers.length === 0) {
+      box.innerHTML = '<div class="empty-note">No one is waiting for a code right now.</div>';
+      return;
+    }
+    for (const c of customers) {
+      const row = document.createElement('div');
+      row.className = 'admin-row';
+      row.style.alignItems = 'flex-start';
+      const waLink = `https://wa.me/${formatWhatsAppNumber(c.whatsapp)}?text=${encodeURIComponent(
+        `${storeName}: Your verification code is ${c.verification_code}. Please enter it on our website to verify your account.`)}`;
+      const msLeft = new Date(c.verification_expires_at).getTime() - Date.now();
+      const status = c.expired
+        ? '<span class="pill-status pill-cancelled">Locked out</span>'
+        : `<span class="pill-status pill-new">${formatTimeLeft(msLeft)}</span>`;
+      row.innerHTML = `
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:13.5px;">${escapeHtml(c.name || '')}${c.shop_name ? ' <span style="color:var(--ink-soft); font-weight:400;">(' + escapeHtml(c.shop_name) + ')</span>' : ''} ${status}</div>
+          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">WhatsApp: ${escapeHtml(c.whatsapp || '')}</div>
+          <div class="key-box" style="margin-top:6px; display:inline-block; padding:6px 12px; letter-spacing:4px; font-weight:700;">${escapeHtml(c.verification_code)}</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>
+          <button class="btn btn-navy regen-btn">New code</button>
+        </div>
+      `;
+      row.querySelector('.regen-btn').addEventListener('click', async () => {
+        if (!confirm(`Generate a new code for ${c.name || 'this customer'}? The old code stops working and they get a fresh 30 hours.`)) return;
+        try { await api(`/api/admin/customers/${c.id}/regenerate-code`, { method: 'POST' }); loadVerifications(); } catch (e) { alert(e.message); }
       });
       box.appendChild(row);
     }
