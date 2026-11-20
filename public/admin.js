@@ -378,6 +378,22 @@ function priceSummary(p) {
     badge.style.display = count > 0 ? 'flex' : 'none';
   }
 
+  // ---- Shared order layout: customer details + items table (quantity shown separately) ----
+  function custBlock(o) {
+    const shop = (o.shop_name || '').trim();
+    const f = (label, val) => (val ? `<div class="cf"><span>${label}</span><b>${escapeHtml(val)}</b></div>` : '');
+    const same = o.phone && o.whatsapp && o.phone === o.whatsapp;
+    return `<div class="cust-grid">
+      ${shop ? f('Shop', shop) + f('Owner', o.customer_name) : f('Name', o.customer_name)}
+      ${same ? f('Mobile / WhatsApp', o.phone) : f('Mobile', o.phone) + f('WhatsApp', o.whatsapp)}
+      ${f('Address', o.address)}
+    </div>`;
+  }
+  function itemsTbl(items, qtyHtml, showTotal) {
+    const rows = (items || []).map((it) => `<tr><td class="pn">${escapeHtml(it.product_name)}</td><td><span class="qty-badge">${qtyHtml(it)}</span></td><td>${escapeHtml(it.unit || '')}</td><td>${money(it.price)}</td></tr>`).join('');
+    return `<table class="items-tbl"><thead><tr><th>Product</th><th>Qty</th><th>Unit</th><th>Price</th></tr></thead><tbody>${rows}</tbody>${showTotal != null ? `<tfoot><tr><td colspan="3">Total</td><td>${money(showTotal)}</td></tr></tfoot>` : ''}</table>`;
+  }
+
   function renderOrders(orders) {
     const box = $('ordersList');
     box.innerHTML = '';
@@ -399,7 +415,7 @@ function priceSummary(p) {
             const reviewQty = it.review_quantity != null ? it.review_quantity : it.quantity;
             const changed = Number(reviewQty) !== Number(it.quantity);
             return `<div style="display:flex; justify-content:space-between; font-size:12.5px; padding:2px 0;">
-              <span>${escapeHtml(it.product_name)} ${changed ? `<s style="opacity:.55;">${it.quantity}</s> &rarr; <b>${reviewQty}</b>` : `x ${it.quantity}`} ${escapeHtml(it.unit || '')}</span>
+              <span>${escapeHtml(it.product_name)} ${changed ? `<s style="opacity:.55;">${it.quantity}</s> &rarr; <span class="qty-badge">${reviewQty}</span>` : `<span class="qty-badge">${it.quantity}</span>`} ${escapeHtml(it.unit || '')}</span>
               <span style="color:var(--ink-soft);">${money(it.price)}</span>
             </div>`;
           }).join('')}
@@ -414,8 +430,8 @@ function priceSummary(p) {
             ${underReview ? '<span class="pill-review">🕒 Review Mein</span>' : ''}
             <span class="pill-status pill-new">New</span>
           </div>
-          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(o.shop_name || '')} ${o.shop_name ? '·' : ''} ${escapeHtml(o.whatsapp || '')}</div>
-          ${!underReview ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">${escapeHtml(itemsText)}</div>` : ''}
+          ${custBlock(o)}
+          ${!underReview ? itemsTbl(o.items, (it) => escapeHtml(it.quantity), (o.items || []).reduce((s, it) => s + Number(it.quantity) * Number(it.price), 0)) : ''}
           ${o.note ? `<div style="font-size:12px; color:var(--gold); margin-top:4px;">Note: ${escapeHtml(o.note)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
           ${compareHtml}
@@ -706,8 +722,8 @@ function priceSummary(p) {
             ${o.altered ? '<span class="pill-adjusted">Adjusted</span>' : ''}
             ${o.confirmed_via ? `<span style="font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.02em;">via ${o.confirmed_via === 'dms' ? 'DMS' : 'Admin Portal'}</span>` : ''}
           </div>
-          <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">${escapeHtml(o.shop_name || '')} ${o.shop_name ? '·' : ''} ${escapeHtml(o.whatsapp || '')}</div>
-          <div style="font-size:12px; color:var(--ink-soft); margin-top:4px;">${escapeHtml(itemsText)}</div>
+          ${custBlock(o)}
+          ${itemsTbl(o.items, (it) => (it.confirmed_quantity != null && Number(it.confirmed_quantity) !== Number(it.quantity) ? `<s style="opacity:.55;">${it.quantity}</s> &rarr; ${it.confirmed_quantity}` : escapeHtml(it.quantity)))}
           ${o.note ? `<div style="font-size:12px; color:var(--gold); margin-top:4px;">Note: ${escapeHtml(o.note)}</div>` : ''}
           ${o.status !== 'cancelled' ? `<div style="font-size:12.5px; font-weight:700; margin-top:4px;">${money(billTotal)}</div>` : ''}
           <div style="font-size:11px; color:#9aa0b4; margin-top:4px;">${(o.order_date || '').toString().replace('T', ' ').slice(0, 16)}</div>
