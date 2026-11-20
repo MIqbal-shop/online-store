@@ -545,26 +545,104 @@ html[dir="rtl"] .category-filter-panel { right: auto; left: 0; }
    side. Collapses to a single column (visual on top, compact) on
    phones; sits as a two-column card on tablets/laptops.
    ============================================================ */
-/* ---- Phone-verification banner (shop top) ---- */
+/* ---- Phone-verification banner (shop top) ----
+   A dark + gold notice card in the store's own colours: shield icon, live
+   hrs:min:sec timer, six single-digit code boxes and a thin progress bar
+   draining underneath. Turns red under 6 hours left, green on success. ---- */
 .verify-banner {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px;
-  padding: 12px 20px;
-  background: linear-gradient(90deg, var(--gold), #f6c85f);
-  color: #1a1206;
-  font-size: 13.5px; line-height: 1.35;
+  position: relative;
+  background: linear-gradient(95deg, rgba(240,178,61,0.18) 0%, rgba(240,178,61,0.06) 55%, rgba(240,178,61,0.12) 100%), var(--ink-2);
+  border-bottom: 1px solid rgba(240,178,61,0.35);
+  color: var(--paper);
+  overflow: hidden;
+  animation: verifySlideIn .45s cubic-bezier(.2,.8,.2,1);
 }
-.verify-banner-text { display: flex; flex-direction: column; gap: 2px; min-width: 220px; flex: 1; }
-.verify-banner-text strong { font-size: 14.5px; font-weight: 800; }
-.verify-banner-text b { font-variant-numeric: tabular-nums; font-weight: 800; }
-.verify-banner-form { display: flex; gap: 8px; align-items: center; }
-.verify-banner-form input {
-  width: 150px; padding: 9px 12px; border-radius: 10px; border: 1.5px solid rgba(26,18,6,0.35);
-  background: rgba(255,255,255,0.85); color: #1a1206; font-size: 16px; font-weight: 700;
-  letter-spacing: 4px; text-align: center; outline: none;
+.verify-inner { max-width: 1280px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 14px 28px; }
+.verify-info { display: flex; align-items: center; gap: 14px; flex: 1 1 340px; min-width: 0; }
+.verify-icon {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+  background: linear-gradient(145deg, var(--gold), var(--gold-dark)); color: #1a1206;
+  box-shadow: 0 4px 14px rgba(240,178,61,0.35);
 }
-.verify-banner-form input:focus { border-color: #1a1206; background: #fff; }
-.verify-banner-form .btn { background: #1a1206; color: var(--gold); padding: 9px 18px; border-radius: 10px; }
-.verify-banner-error { flex-basis: 100%; margin: 0; font-weight: 700; color: #7a1010; }
+.verify-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.verify-copy strong { font-size: 15px; font-weight: 800; letter-spacing: .01em; }
+.verify-copy span { font-size: 12.5px; line-height: 1.4; color: var(--paper-dim); }
+.verify-timer { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.verify-timer i { font-style: normal; font-weight: 800; color: var(--gold); opacity: .7; }
+.vt-seg { min-width: 50px; padding: 5px 8px 4px; border-radius: 10px; text-align: center; background: rgba(255,255,255,0.06); border: 1px solid var(--line); }
+.vt-seg b { display: block; font-family: 'Anton', sans-serif; font-size: 21px; font-weight: 400; line-height: 1.1; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: var(--paper); }
+.vt-seg small { display: block; font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--paper-dim); opacity: .8; }
+.verify-entry { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-width: 0; }
+
+.otp-boxes { display: flex; gap: 7px; min-width: 0; }
+.otp-box {
+  width: 40px; height: 48px; padding: 0; text-align: center;
+  font: 700 20px 'Inter', sans-serif; color: var(--paper); caret-color: var(--gold);
+  background: rgba(255,255,255,0.06); border: 1.5px solid var(--line); border-radius: 11px; outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s, transform .15s;
+}
+.otp-box:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(240,178,61,0.22); background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+.otp-box.filled { border-color: rgba(240,178,61,0.7); }
+.otp-boxes.shake { animation: otpShake .38s; }
+.otp-boxes-lg { width: 100%; max-width: 340px; margin: 6px auto 2px; justify-content: center; }
+.otp-boxes-lg .otp-box { flex: 1 1 0; width: auto; min-width: 0; max-width: 52px; height: 56px; font-size: 22px; }
+
+.verify-btn {
+  height: 48px; padding: 0 24px; border: 0; border-radius: 11px; cursor: pointer;
+  font: 800 13px 'Inter', sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #1a1206;
+  background: linear-gradient(145deg, var(--gold), var(--gold-dark)); box-shadow: 0 4px 14px rgba(240,178,61,0.3);
+  transition: transform .15s, box-shadow .15s, opacity .15s;
+}
+.verify-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(240,178,61,0.45); }
+.verify-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+
+.verify-progress { height: 3px; background: rgba(255,255,255,0.06); }
+.verify-progress span { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); transition: width 1s linear; }
+.verify-banner-error { max-width: 1280px; margin: 0 auto; padding: 8px 24px 12px; font-size: 12.5px; font-weight: 700; color: #ff8a7a; text-align: right; }
+.verify-success { display: none; max-width: 1280px; margin: 0 auto; padding: 16px 24px; align-items: center; gap: 12px; font-weight: 700; color: #8ee6a8; }
+
+.verify-banner.urgent { background: linear-gradient(95deg, rgba(214,69,69,0.24), rgba(214,69,69,0.08) 60%, rgba(214,69,69,0.14)), var(--ink-2); border-bottom-color: rgba(214,69,69,0.55); }
+.verify-banner.urgent .verify-icon { background: linear-gradient(145deg, #e8604f, #c33636); color: #fff; box-shadow: 0 4px 14px rgba(214,69,69,0.4); }
+.verify-banner.urgent .vt-seg b { color: #ff9b8c; }
+.verify-banner.urgent .verify-timer i { color: #e8604f; }
+.verify-banner.urgent .verify-progress span { background: linear-gradient(90deg, #c33636, #e8604f); }
+.verify-banner.verified { background: linear-gradient(95deg, rgba(60,190,110,0.22), rgba(60,190,110,0.07)), var(--ink-2); border-bottom-color: rgba(60,190,110,0.5); }
+.verify-banner.closing { animation: verifySlideOut .45s ease forwards; }
+
+@keyframes verifySlideIn { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@keyframes verifySlideOut { to { opacity: 0; transform: translateY(-14px); } }
+@keyframes otpShake { 10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-6px); } 40%, 60% { transform: translateX(6px); } }
+
+/* Light theme */
+[data-theme="light"] .verify-banner { background: linear-gradient(95deg, #fff2cd, #fffaf0 60%, #fff0c8); color: #2b2111; border-bottom-color: rgba(201,138,31,0.45); }
+[data-theme="light"] .verify-copy span { color: #6b5a38; }
+[data-theme="light"] .vt-seg { background: #fff; border-color: rgba(0,0,0,0.1); }
+[data-theme="light"] .vt-seg b { color: #2b2111; }
+[data-theme="light"] .vt-seg small { color: #7a6a48; }
+[data-theme="light"] .otp-box { background: #fff; color: #2b2111; border-color: rgba(0,0,0,0.18); }
+[data-theme="light"] .otp-box:focus { background: #fff; }
+[data-theme="light"] .verify-progress { background: rgba(0,0,0,0.07); }
+[data-theme="light"] .verify-banner.urgent { background: linear-gradient(95deg, #ffe0dc, #fff5f3 60%, #ffdcd6); border-bottom-color: rgba(214,69,69,0.5); }
+[data-theme="light"] .verify-banner.urgent .vt-seg b { color: #c33636; }
+[data-theme="light"] .verify-banner.verified { background: linear-gradient(95deg, #d9f5e3, #f3fcf6); }
+[data-theme="light"] .verify-success { color: #18794a; }
+[data-theme="light"] .verify-banner-error { color: #c33636; }
+
+/* Phones: icon + title + compact timer on one row, code boxes + button below */
+@media (max-width: 760px) {
+  .verify-inner { padding: 12px 16px 14px; gap: 12px 12px; }
+  .verify-info { flex: 1 1 0; }
+  .verify-copy span { display: none; }
+  .vt-seg { min-width: 38px; padding: 4px 6px; }
+  .vt-seg b { font-size: 17px; }
+  .vt-seg small { display: none; }
+  .verify-entry { flex: 1 1 100%; }
+  .verify-entry .otp-boxes { flex: 1; }
+  .verify-entry .otp-box { flex: 1; width: auto; min-width: 0; height: 46px; }
+  .verify-btn { height: 46px; padding: 0 18px; }
+  .verify-banner-error, .verify-success { padding-left: 16px; padding-right: 16px; }
+  .verify-banner-error { text-align: left; }
+}
 
 .boot-loading {
   position: fixed; inset: 0; z-index: 200;

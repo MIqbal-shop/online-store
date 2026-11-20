@@ -459,9 +459,9 @@
     $('loginForm').style.display = 'none'; $('signupForm').style.display = 'none';
     $('verifyLoginForm').style.display = 'block';
     $('vl_number').textContent = whatsapp;
-    $('vl_code').value = '';
+    vlOtp.clear();
     $('vl_error').style.display = 'none';
-    $('vl_code').focus();
+    vlOtp.focus();
   }
   ['goToSignup2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showSignupView(); }));
   ['goToLogin2'].forEach((id) => $(id).addEventListener('click', (e) => { e.preventDefault(); showLoginView(); }));
@@ -532,13 +532,76 @@
     }
   });
 
+  /* OTP-BOXES-START */
+  // A row of single-digit boxes instead of one stretched text field: typing
+  // auto-advances, Backspace steps back, arrow keys move, and pasting (or an
+  // OS "one-time code" autofill) spreads the whole code across the boxes.
+  function createOtpBoxes(container, { length = 6, onChange, onEnter } = {}) {
+    container.innerHTML = '';
+    const boxes = [];
+    for (let i = 0; i < length; i++) {
+      const el = document.createElement('input');
+      el.className = 'otp-box';
+      el.type = 'text';
+      el.inputMode = 'numeric';
+      // The first box accepts the full length so an autofilled code (which
+      // arrives in ONE input event) isn't cut to a single character before
+      // the handler below gets to spread it out.
+      el.maxLength = i === 0 ? length : 1;
+      el.autocomplete = i === 0 ? 'one-time-code' : 'off';
+      el.setAttribute('aria-label', 'Digit ' + (i + 1));
+      container.appendChild(el);
+      boxes.push(el);
+    }
+    const value = () => boxes.map((b) => b.value).join('');
+    const refresh = () => { boxes.forEach((b) => b.classList.toggle('filled', !!b.value)); if (onChange) onChange(value()); };
+    const fill = (digits, from) => {
+      const d = String(digits).replace(/\D/g, '');
+      if (!d) return;
+      let last = from - 1;
+      for (let k = 0; k < d.length && from + k < length; k++) { boxes[from + k].value = d[k]; last = from + k; }
+      boxes[Math.min(last + 1, length - 1)].focus();
+      refresh();
+    };
+    boxes.forEach((el, i) => {
+      el.addEventListener('input', () => {
+        const raw = el.value.replace(/\D/g, '');
+        if (raw.length > 1) { el.value = ''; fill(raw, i); return; }
+        el.value = raw;
+        if (raw && i < length - 1) boxes[i + 1].focus();
+        refresh();
+      });
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !el.value && i > 0) { e.preventDefault(); boxes[i - 1].value = ''; boxes[i - 1].focus(); refresh(); }
+        else if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); boxes[i - 1].focus(); }
+        else if (e.key === 'ArrowRight' && i < length - 1) { e.preventDefault(); boxes[i + 1].focus(); }
+        else if (e.key === 'Enter' && onEnter) { onEnter(); }
+      });
+      el.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        boxes.forEach((b) => { b.value = ''; });
+        fill(text, 0);
+      });
+      el.addEventListener('focus', () => el.select());
+    });
+    return {
+      get: value,
+      clear() { boxes.forEach((b) => { b.value = ''; }); refresh(); },
+      focus() { (boxes.find((b) => !b.value) || boxes[0]).focus(); },
+      shake() { container.classList.remove('shake'); void container.offsetWidth; container.classList.add('shake'); },
+    };
+  }
+  /* OTP-BOXES-END */
+
   // ---- Verify-to-continue (30-hour window ended) ----
+  const vlOtp = createOtpBoxes($('vlOtp'), { onEnter: () => $('vl_btn').click() });
   $('vl_btn').addEventListener('click', async () => {
     const errEl = $('vl_error');
     errEl.style.display = 'none';
-    const code = $('vl_code').value.trim();
+    const code = vlOtp.get();
     if (!pendingVerifyLogin) { showLoginView(); return; }
-    if (!code) { errEl.textContent = 'Please enter the 6-digit code.'; errEl.style.display = 'block'; return; }
+    if (code.length < 6) { errEl.textContent = 'Please enter all 6 digits of the code.'; errEl.style.display = 'block'; vlOtp.shake(); return; }
     try {
       const data = await api('/api/customers/verify-login', {
         method: 'POST',
@@ -551,32 +614,45 @@
     } catch (e) {
       errEl.textContent = e.message;
       errEl.style.display = 'block';
+      vlOtp.shake(); vlOtp.clear(); vlOtp.focus();
     }
   });
   $('vl_back').addEventListener('click', (e) => { e.preventDefault(); pendingVerifyLogin = null; showLoginView(); });
 
   // ---- Phone-verification banner (shown at the top of the shop) ----
   // Visible only while the logged-in customer hasn't entered their code. A
-  // live HH:MM:SS countdown runs to verification_expires_at; hitting zero logs
-  // them out right here (the server independently refuses their next request
-  // too - see requireCustomer in auth.js - this just makes it immediate).
+  // live countdown (hrs : min : sec) runs to verification_expires_at, with a
+  // thin progress bar draining beneath it and a red "urgent" look under 6
+  // hours left; hitting zero logs them out right here (the server
+  // independently refuses their next request too - see requireCustomer in
+  // auth.js - this just makes it immediate).
+  const VERIFY_WINDOW_MS = 30 * 60 * 60 * 1000;
+  const VERIFY_URGENT_MS = 6 * 60 * 60 * 1000;
   let verifyTimer = null;
+  let verifyHideTimers = [];
+  const verifyOtp = createOtpBoxes($('verifyOtp'), {
+    onChange: (v) => { $('verifyCodeBtn').disabled = v.length < 6; $('verifyError').style.display = 'none'; },
+    onEnter: () => { if (!$('verifyCodeBtn').disabled) $('verifyCodeBtn').click(); },
+  });
   function stopVerifyCountdown() {
     if (verifyTimer) { clearInterval(verifyTimer); verifyTimer = null; }
+    verifyHideTimers.forEach(clearTimeout); verifyHideTimers = [];
     const b = $('verifyBanner');
-    if (b) b.style.display = 'none';
+    if (!b) return;
+    b.style.display = 'none';
+    b.classList.remove('urgent', 'verified', 'closing');
+    b.querySelector('.verify-inner').style.display = '';
+    $('verifyProgress').style.display = '';
+    $('verifySuccess').style.display = 'none';
   }
-  function formatCountdown(ms) {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
-    return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
-  }
+  const pad2 = (n) => String(n).padStart(2, '0');
   function updateVerifyBanner() {
     stopVerifyCountdown();
     if (!customer || customer.verified !== false || !customer.verification_expires_at) return;
     const deadline = new Date(customer.verification_expires_at).getTime();
-    $('verifyBanner').style.display = 'flex';
-    $('verifyCodeInput').value = '';
+    const banner = $('verifyBanner');
+    banner.style.display = 'block';
+    verifyOtp.clear();
     $('verifyError').style.display = 'none';
     const tick = () => {
       const left = deadline - Date.now();
@@ -589,23 +665,54 @@
         $('loginError').style.display = 'block';
         return;
       }
-      $('verifyCountdown').textContent = formatCountdown(left);
+      const total = Math.floor(left / 1000);
+      $('vtH').textContent = pad2(Math.floor(total / 3600));
+      $('vtM').textContent = pad2(Math.floor((total % 3600) / 60));
+      $('vtS').textContent = pad2(total % 60);
+      $('verifyProgressBar').style.width = Math.max(0, Math.min(100, (left / VERIFY_WINDOW_MS) * 100)) + '%';
+      banner.classList.toggle('urgent', left < VERIFY_URGENT_MS);
     };
     tick();
     verifyTimer = setInterval(tick, 1000);
   }
+  // Brief green "verified" confirmation, then the banner slides away for good.
+  function showVerifiedThenHide() {
+    if (verifyTimer) { clearInterval(verifyTimer); verifyTimer = null; }
+    const b = $('verifyBanner');
+    b.classList.remove('urgent');
+    b.classList.add('verified');
+    b.querySelector('.verify-inner').style.display = 'none';
+    $('verifyProgress').style.display = 'none';
+    $('verifyError').style.display = 'none';
+    $('verifySuccess').style.display = 'flex';
+    verifyHideTimers.push(setTimeout(() => {
+      b.classList.add('closing');
+      verifyHideTimers.push(setTimeout(stopVerifyCountdown, 450));
+    }, 2600));
+  }
   $('verifyCodeBtn').addEventListener('click', async () => {
     const errEl = $('verifyError');
+    const btn = $('verifyCodeBtn');
     errEl.style.display = 'none';
-    const code = $('verifyCodeInput').value.trim();
-    if (!code) { errEl.textContent = 'Please enter your 6-digit code.'; errEl.style.display = 'block'; return; }
+    const code = verifyOtp.get();
+    if (code.length < 6) { errEl.textContent = 'Please enter all 6 digits of your code.'; errEl.style.display = 'block'; verifyOtp.shake(); return; }
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Verifying...';
     try {
       const data = await api('/api/customers/me/verify', { method: 'POST', body: JSON.stringify({ code }) });
       customer = data.customer;
-      stopVerifyCountdown(); // verified - banner and timer gone for good
+      showVerifiedThenHide(); // verified - the timer stops and the banner closes for good
     } catch (e) {
+      // Clear the boxes FIRST: clearing fires onChange, which hides the error
+      // (so the message disappears as soon as the customer starts retyping) -
+      // showing the error before the clear made it vanish instantly.
+      verifyOtp.clear(); verifyOtp.shake(); verifyOtp.focus();
       errEl.textContent = e.message;
       errEl.style.display = 'block';
+    } finally {
+      btn.textContent = label;
+      btn.disabled = verifyOtp.get().length < 6;
     }
   });
 
