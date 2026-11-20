@@ -1005,8 +1005,16 @@ function priceSummary(p) {
         <div style="display:flex; flex-direction:column; gap:6px;">
           <a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>
           <button class="btn btn-navy regen-btn">New code</button>
+          <button class="btn btn-red delete-ver-btn">Delete</button>
         </div>
       `;
+      row.querySelector('.delete-ver-btn').addEventListener('click', async () => {
+        if (!confirm(`Delete ${c.name || 'this customer'}? Deletion starts a mandatory 48-hour cool-off. After 48 hours, confirm the final delete from the Customers tab (you can cancel there any time).`)) return;
+        try {
+          await api(`/api/admin/customers/${c.id}/schedule-delete`, { method: 'PUT' });
+          alert('Deletion scheduled. Confirm the final delete from the Customers tab after 48 hours.');
+        } catch (e) { alert(e.message); }
+      });
       row.querySelector('.regen-btn').addEventListener('click', async () => {
         if (!confirm(`Generate a new code for ${c.name || 'this customer'}? The old code stops working and they get a fresh 30 hours.`)) return;
         try { await api(`/api/admin/customers/${c.id}/regenerate-code`, { method: 'POST' }); loadVerifications(); } catch (e) { alert(e.message); }

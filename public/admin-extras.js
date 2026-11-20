@@ -34,6 +34,26 @@
     new MutationObserver(apply).observe(box, { childList: true });
   });
 
+
+  // Order History: export all confirmed/cancelled orders to a CSV file (Excel-friendly)
+  const hb = document.getElementById('historyList');
+  if (hb) {
+    const bar = hb.previousElementSibling, btn = document.createElement('button');
+    btn.className = 'btn btn-ghost'; btn.textContent = 'Export CSV';
+    btn.addEventListener('click', async () => {
+      try {
+        const d = await get('/api/admin/orders/history');
+        const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        const lines = [['Order ID', 'Date', 'Customer', 'Status', 'Items', 'Total'].join(',')];
+        (d.orders || []).forEach((o) => lines.push([o.id, day(o.order_date), o.customer_name, o.status, (o.items || []).map((i) => i.product_name + ' x ' + (i.confirmed_quantity != null ? i.confirmed_quantity : i.quantity)).join('; '), o.status === 'cancelled' ? 0 : bill(o)].map(q).join(',')));
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+        a.download = 'iqbal-trader-orders-' + day(new Date()) + '.csv'; a.click();
+      } catch (e) { alert('Could not export orders.'); }
+    });
+    if (bar) bar.appendChild(btn);
+  }
+
   // Dashboard analytics from real orders / products
   const anchor = document.getElementById('dashTopProducts'); if (!anchor) return;
   const wrap = document.createElement('div'); wrap.className = 'dash-extra';
