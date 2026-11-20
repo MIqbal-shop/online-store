@@ -6,6 +6,19 @@ const { sendWhatsAppMessage } = require('../whatsapp');
 const { confirmOrder, cancelOrder, setReview, clearReview } = require('../orderLogic');
 const { uploadImage } = require('../storage');
 
+// Admin login ID = email or WhatsApp number (stored in the existing "username" column).
+function normalizeLoginId(v) {
+  v = String(v || '').trim();
+  if (v.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v.toLowerCase() : null;
+  let d = v.replace(/[\s\-()+]/g, '');
+  if (!/^\d{10,15}$/.test(d)) return null;
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('0')) d = '92' + d.slice(1);
+  else if (d.length === 10 && d.startsWith('3')) d = '92' + d;
+  return d;
+}
+const LOGIN_ID_ERR = 'Sahi email ya WhatsApp number likhein (jaise 03XXXXXXXXX).';
+
 // GET /api/admin/setup-status - the admin panel checks this first to decide
 // whether to show "create your account" or the normal login form.
 router.get('/setup-status', async (req, res, next) => {
@@ -20,8 +33,10 @@ router.get('/setup-status', async (req, res, next) => {
 router.post('/setup', async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password || password.length < 6) {
-      return res.status(400).json({ error: 'Username aur kam se kam 6 characters ka password zaroori hai.' });
+    const loginId = normalizeLoginId(username);
+    if (!loginId) return res.status(400).json({ error: LOGIN_ID_ERR });
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Kam se kam 6 characters ka password zaroori hai.' });
     }
     const existing = await pool.query('SELECT id FROM admin_auth WHERE id=1');
     if (existing.rows.length > 0) {
@@ -32,7 +47,7 @@ router.post('/setup', async (req, res, next) => {
     const apiKey = makeApiKey();
     await pool.query(
       'INSERT INTO admin_auth (id, username, password_hash, password_salt, api_key) VALUES (1,$1,$2,$3,$4)',
-      [username.trim(), hash, salt, apiKey]
+      [loginId, hash, salt, apiKey]
     );
     const token = await createSession('admin');
     res.json({ token });
@@ -44,8 +59,10 @@ router.post('/login', async (req, res, next) => {
     const { username, password } = req.body;
     const { rows } = await pool.query('SELECT * FROM admin_auth WHERE id=1');
     const account = rows[0];
-    if (!account || account.username !== (username || '').trim() || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
-      return res.status(401).json({ error: 'Username ya password ghalat hai.' });
+    const raw = (username || '').trim();
+    const norm = normalizeLoginId(raw);
+    if (!account || (account.username !== raw && account.username !== norm) || !verifyPassword(password || '', account.password_hash, account.password_salt)) {
+      return res.status(401).json({ error: 'Email/WhatsApp number ya password ghalat hai.' });
     }
     const token = await createSession('admin');
     res.json({ token });
@@ -58,6 +75,28 @@ router.post('/logout', async (req, res) => {
 });
 
 router.use(requireAdmin);
+
+// GET/PUT /api/admin/login-id - view or change the email/WhatsApp number used to log in.
+router.get('/login-id', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT username FROM admin_auth WHERE id=1');
+    res.json({ login_id: rows[0] ? rows[0].username : '' });
+  } catch (err) { next(err); }
+});
+router.put('/login-id', async (req, res, next) => {
+  try {
+    const { login_id, current_password } = req.body;
+    const loginId = normalizeLoginId(login_id);
+    if (!loginId) return res.status(400).json({ error: LOGIN_ID_ERR });
+    const { rows } = await pool.query('SELECT * FROM admin_auth WHERE id=1');
+    const account = rows[0];
+    if (!account || !verifyPassword(current_password || '', account.password_hash, account.password_salt)) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+    await pool.query('UPDATE admin_auth SET username=$1 WHERE id=1', [loginId]);
+    res.json({ ok: true, login_id: loginId });
+  } catch (err) { next(err); }
+});
 
 // PUT /api/admin/password - change the admin's own login password.
 // Requires the current password so a stolen/left-open session can't be
