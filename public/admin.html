@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin - Online Store</title>
 <link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="admin-theme.css" />
 </head>
 <body>
 
@@ -13,7 +14,7 @@
   <div class="card admin-login-card">
     <h2 id="loginTitle" style="margin-top:0;">Login</h2>
     <p id="loginSubtitle" style="color:var(--ink-soft); font-size:13px; margin-top:-8px;">Access your admin account.</p>
-    <div class="field"><label>Username</label><input id="loginUsername" /></div>
+    <div class="field"><label>Email or WhatsApp number</label><input id="loginUsername" autocomplete="username" placeholder="name@email.com or 03XXXXXXXXX" /></div>
     <div class="field"><label>Password</label><input id="loginPassword" type="password" /></div>
     <div class="field" id="confirmPwField" style="display:none;"><label>Confirm Password</label><input id="loginPasswordConfirm" type="password" /></div>
     <p id="loginError" class="error-text" style="display:none;"></p>
@@ -222,6 +223,14 @@
     <div id="tab-account" style="display:none;">
       <h2>Account</h2>
       <p style="color:var(--ink-soft); font-size:13.5px;">Change the password you use to log in to this admin panel.</p>
+      <div class="card" style="padding:16px; margin-top:12px; max-width:380px;">
+        <div class="field"><label>Login ID (Email or WhatsApp number)</label><input id="a_loginId" placeholder="name@email.com or 03XXXXXXXXX" /></div>
+        <div class="field pw-field"><label>Current password</label><input id="a_loginIdPw" type="password" /></div>
+        <p id="loginIdError" class="error-text" style="display:none;"></p>
+        <p id="loginIdMsg" style="font-size:12.5px; color:var(--green); margin-top:8px; display:none;">Login ID updated.</p>
+        <button class="btn btn-navy" id="saveLoginIdBtn">Update login ID</button>
+      </div>
+      <p style="color:var(--ink-soft); font-size:13.5px; margin-top:22px;">Change password</p>
       <div class="card" style="padding:16px; margin-top:12px; max-width:380px;">
         <div class="field pw-field"><label>Current password</label><input id="a_current" type="password" /></div>
         <div class="field pw-field"><label>New password</label><input id="a_new" type="password" placeholder="At least 6 characters" /></div>

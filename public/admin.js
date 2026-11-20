@@ -878,6 +878,21 @@ function priceSummary(p) {
     }
   });
 
+  // ---- Account: login ID (email or WhatsApp number) ----
+  const acctTabBtn = document.querySelector('[data-tab="account"]');
+  if (acctTabBtn) acctTabBtn.addEventListener('click', async () => {
+    try { const d = await api('/api/admin/login-id'); $('a_loginId').value = d.login_id || ''; } catch {}
+  });
+  $('saveLoginIdBtn').addEventListener('click', async () => {
+    const errEl = $('loginIdError'); const msgEl = $('loginIdMsg');
+    errEl.style.display = 'none'; msgEl.style.display = 'none';
+    try {
+      const d = await api('/api/admin/login-id', { method: 'PUT', body: JSON.stringify({ login_id: $('a_loginId').value, current_password: $('a_loginIdPw').value }) });
+      $('a_loginId').value = d.login_id; $('a_loginIdPw').value = '';
+      msgEl.style.display = 'block';
+    } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+  });
+
   // ---- Stock Alerts ("notify me when back in stock") ----
   async function loadStockAlerts() {
     try {

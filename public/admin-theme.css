@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+/* Admin-only theme. Loaded after style.css by admin.html only; the storefront is untouched. */
+:root { --ink:#0d0c0b; --ink-2:#151412; --paper:#ece6d8; --paper-dim:#a79f8e; --gold:#c9a45c; --gold-dark:#a8863f; --line:rgba(201,164,92,.16); --radius:14px; }
+body { background:#0b0a09; font-family:'Inter',sans-serif; color:var(--paper); -webkit-font-smoothing:antialiased; }
+h2,h3,.admin-main h2,.admin-side .name { font-family:'Cormorant Garamond',serif !important; text-transform:none !important; letter-spacing:.2px; font-weight:600; }
+.admin-main h2 { font-size:34px; margin:0 0 20px; padding-bottom:12px; border-bottom:1px solid var(--line); position:relative; }
+.admin-main h2::after { content:''; position:absolute; left:0; bottom:-1px; width:56px; height:2px; background:linear-gradient(90deg,var(--gold),transparent); }
+.admin-main h3 { font-size:22px; color:var(--paper); }
+.admin-main { padding:34px 44px; background:radial-gradient(900px 400px at 85% -10%,rgba(201,164,92,.07),transparent 60%); }
+/* Sidebar */
+.admin-side { background:linear-gradient(180deg,#12100e,#0d0c0b); border-right:1px solid var(--line); padding:26px 14px; }
+.admin-side .name { font-size:24px; color:var(--gold); }
+.collapse-btn { background:transparent; border-color:var(--line); color:var(--gold); }
+.admin-tab { color:var(--paper-dim); font-weight:500; font-size:13.5px; border-radius:10px; transition:all .18s ease; border-left:2px solid transparent; }
+.admin-tab .ico { filter:grayscale(.6) opacity(.85); font-size:15px; }
+.admin-tab:hover { background:rgba(201,164,92,.07); color:var(--paper); }
+.admin-tab.active { background:linear-gradient(90deg,rgba(201,164,92,.16),rgba(201,164,92,.03)); color:var(--gold); border-left-color:var(--gold); border-radius:4px 10px 10px 4px; }
+.admin-tab.active .ico { filter:none; }
+.tab-badge { background:var(--gold); color:#17120a; }
+.logout-tab { color:#d98a7c; border-top:1px solid var(--line); border-radius:0; padding-top:16px; }
+/* Cards */
+.card,.dash-card,.order-card { background:linear-gradient(180deg,#171512,#12110f); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.35); }
+.dash-card { position:relative; overflow:hidden; padding:22px; transition:transform .2s ease,border-color .2s ease; }
+.dash-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(var(--gold),transparent); }
+.dash-card:hover { transform:translateY(-2px); border-color:rgba(201,164,92,.4); }
+.dash-card .num { font-family:'Cormorant Garamond',serif; font-size:40px; font-weight:700; color:var(--gold); line-height:1; }
+.dash-card .label { text-transform:uppercase; letter-spacing:.12em; font-size:11px; color:var(--paper-dim); margin-top:10px; }
+/* Period filter */
+.period-filter { background:#12110f; border:1px solid var(--line); border-radius:12px; }
+.period-tabs { background:rgba(255,255,255,.03); }
+.period-tab { color:var(--paper-dim); font-weight:600; }
+.period-tab.active { background:linear-gradient(135deg,#d8b46d,#b8934b); color:#1a1408; }
+/* Forms + buttons */
+input,select,textarea { background:#0f0e0c !important; border:1px solid rgba(201,164,92,.18) !important; color:var(--paper); border-radius:10px; transition:border-color .15s,box-shadow .15s; }
+input:focus,select:focus,textarea:focus { border-color:var(--gold) !important; box-shadow:0 0 0 3px rgba(201,164,92,.14); outline:none; }
+.field label { text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:var(--paper-dim); font-weight:600; }
+.btn { border-radius:10px; font-weight:600; letter-spacing:.03em; transition:all .18s ease; }
+.btn-navy,.btn-gold { background:linear-gradient(135deg,#d8b46d,#b8934b); color:#1a1408; box-shadow:0 6px 18px rgba(201,164,92,.22); }
+.btn-navy:hover,.btn-gold:hover { background:linear-gradient(135deg,#e2c07a,#c29c52); transform:translateY(-1px); }
+.btn-ghost,.btn-outline { border:1px solid var(--line); color:var(--paper); background:transparent; }
+.btn-ghost:hover,.btn-outline:hover { border-color:var(--gold); color:var(--gold); }
+.btn-red,.btn-danger { background:rgba(200,90,75,.12); color:#e29a8d; border:1px solid rgba(200,90,75,.25); }
+.pill-status,.pill-adjusted,.pill-review,.pill-sent,.pill-not-sent { letter-spacing:.08em; }
+.admin-row { border-bottom:1px solid var(--line); }
+/* Login */
+.admin-login-wrap { background:radial-gradient(700px 420px at 50% 0%,rgba(201,164,92,.12),transparent 65%),#0b0a09; }
+.admin-login-wrap::before { display:none; }
+.admin-login-card { max-width:410px; padding:44px 36px; border:1px solid rgba(201,164,92,.28); box-shadow:0 30px 80px rgba(0,0,0,.6); text-align:center; }
+.admin-login-card::before { content:'IQBAL TRADER'; display:block; font-family:'Cormorant Garamond',serif; font-size:13px; letter-spacing:.42em; color:var(--gold); margin-bottom:18px; }
+.admin-login-card h2 { font-size:34px; margin-bottom:6px; }
+.admin-login-card .field { text-align:left; }
+.admin-login-card .btn { padding:13px; margin-top:6px; }
+::-webkit-scrollbar { width:10px; height:10px; } ::-webkit-scrollbar-thumb { background:#2a261f; border-radius:8px; }
+@media (max-width:860px){ .admin-main{padding:22px 16px 90px;} .admin-main h2{font-size:28px;} .admin-tab.active{border-left-color:transparent;border-bottom:2px solid var(--gold);border-radius:8px;} }
