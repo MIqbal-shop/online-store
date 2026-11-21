@@ -10,6 +10,7 @@ const router = express.Router();
 const ready = pool.query(`
   CREATE TABLE IF NOT EXISTS sm_accounts (id INTEGER PRIMARY KEY, name TEXT, username TEXT UNIQUE, password_hash TEXT, password_salt TEXT);
   CREATE TABLE IF NOT EXISTS sm_snapshot (salesman_id INTEGER, kind TEXT, data JSONB, updated_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (salesman_id, kind));
+  ALTER TABLE sm_accounts ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'salesman';
   CREATE TABLE IF NOT EXISTS sm_outbox (id SERIAL PRIMARY KEY, salesman_id INTEGER, type TEXT, payload JSONB, client_ref TEXT UNIQUE, status TEXT DEFAULT 'new', result JSONB, created_at TIMESTAMP DEFAULT NOW());
 `).catch((e) => console.error('sm tables:', e.message));
 
@@ -51,8 +52,9 @@ router.post('/login', async (req, res, next) => {
       return x.length === y.length && crypto.timingSafeEqual(x, y);
     })();
     if (!ok) { t.push(Date.now()); tries.set(key, t); return res.status(401).json({ error: 'Username ya password ghalat hai.' }); }
-    const p = Buffer.from(JSON.stringify({ id: a.id, exp: Date.now() + 30 * 864e5 })).toString('base64url');
-    res.json({ token: sign(p, await apiKey()), name: a.name });
+    const role = a.role === 'manager' ? 'manager' : 'salesman';
+    const p = Buffer.from(JSON.stringify({ id: a.id, role, exp: Date.now() + 30 * 864e5 })).toString('base64url');
+    res.json({ token: sign(p, await apiKey()), name: a.name, role });
   } catch (e) { next(e); }
 });
 
@@ -69,7 +71,8 @@ router.get('/me/data', smAuth, async (req, res, next) => {
 router.post('/submit', smAuth, async (req, res, next) => {
   try {
     const { type, payload, client_ref } = req.body;
-    if (!['sale', 'request', 'payment'].includes(type) || !payload || !client_ref) return res.status(400).json({ error: 'Galat data.' });
+    const allowed = req.sm.role === 'manager' ? ['confirm_sale', 'reject_sale', 'req_approve', 'req_reject', 'm_customer', 'm_payment', 'm_sale'] : ['sale', 'request', 'payment'];
+    if (!allowed.includes(type) || !payload || !client_ref) return res.status(400).json({ error: 'Galat data.' });
     await pool.query('INSERT INTO sm_outbox (salesman_id, type, payload, client_ref) VALUES ($1,$2,$3,$4) ON CONFLICT (client_ref) DO NOTHING', [req.sm.id, type, payload, String(client_ref)]);
     res.json({ ok: true });
   } catch (e) { next(e); }
@@ -80,8 +83,8 @@ router.post('/feed/sync', feedAuth, async (req, res, next) => {
   try {
     const { accounts = [], snapshots = [] } = req.body;
     for (const a of accounts) {
-      await pool.query(`INSERT INTO sm_accounts (id, name, username, password_hash, password_salt) VALUES ($1,$2,$3,$4,$5)
-        ON CONFLICT (id) DO UPDATE SET name=$2, username=$3, password_hash=$4, password_salt=$5`, [a.id, a.name, a.username, a.password_hash, a.password_salt]);
+      await pool.query(`INSERT INTO sm_accounts (id, name, username, password_hash, password_salt, role) VALUES ($1,$2,$3,$4,$5,$6)
+        ON CONFLICT (id) DO UPDATE SET name=$2, username=$3, password_hash=$4, password_salt=$5, role=$6`, [a.id, a.name, a.username, a.password_hash, a.password_salt, a.role === 'manager' ? 'manager' : 'salesman']);
     }
     await pool.query('DELETE FROM sm_accounts WHERE NOT (id = ANY($1::int[]))', [accounts.map((a) => a.id)]);
     for (const s of snapshots) {
