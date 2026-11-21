@@ -31,6 +31,7 @@ app.use('/api', require('./routes/public'));
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/orders/feed', require('./routes/feed'));
+app.use('/api/salesman', require('./routes/salesman'));
 
 // The customer storefront (public/index.html) and the owner's admin panel
 // (public/admin.html) - plain HTML/CSS/JS, no build step, so deploying this
