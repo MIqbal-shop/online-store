@@ -65,7 +65,7 @@ router.get('/me/data', smAuth, async (req, res, next) => {
     const { rows } = await pool.query('SELECT kind, data, updated_at FROM sm_snapshot WHERE salesman_id IN ($1, 0)', [req.sm.id]);
     const out = {};
     rows.forEach((r) => { out[r.kind] = { data: r.data, updated_at: r.updated_at }; });
-    const ob = await pool.query('SELECT id, type, payload, status, result, created_at FROM sm_outbox WHERE salesman_id=$1 ORDER BY id DESC LIMIT 40', [req.sm.id]);
+    const ob = await pool.query("SELECT id, type, payload, status, CASE WHEN type='report' THEN NULL ELSE result END AS result, created_at FROM sm_outbox WHERE salesman_id=$1 ORDER BY id DESC LIMIT 40", [req.sm.id]);
     res.json({ kinds: out, outbox: ob.rows });
   } catch (e) { next(e); }
 });
@@ -73,10 +73,32 @@ router.get('/me/data', smAuth, async (req, res, next) => {
 router.post('/submit', smAuth, async (req, res, next) => {
   try {
     const { type, payload, client_ref } = req.body;
-    const allowed = req.sm.role === 'manager' ? ['confirm_sale', 'reject_sale', 'req_approve', 'req_reject', 'm_customer', 'm_payment', 'm_sale'] : ['sale', 'request', 'payment'];
+    const allowed = req.sm.role === 'manager' ? ['confirm_sale', 'reject_sale', 'req_approve', 'req_reject', 'm_customer', 'm_payment', 'm_sale', 'm_return', 'report'] : ['sale', 'request', 'payment'];
     if (!allowed.includes(type) || !payload || !client_ref) return res.status(400).json({ error: 'Galat data.' });
-    await pool.query('INSERT INTO sm_outbox (salesman_id, type, payload, client_ref) VALUES ($1,$2,$3,$4) ON CONFLICT (client_ref) DO NOTHING', [req.sm.id, type, payload, String(client_ref)]);
-    res.json({ ok: true });
+    if (type === 'report') await pool.query("DELETE FROM sm_outbox WHERE type='report' AND created_at < NOW() - INTERVAL '1 hour'");
+    const ins = await pool.query('INSERT INTO sm_outbox (salesman_id, type, payload, client_ref) VALUES ($1,$2,$3,$4) ON CONFLICT (client_ref) DO NOTHING RETURNING id', [req.sm.id, type, payload, String(client_ref)]);
+    res.json({ ok: true, id: ins.rows[0] && ins.rows[0].id });
+  } catch (e) { next(e); }
+});
+
+// Result of a report the manager asked for (the DMS runs it and sends it back).
+router.get('/result/:id', smAuth, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT status, result FROM sm_outbox WHERE id=$1 AND salesman_id=$2', [Number(req.params.id) || 0, req.sm.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Nahi mila.' });
+    res.json(rows[0]);
+  } catch (e) { next(e); }
+});
+
+// Manager only: customers who signed up on the website and have not yet entered
+// their phone-verification code (same list the DMS Verifications page shows).
+// Read straight from this site's own database, so it works with the laptop off.
+router.get('/m/verifications', smAuth, async (req, res, next) => {
+  try {
+    if (req.sm.role !== 'manager') return res.status(403).json({ error: 'Sirf Manager ke liye.' });
+    const { rows } = await pool.query(`SELECT id, name, shop_name, whatsapp, phone, verification_code, verification_expires_at,
+      (verification_expires_at < NOW()) AS expired FROM customers WHERE verified = FALSE AND verification_code IS NOT NULL ORDER BY id DESC`);
+    res.json({ customers: rows });
   } catch (e) { next(e); }
 });
 
