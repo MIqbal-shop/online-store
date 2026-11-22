@@ -62,7 +62,7 @@ router.post('/login', async (req, res, next) => {
 
 router.get('/me/data', smAuth, async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT kind, data, updated_at FROM sm_snapshot WHERE salesman_id IN ($1, 0)', [req.sm.id]);
+    const { rows } = await pool.query('SELECT kind, data, updated_at FROM sm_snapshot WHERE salesman_id IN ($1, 0) AND kind <> \'biz\'', [req.sm.id]);
     const out = {};
     rows.forEach((r) => { out[r.kind] = { data: r.data, updated_at: r.updated_at }; });
     const ob = await pool.query("SELECT id, type, payload, status, CASE WHEN type='report' THEN NULL ELSE result END AS result, created_at FROM sm_outbox WHERE salesman_id=$1 ORDER BY id DESC LIMIT 40", [req.sm.id]);
@@ -78,6 +78,14 @@ router.post('/submit', smAuth, async (req, res, next) => {
     if (type === 'report') await pool.query("DELETE FROM sm_outbox WHERE type='report' AND created_at < NOW() - INTERVAL '1 hour'");
     const ins = await pool.query('INSERT INTO sm_outbox (salesman_id, type, payload, client_ref) VALUES ($1,$2,$3,$4) ON CONFLICT (client_ref) DO NOTHING RETURNING id', [req.sm.id, type, payload, String(client_ref)]);
     res.json({ ok: true, id: ins.rows[0] && ins.rows[0].id });
+  } catch (e) { next(e); }
+});
+
+// Business name + logo for the PDF letterhead (kept out of /me/data because the logo is large).
+router.get('/biz', smAuth, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query("SELECT data FROM sm_snapshot WHERE salesman_id=0 AND kind='biz'");
+    res.json(rows[0] ? rows[0].data : {});
   } catch (e) { next(e); }
 });
 
