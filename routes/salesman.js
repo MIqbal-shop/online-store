@@ -53,6 +53,8 @@ router.post('/login', async (req, res, next) => {
     })();
     if (!ok) { t.push(Date.now()); tries.set(key, t); return res.status(401).json({ error: 'Username ya password ghalat hai.' }); }
     const role = a.role === 'manager' ? 'manager' : 'salesman';
+    const want = req.body.role === 'manager' ? 'manager' : req.body.role === 'salesman' ? 'salesman' : null;
+    if (want && want !== role) return res.status(403).json({ error: role === 'manager' ? 'Yeh Manager ka account hai. Wapas ja kar "Manager" chunein.' : 'Yeh Salesman ka account hai. Wapas ja kar "Salesman" chunein.' });
     const p = Buffer.from(JSON.stringify({ id: a.id, role, exp: Date.now() + 30 * 864e5 })).toString('base64url');
     res.json({ token: sign(p, await apiKey()), name: a.name, role });
   } catch (e) { next(e); }
