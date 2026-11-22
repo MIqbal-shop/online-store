@@ -34,6 +34,12 @@ button.s{background:var(--in);border:1px solid var(--line);color:var(--txt);bord
 #toast{position:fixed;left:14px;right:14px;bottom:20px;z-index:99}#toast div{background:#111827;color:#fff;border-radius:12px;padding:12px 16px;margin-top:8px}
 .pk{position:relative}.pkl{display:none;position:absolute;left:0;right:0;top:calc(100% - 10px);z-index:15;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 34px rgba(0,0,0,.2);max-height:min(300px,45vh);overflow-y:auto}.pkl.show{display:block}.pkl div{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}.pkl div:last-child{border:0}.pkl div:active{background:var(--in)}.pkl b{display:block;font-size:14px}.pkl small{color:var(--dim);font-size:12px}
 .sk{padding:13px 0;border-bottom:1px solid var(--line)}.sk:last-child{border:0}.sk b{font-size:15px}.sk .m{color:var(--dim);font-size:12.5px;margin-top:2px}.sk .f{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}.chip{background:#EEF2FF;color:#4338CA;font-weight:700;border-radius:10px;padding:5px 11px;font-size:13px}.chip.out{background:#FFE4E6;color:var(--bad)}body.dark .chip{background:#26295A;color:#C7D2FE}.sk .pr{font-size:13px;color:var(--dim)}
+.lg{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 22px;background:radial-gradient(600px 380px at 85% -5%,rgba(99,102,241,.38),transparent 60%),radial-gradient(500px 320px at -10% 105%,rgba(14,165,233,.22),transparent 60%),linear-gradient(180deg,#0B1020,#14172E);color:#E5E7EB}.lg>*{max-width:420px;width:100%;margin-left:auto;margin-right:auto}
+.lgb{text-align:center;margin-bottom:26px}.lgb img{width:76px;height:76px;border-radius:22px;box-shadow:0 12px 34px rgba(99,102,241,.45)}.lgt{font-weight:800;letter-spacing:.28em;margin-top:14px;font-size:17px;color:#fff}.lgs{color:#9CA3AF;font-size:13px;margin-top:4px}.lgq{text-align:center;color:#CBD5E1;margin-bottom:14px}
+.rc{display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:12px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:.2s}.rc:hover,.rc:active{background:rgba(99,102,241,.25);border-color:#6366F1}
+.ri{width:52px;height:52px;border-radius:15px;background:linear-gradient(135deg,#6366F1,#4F46E5);display:grid;place-items:center;font-size:25px;flex-shrink:0}.rc b{display:block;font-size:16px;color:#fff}.rc small{color:#9CA3AF;font-size:12.5px}.ra{margin-left:auto;font-size:26px;color:#6B7280}
+.lgf{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px}.lgf h2{margin:8px 0 14px;color:#fff;font-size:21px}.lgf label{color:#9CA3AF}.lgf input{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:#fff}
+.bk{color:#A5B4FC;cursor:pointer;font-size:14px}.pw{position:relative}.pw a{position:absolute;right:14px;top:13px;color:#A5B4FC;font-size:13px;cursor:pointer}.lgf .err{color:#FDA4AF}
 .login{max-width:380px;margin:12vh auto;padding:0 20px}.login img{width:64px;height:64px;border-radius:18px;display:block;margin:0 auto 14px}
 @media(min-width:900px){.side{transform:none}.ov{display:none!important}.top button{display:none}.shell{margin-left:270px}.g{grid-template-columns:repeat(3,1fr)}.g3{grid-template-columns:repeat(4,1fr)}.it .gr{grid-template-columns:repeat(4,1fr)}}
 </style></head><body>
@@ -120,8 +126,20 @@ const MNAV=[['mpending','⏳','Pending Sales'],['sale','🧾','Nayi Sale'],['mre
 const isMgr=()=>localStorage.getItem('sm_role')==='manager',navList=()=>isMgr()?MNAV:NAV;
 const submit=(type,payload)=>api('/submit',{method:'POST',body:JSON.stringify({type,payload,client_ref:crypto.randomUUID()})});
 const NAV=[['overview','📊','Overview'],['sale','🧾','Nayi Sale'],['pending','⏳','Pending Sales'],['sales','💰','Meri Sales'],['recovery','💵','Recovery'],['expenses','💸','Mere Expenses'],['stock','📦','Stock'],['requests','📕','Requests']];
-function loginView(){app.innerHTML=`<div class="login"><img src="/salesman-192.png"><h1 style="text-align:center">Login</h1><div class="card"><label>Username</label><input id="u" autocomplete="username"><label>Password</label><input id="p" type="password" autocomplete="current-password"><div class="err" id="e"></div><button class="p full" id="go">Login</button></div></div>`;
- $('#go').onclick=async()=>{try{const d=await api('/login',{method:'POST',body:JSON.stringify({username:$('#u').value,password:$('#p').value})});tok=d.token;localStorage.setItem('sm_tok',tok);localStorage.setItem('sm_name',d.name);localStorage.setItem('sm_role',d.role||'salesman');tab=d.role==='manager'?'mpending':'overview';await load();draw()}catch(e){$('#e').textContent=e.message}}}
+let LR=null;
+function loginView(){
+ const R={salesman:['🚚','Salesman','Sale, recovery, stock aur apni sales'],manager:['📋','Manager','Approvals, sale, recovery aur customers']};
+ const form=()=>`<div class="lgf"><a class="bk" id="bk">‹ Wapas</a><h2>${LR==='manager'?'Manager':'Salesman'} Login</h2><label>Username</label><input id="u" autocomplete="username" autocapitalize="none" value="${esc(localStorage.getItem('sm_user_'+LR)||'')}"><label>Password</label><div class="pw"><input id="p" type="password" autocomplete="current-password"><a id="sh">Show</a></div><div class="err" id="e"></div><button class="p full" id="go">Login</button></div>`;
+ app.innerHTML=`<div class="lg"><div class="lgb"><img src="/salesman-192.png"><div class="lgt">IQBAL TRADER</div><div class="lgs">Distribution Management System</div></div>${LR?form():`<div class="lgq">Aap kis ke taur par login karna chahte hain?</div>${Object.entries(R).map(([k,v])=>`<a class="rc" data-r="${k}"><span class="ri">${v[0]}</span><span><b>${v[1]}</b><small>${v[2]}</small></span><span class="ra">›</span></a>`).join('')}`}</div>`;
+ document.querySelectorAll('.rc').forEach(a=>a.onclick=()=>{LR=a.dataset.r;loginView();$('#u').focus()});
+ if(!LR)return;
+ $('#bk').onclick=()=>{LR=null;loginView()};
+ $('#sh').onclick=()=>{const p=$('#p'),h=p.type==='password';p.type=h?'text':'password';$('#sh').textContent=h?'Hide':'Show'};
+ $('#p').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};
+ $('#go').onclick=async()=>{const b=$('#go');b.disabled=true;b.textContent='Login ho raha hai…';$('#e').textContent='';
+  try{const d=await api('/login',{method:'POST',body:JSON.stringify({username:$('#u').value,password:$('#p').value,role:LR})});
+   tok=d.token;localStorage.setItem('sm_tok',tok);localStorage.setItem('sm_name',d.name);localStorage.setItem('sm_role',d.role||'salesman');localStorage.setItem('sm_user_'+LR,$('#u').value.trim());tab=d.role==='manager'?'mpending':'overview';LR=null;await load();draw()}
+  catch(e){$('#e').textContent=e.message;b.disabled=false;b.textContent='Login'}}}
 function pickCust(){if(S.custId){const c=custSrc().find(x=>x.id===S.custId);if(c)return c}const t=S.cust.trim().toLowerCase(),l=custSrc();let c=l.find(x=>(x.shop_name+(x.phone?' · '+x.phone:'')).toLowerCase()===t);if(!c){const m=l.filter(x=>x.shop_name.toLowerCase().includes(t)||(x.phone||'').includes(t));if(t&&m.length===1)c=m[0]}return c}
 function wire(){
  mgrWire();
