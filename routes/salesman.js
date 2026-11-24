@@ -11,6 +11,7 @@ const ready = pool.query(`
   CREATE TABLE IF NOT EXISTS sm_accounts (id INTEGER PRIMARY KEY, name TEXT, username TEXT UNIQUE, password_hash TEXT, password_salt TEXT);
   CREATE TABLE IF NOT EXISTS sm_snapshot (salesman_id INTEGER, kind TEXT, data JSONB, updated_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (salesman_id, kind));
   ALTER TABLE sm_accounts ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'salesman';
+  CREATE TABLE IF NOT EXISTS sm_db (id INTEGER PRIMARY KEY, sig TEXT, data BYTEA, updated_at TIMESTAMP DEFAULT NOW());
   CREATE TABLE IF NOT EXISTS sm_outbox (id SERIAL PRIMARY KEY, salesman_id INTEGER, type TEXT, payload JSONB, client_ref TEXT UNIQUE, status TEXT DEFAULT 'new', result JSONB, created_at TIMESTAMP DEFAULT NOW());
 `).catch((e) => console.error('sm tables:', e.message));
 
@@ -110,7 +111,34 @@ router.get('/m/verifications', smAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Manager only: the cleaned copy of the DMS data (reports tables, no logins) that the DMS uploads
+// whenever it is open. The phone downloads it and makes Reports / Sales list itself, so they work
+// even when the DMS computer is switched off (the data is as of the DMS's last upload).
+const mgrOnly = (req, res, next) => (req.sm.role === 'manager' ? next() : res.status(403).json({ error: 'Sirf Manager ke liye.' }));
+router.get('/m/db/version', smAuth, mgrOnly, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT sig, updated_at FROM sm_db WHERE id=1');
+    if (!rows[0]) return res.status(404).json({ error: 'Abhi DMS ne data nahi bheja. DMS ek baar chalayein (wo apne aap data bhej deta hai).' });
+    res.json(rows[0]);
+  } catch (e) { next(e); }
+});
+router.get('/m/db', smAuth, mgrOnly, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT data FROM sm_db WHERE id=1');
+    if (!rows[0]) return res.status(404).json({ error: 'Data nahi mila.' });
+    res.set({ 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' }).send(Buffer.from(rows[0].data));
+  } catch (e) { next(e); }
+});
+
 // ---- DMS side (same API key as the order feed) ----
+router.post('/feed/db', feedAuth, express.raw({ type: 'application/octet-stream', limit: '4mb' }), async (req, res, next) => {
+  try {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'Khali data.' });
+    await pool.query(`INSERT INTO sm_db (id, sig, data, updated_at) VALUES (1,$1,$2,NOW())
+      ON CONFLICT (id) DO UPDATE SET sig=$1, data=$2, updated_at=NOW()`, [String(req.headers['x-db-sig'] || ''), req.body]);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
 router.post('/feed/sync', feedAuth, async (req, res, next) => {
   try {
     const { accounts = [], snapshots = [] } = req.body;
