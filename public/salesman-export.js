@@ -521,6 +521,72 @@ async function buildPngBlob(node, meta) {
   return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 }
 
+function salesDetailedSections(payload) {
+  const sections = [{
+    key: 'summary',
+    title: 'Sales Summary',
+    headers: ['Invoice', 'Date', 'Customer', 'Total', 'Profit', 'Received', 'Remaining'],
+    rows: payload.rows.map(r => [r.invoice_number, r.sale_date, r.shop_name, r.total_amount, r.profit, r.received_amount, r.remaining_amount]),
+    moneyCols: [3, 4, 5, 6],
+  }];
+
+  payload.rows.forEach(r => {
+    sections.push({
+      key: `inv_${r.id}`,
+      title: `Invoice ${r.invoice_number || r.id} — ${r.shop_name} (${r.sale_date})`,
+      headers: ['Product', 'Unit', 'Qty', 'Price', 'Discount', 'Total', 'Profit'],
+      rows: (r.items || []).map(it => [it.product_name, it.unit_type, it.quantity, it.selling_price, it.discount, it.total, it.profit]),
+      moneyCols: [3, 4, 5, 6],
+    });
+  });
+
+  if (payload.customerBalances && payload.customerBalances.length) {
+    sections.push({
+      key: 'closing_balance',
+      title: 'Closing Balance — Abhi kitna baaki hai (all-time)',
+      headers: ['Customer', 'Current Balance'],
+      rows: payload.customerBalances.map(c => [c.shop_name, c.balance]),
+      moneyCols: [1],
+      emphasize: true,
+    });
+  }
+
+  return sections;
+}
+
+function purchasesDetailedSections(payload) {
+  const sections = [{
+    key: 'summary',
+    title: 'Purchases Summary',
+    headers: ['Invoice', 'Date', 'Company', 'Total', 'Paid', 'Remaining'],
+    rows: payload.rows.map(r => [r.invoice_number, r.purchase_date, r.company_name, r.total_amount, r.paid_amount, r.remaining_balance]),
+    moneyCols: [3, 4, 5],
+  }];
+
+  payload.rows.forEach(r => {
+    sections.push({
+      key: `inv_${r.id}`,
+      title: `Invoice ${r.invoice_number || r.id} — ${r.company_name} (${r.purchase_date})`,
+      headers: ['Product', 'Qty', 'Rate', 'Discount', 'Total'],
+      rows: (r.items || []).map(it => [it.product_name, it.quantity, it.purchase_rate, it.discount, it.total]),
+      moneyCols: [2, 3, 4],
+    });
+  });
+
+  if (payload.companyBalances && payload.companyBalances.length) {
+    sections.push({
+      key: 'closing_balance',
+      title: 'Closing Balance — Abhi company ka kitna baaki hai (all-time)',
+      headers: ['Company', 'Current Balance'],
+      rows: payload.companyBalances.map(c => [c.company_name, c.balance]),
+      moneyCols: [1],
+      emphasize: true,
+    });
+  }
+
+  return sections;
+}
+
 // Report types that only exist in the app (no DMS page for them) use the same single-table layout.
 function appModel(type, data, meta) {
   const title = (REPORT_TYPES.find(t => t.value === type) || {}).label + ' Report';
@@ -543,7 +609,10 @@ function appModel(type, data, meta) {
 }
 
 // type: DMS report type with underscores, e.g. 'sales', 'customer_monthly', 'my_sales'.
-function buildPdf(type, payload, meta) {
+function buildPdf(type, payload, meta, opts) {
+  if ((type === 'sales' || type === 'purchases') && opts && opts.detailed) { // "Detailed (A to Z)": every invoice with its items, then closing balances
+    return buildSectionedPdfBlob(type === 'sales' ? salesDetailedSections(payload) : purchasesDetailedSections(payload), meta, type === 'sales' ? 'Detailed Sales Report' : 'Detailed Purchases Report');
+  }
   if (type === 'profit') return buildProfitPdfBlob(payload, meta);
   if (type === 'salesman') return buildSalesmanPdfBlob(payload, meta);
   if (type === 'customer_monthly') return buildSectionedPdfBlob(customerMonthlySections(payload), meta, 'Customer Monthly Statement');

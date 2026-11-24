@@ -1,8 +1,9 @@
 /* Service worker for the Salesman/Manager app: lets it open with no internet.
  * Only the app's own files are cached (never the store site or the admin panel),
  * and data is NOT cached here: the app keeps its own saved copy of the data. */
-const V = 'sm-v1';
+const V = 'sm-v2';
 const SHELL = ['/salesman.html', '/salesman-export.js', '/salesman.webmanifest', '/salesman-192.png', '/salesman-512.png', '/salesman-maskable-512.png',
+  '/salesman-engine.js', '/vendor/sql-wasm.js', '/vendor/sql-wasm.wasm', '/vendor/dms-reports.js', '/vendor/dms-round.js',
   '/vendor/jspdf.umd.min.js', '/vendor/jspdf.plugin.autotable.min.js', '/vendor/html2canvas.min.js'];
 
 self.addEventListener('install', (e) => {
