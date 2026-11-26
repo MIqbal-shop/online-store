@@ -1,7 +1,8 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const money = (n) => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-US');
-  let token = localStorage.getItem('admin_token') || '';
+  try { localStorage.removeItem('admin_token'); } catch (e) { /* old saved login from before */ }
+  let token = sessionStorage.getItem('admin_token') || '';
   let needsSetup = false;
 
   function authHeaders() {
@@ -46,7 +47,7 @@
         });
       }
       token = data.token;
-      localStorage.setItem('admin_token', token);
+      sessionStorage.setItem('admin_token', token);
       showAdmin();
     } catch (e) {
       errEl.textContent = e.message;
@@ -57,7 +58,7 @@
   $('logoutBtn').addEventListener('click', async () => {
     try { await api('/api/admin/logout', { method: 'POST' }); } catch {}
     token = '';
-    localStorage.removeItem('admin_token');
+    sessionStorage.removeItem('admin_token');
     location.reload();
   });
 
@@ -1071,8 +1072,13 @@ function priceSummary(p) {
         <div style="display:flex; flex-direction:column; gap:6px;">
           <a class="btn btn-gold whatsapp-btn" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>
           ${!r.sent ? '<button class="btn btn-navy mark-sent-btn">Mark as sent</button>' : ''}
+          <button class="btn btn-red delete-reset-btn">Delete</button>
         </div>
       `;
+      row.querySelector('.delete-reset-btn').addEventListener('click', async () => {
+        if (!confirm(`Delete this password reset request for ${r.customer_name || 'this customer'}? It is removed at once and cannot be brought back.`)) return;
+        try { await api(`/api/admin/password-resets/${r.id}`, { method: 'DELETE' }); loadPasswordResets(); } catch (e) { alert(e.message); }
+      });
       const markBtn = row.querySelector('.mark-sent-btn');
       if (markBtn) markBtn.addEventListener('click', async () => {
         try { await api(`/api/admin/password-resets/${r.id}/sent`, { method: 'PUT' }); loadPasswordResets(); } catch (e) { alert(e.message); }
@@ -1384,7 +1390,7 @@ function priceSummary(p) {
     await checkSetup();
     if (token) {
       try { await api('/api/admin/products'); showAdmin(); }
-      catch { token = ''; localStorage.removeItem('admin_token'); }
+      catch { token = ''; sessionStorage.removeItem('admin_token'); }
     }
   })();
 })();
