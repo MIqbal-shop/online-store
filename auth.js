@@ -28,11 +28,14 @@ function makeApiKey() {
 // making logins randomly "disappear" on the very next request. A shared
 // database table is the only reliable place for this on serverless.
 // ============================================================================
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // customers stay logged in for a long time
+// The admin panel is different: it logs out after 30 minutes without use (each request pushes the
+// deadline forward), so opening the link later always asks for the username and password again.
+const ADMIN_IDLE_MS = 30 * 60 * 1000;
 
 async function createSession(kind, subjectId = null) {
   const token = crypto.randomBytes(24).toString('hex');
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  const expiresAt = new Date(Date.now() + (kind === 'admin' ? ADMIN_IDLE_MS : SESSION_TTL_MS));
   await pool.query('INSERT INTO sessions (token, kind, subject_id, expires_at) VALUES ($1,$2,$3,$4)', [token, kind, subjectId, expiresAt]);
   return token;
 }
@@ -45,6 +48,7 @@ async function getSession(token, kind) {
     await pool.query('DELETE FROM sessions WHERE token=$1', [token]);
     return null;
   }
+  if (kind === 'admin') await pool.query('UPDATE sessions SET expires_at=$2 WHERE token=$1', [token, new Date(Date.now() + ADMIN_IDLE_MS)]);
   return row;
 }
 async function destroySession(token) {
