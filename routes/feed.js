@@ -143,4 +143,37 @@ router.put('/:id/clear-review', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// DELETE /api/orders/feed/verifications/:id - the DMS "Delete" on the Verifications page.
+// Only a customer who has NOT verified yet and has NO orders can be removed this way. Anyone with
+// orders or other history keeps the 48-hour delete process of the admin panel (Customers tab).
+router.delete('/verifications/:id', async (req, res, next) => {
+  try {
+    if (!(await checkApiKey(req))) return res.status(401).json({ error: 'Invalid API key' });
+    const id = Number(req.params.id) || 0;
+    const { rows } = await pool.query('SELECT id, verified FROM customers WHERE id=$1', [id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Customer nahi mila (shayad pehle hi delete ho chuka hai).' });
+    if (rows[0].verified) return res.status(400).json({ error: 'Ye customer verify ho chuka hai, isay yahan se delete nahi kar sakte.' });
+    const o = await pool.query('SELECT COUNT(*)::int AS n FROM orders WHERE customer_id=$1', [id]);
+    if (o.rows[0].n > 0) return res.status(400).json({ error: 'Is customer ke orders hain. Isay website admin ke Customers tab se 48 ghante wale tareeqe se delete karein.' });
+    await pool.query("DELETE FROM sessions WHERE kind='customer' AND subject_id=$1", [id]);
+    await pool.query('DELETE FROM customers WHERE id=$1', [id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/orders/feed/:id - the DMS "Delete" on a cancelled online order. Only cancelled orders.
+// The order is also recorded as deleted so no other copy brings it back.
+router.delete('/:id', async (req, res, next) => {
+  try {
+    if (!(await checkApiKey(req))) return res.status(401).json({ error: 'Invalid API key' });
+    const id = Number(req.params.id) || 0;
+    const { rows } = await pool.query('SELECT id, status FROM orders WHERE id=$1', [id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Order nahi mila.' });
+    if (rows[0].status !== 'cancelled') return res.status(400).json({ error: 'Sirf cancel hue orders delete ho sakte hain.' });
+    await pool.query('INSERT INTO deleted_order_ids (order_id, deleted_at) VALUES ($1, NOW()) ON CONFLICT (order_id) DO NOTHING', [id]);
+    await pool.query('DELETE FROM orders WHERE id=$1', [id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

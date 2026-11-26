@@ -701,4 +701,13 @@ router.put('/password-resets/:id/sent', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// DELETE /api/admin/password-resets/:id - removes the request at once (the page asks "are you sure" first).
+router.delete('/password-resets/:id', async (req, res, next) => {
+  try {
+    const r = await pool.query('DELETE FROM password_resets WHERE id=$1', [req.params.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Request not found.' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
